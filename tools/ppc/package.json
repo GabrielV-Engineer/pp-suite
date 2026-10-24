@@ -2,6 +2,7 @@
   "name": "ppc",
   "version": "0.1.0",
   "private": true,
+  "license": "MIT",
   "description": "PP contract tool: validates a project against the pp-suite contract and generates its derived views.",
   "type": "module",
   "bin": { "ppc": "bin/ppc.mjs" },
