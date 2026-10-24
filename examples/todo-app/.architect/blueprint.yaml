@@ -1,0 +1,86 @@
+contract_version: "0.1"
+revision: 1
+
+project:
+  id: todo-app
+  name: Todo App
+  level: lite
+  summary: A personal task list for one person, used from a web browser.
+
+non_goals:
+  - Multi-user collaboration or sharing
+  - Native mobile apps
+  - Reminders and notifications
+  - Offline sync
+
+constraints:
+  - id: CON-001
+    statement: One person builds and runs it with no infrastructure budget; it must run on a single machine.
+  - id: CON-002
+    statement: Task data stays on the owner's own machine; nothing is sent to third parties.
+
+quality_attributes:
+  - id: QA-001
+    attribute: performance
+    scenario: After creating a task, the list shows it in under 200 ms with up to 1000 tasks stored.
+    metric: p95 latency of create-then-list
+    target: "<= 200 ms"
+  - id: QA-002
+    attribute: maintainability
+    scenario: A change inside one component never requires editing another; dependencies between components are checked automatically.
+    metric: component dependency violations reported by the architecture tests
+    target: "0"
+  - id: QA-003
+    attribute: reliability
+    scenario: After the backend restarts, every task that was confirmed to the user is still there.
+    metric: confirmed tasks lost across a restart
+    target: "0"
+  - id: QA-004
+    attribute: security
+    scenario: User-supplied text is validated and escaped, so it cannot inject markup or SQL.
+    metric: injection findings in the automated tests
+    target: "0"
+
+capabilities:
+  - id: CAP-001
+    name: Create and list tasks
+    description: A person can add a task with a title and see all their tasks in a list.
+    priority: must
+  - id: CAP-002
+    name: Complete tasks
+    description: A person can mark a task as done and see which tasks are still open.
+    priority: must
+  - id: CAP-003
+    name: Edit and delete tasks
+    description: A person can rename a task or remove it permanently.
+    priority: should
+  - id: CAP-004
+    name: Filter tasks by status
+    description: A person can show only open tasks or only completed tasks.
+    priority: could
+
+components:
+  - id: frontend
+    code: FE
+    name: Frontend
+    kind: frontend
+    responsibility: Renders the task list and form, and talks to the backend over HTTP only.
+    may_depend_on: [backend]
+    justified_by: [CAP-001, QA-001]
+  - id: backend
+    code: BE
+    name: Backend
+    kind: backend
+    responsibility: Validates input, applies the task rules and exposes them as an HTTP API.
+    may_depend_on: [database]
+    justified_by: [CAP-001, QA-002, QA-004]
+  - id: database
+    code: DB
+    name: Database
+    kind: database
+    responsibility: Stores tasks durably on the owner's machine.
+    may_depend_on: []
+    justified_by: [QA-003, CON-002]
+
+budgets:
+  max_slice_diff_lines: 200

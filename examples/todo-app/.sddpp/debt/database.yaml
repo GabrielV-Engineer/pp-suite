@@ -1,0 +1,18 @@
+component: database
+entries:
+  - id: DEBT-DB-001
+    title: SQLite allows one writer at a time, which blocks multi-user use
+    description: ADR-0001 chose SQLite knowing it supports one writer at a time per database file. Multi-user collaboration would need a client/server engine.
+    kind: design
+    origin:
+      type: decision
+      ref: ADR-0001
+    created: 2026-10-24
+    proposed_by: human
+    cost_of_delay:
+      level: low
+      rationale: Multi-user collaboration is an explicit non-goal, so the limit has no cost today.
+    trigger: If multi-user collaboration is ever added to the scope.
+    status: accepted
+    approved_by: example-owner
+    accepted_reason: Multi-user use is a non-goal, and migrating a single-owner dataset later is cheap.
