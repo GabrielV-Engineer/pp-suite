@@ -1,0 +1,25 @@
+schema_version: "1.0"
+
+extension:
+  id: "sddpp-cycle"
+  name: "SDD.PP Cycle"
+  version: "0.1.0"
+  description: "Prompts that drive an agent through one slice: red, green and audit, using ppc for every transition."
+  author: "GabrielV-Engineer"
+  repository: "https://github.com/GabrielV-Engineer/pp-suite"
+  license: "MIT"
+
+requires:
+  speckit_version: ">=1.2.0"
+
+provides:
+  commands:
+    - name: "speckit.sddpp-cycle.red"
+      file: "commands/red.md"
+      description: "RED: write the failing tests for the slice in progress, commit them, stop for human approval"
+    - name: "speckit.sddpp-cycle.green"
+      file: "commands/green.md"
+      description: "GREEN: write the least production code that passes the approved tests"
+    - name: "speckit.sddpp-cycle.audit"
+      file: "commands/audit.md"
+      description: "AUDIT: record debt and deviations, then close the slice with ppc finish"

@@ -25,7 +25,7 @@ Status key: **done** has tests in CI · **spiked** tried once by hand, not autom
 | **M1 — One full cycle on the todo app:** design → one slice with red, green and audit | Proves the flow feels right before polishing anything |
 | `check-git` extension: detect commits of a slice that its audit leaves out | The audit lists commits by hand; omissions go unnoticed today |
 | Session-start check that the guard script is present | The dispatcher fails open when the script is missing |
-| SDD.PP agent commands (the prompts that drive an agent through red, green and audit) and the approval gates as a Spec Kit workflow | The `ppc` side of the loop exists; the agent side does not |
+| Approval gates as a Spec Kit workflow, and the agent prompts (`sddpp-cycle`, drafted; exercised in M1) | The `ppc` side of the loop exists and is tested; the agent side is new |
 | Mutation-testing gate in the audit | Catches tests that pass but verify nothing |
 
 ## Later

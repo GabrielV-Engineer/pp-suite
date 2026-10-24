@@ -10,7 +10,7 @@ approving at the key points. It is a set of **Spec Kit** add-ons, not a fork.
 | Test-lock guard (extension) | `extension/sddpp-guard/` | Unit-tested, including its known limitations. Registered into Claude Code through Spec Kit and honored in a manual spike. |
 | Slices preset | `preset/sddpp-slices/` | Template override and command wrap verified by hand. Not run end to end. |
 | Slice cycle transitions (`ppc start`, `approve-red`, `refactor`, `finish`) | `tools/ppc/` | Tested against real temporary git repositories. |
-| Agent prompts that drive a session through red, green and audit | — | planned |
+| Agent prompts for red, green and audit | `extension/sddpp-cycle/` | Drafted. Verified so far: invoked by slash command in a non-interactive session, `ppc status` runs, and with no slice in progress the agent stops and says which command to run. The full cycle is being exercised in M1. |
 | Workflow with approval gates | — | planned |
 
 ## The guard
