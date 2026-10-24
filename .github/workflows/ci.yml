@@ -1,0 +1,37 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: tools/ppc/package-lock.json
+      - name: Install
+        working-directory: tools/ppc
+        run: npm ci
+      - name: Tests (validator, generator, CLI, docs consistency)
+        working-directory: tools/ppc
+        run: npm test
+      - name: The example validates in strict mode
+        run: node tools/ppc/bin/ppc.mjs validate examples/todo-app --strict
+      - name: The example's generated views are current
+        run: node tools/ppc/bin/ppc.mjs generate examples/todo-app --check
+
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test-lock guard unit tests
+        run: python3 -m unittest discover -s sdd-pp/extension/sddpp-guard/tests -v
