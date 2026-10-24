@@ -15,6 +15,9 @@ $ARGUMENTS
 - Write the **least code that makes the tests pass**. Nothing for requirements that are not in this
   slice's acceptance criteria, and nothing from its **Out of scope**. No abstraction for a case that
   does not exist yet.
+- **No behavior that no test asks for**: no extra error branch, default value or option, even if the
+  design describes it. If the design calls for it, say so in your report so the human can ask for a test
+  in a new red phase. Untested code is code that nothing would notice breaking.
 - Respect the component boundaries in `.architect/architecture.md`.
 - No hardcoded values: anything that varies per environment comes from configuration.
 

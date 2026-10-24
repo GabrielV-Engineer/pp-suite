@@ -14,6 +14,11 @@ $ARGUMENTS
   assumed and what you were unsure about.
 - You may **propose** debt (`status: proposed`). Never set `approved_by`: only a human decides.
 - Never provide the diff size. `ppc finish` measures it from git.
+- If `ppc finish` refuses because the slice exceeded the diff budget (`B01`), do **not** write
+  `budget_override_reason` yourself. An exception to the budget is the human's decision. Stop and report
+  the measured size, what it is made of, and the options (record an exception, or split the slice).
+- Say what you verified and what you did not. Run the project's tests and type check before finishing; if
+  a command is refused, write that in the deviations instead of implying it passed.
 
 ## Steps
 

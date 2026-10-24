@@ -52,6 +52,18 @@ test('start keeps the slice body and the other frontmatter fields untouched', (t
   for (const line of ['id: SL-001', 'title: Deployable end-to-end skeleton', 'approved_by: example-owner']) assert.ok(after.includes(line), line);
 });
 
+test('start only changes the lines it means to: flow lists keep their formatting', (t) => {
+  const { dir } = repo(t);
+  const file = '.sddpp/slices/SL-001-deployable-skeleton.md';
+  const before = read(dir, file).split('\n');
+  start(dir, 'SL-001');
+  const after = read(dir, file).split('\n');
+  const removed = before.filter((line) => !after.includes(line));
+  const added = after.filter((line) => !before.includes(line));
+  assert.deepEqual(removed, ['status: ready']);
+  assert.deepEqual(added.sort(), ['phase: red', 'status: in_progress']);
+});
+
 test('start refuses what is not allowed', (t) => {
   const { dir } = repo(t);
   fails(() => start(dir, 'SL-099'), /unknown slice/);

@@ -60,7 +60,8 @@ function editFrontmatter(root, file, mutate) {
   const match = FRONTMATTER.exec(readFileSync(abs, 'utf8'));
   const doc = parseDocument(match[1]);
   mutate(doc);
-  writeFileSync(abs, `---\n${doc.toString({ lineWidth: 0 }).trimEnd()}\n---\n${match[2]}`);
+  // lineWidth 0 stops long values from being re-wrapped; no padding keeps `[a, b]` as the author wrote it.
+  writeFileSync(abs, `---\n${doc.toString({ lineWidth: 0, flowCollectionPadding: false }).trimEnd()}\n---\n${match[2]}`);
 }
 
 function writeActive(root, slice, phase) {

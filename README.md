@@ -8,8 +8,10 @@ Two small frameworks for building software with AI agents without losing control
 
 They talk through one versioned [contract](docs/contract-v0.1.md), and neither imports the other.
 
-> **Status: pre-alpha.** The contract, its validator and the test-lock guard exist and are tested. The
-> end-to-end flow is not built yet. See the [roadmap](ROADMAP.md) for what is real and what is planned.
+> **Status: pre-alpha.** The contract, its validator, the slice cycle commands and the test-lock guard
+> exist and are tested. One slice has been taken end to end with real agents, with a stand-in as the
+> human reviewer: see the [M1 report](docs/m1-report.md). The design layer and the install command are
+> not built. See the [roadmap](ROADMAP.md).
 
 ## Why
 
