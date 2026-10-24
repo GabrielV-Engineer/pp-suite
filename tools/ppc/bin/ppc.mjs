@@ -5,7 +5,7 @@ import { loadProject } from '../src/load.mjs';
 import { validateModel, RULES } from '../src/validate.mjs';
 import { generate, writeGenerated, checkGenerated } from '../src/generate.mjs';
 import { checkGit } from '../src/gitcheck.mjs';
-import { start, approveRed, toRefactor, finish, status, LifecycleError } from '../src/lifecycle.mjs';
+import { start, approveSlice, approveRed, toRefactor, finish, status, LifecycleError } from '../src/lifecycle.mjs';
 
 const USAGE = `ppc — pp-suite contract tool
 
@@ -16,6 +16,8 @@ const USAGE = `ppc — pp-suite contract tool
     ppc rules                            list every rule the checks can emit
 
   Slice cycle (each step changes the project or nothing at all)
+    ppc approve-slice <slice> --by <name> [dir]
+                                         HUMAN ONLY: planned -> ready
     ppc start <slice> [dir]              ready -> in progress, red phase
     ppc approve-red --by <name> [dir]    HUMAN ONLY: approve the committed red tests, enter green
     ppc refactor [dir]                   green -> refactor
@@ -93,6 +95,9 @@ switch (command) {
   }
   case 'start':
     transition(() => start(dirAt(1), positionals[0]));
+    break;
+  case 'approve-slice':
+    transition(() => approveSlice(dirAt(1), positionals[0], options.get('by')));
     break;
   case 'approve-red':
     transition(() => approveRed(dirAt(0), options.get('by')));

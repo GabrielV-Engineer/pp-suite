@@ -60,13 +60,13 @@ of them). Every leaf of the work breakdown is a slice.
 
 Status flow: `planned` → `ready` → `in_progress` → `done` (or `dropped`).
 
-- `ready` and later need `approved_by`: a human approved the slice to start.
+- `ready` and later need `approved_by`: a human approved the slice to start (`ppc approve-slice`).
 - `in_progress` needs a `phase`: `red` (tests only), `green` (production code only), `refactor`.
 - From `green` on, work slices need `red_approved_by`: a human approved the RED tests first.
 - `done` needs an **audit** (commits, diff size, tests added, mutation score, decisions, debt created,
   deviations). A spike instead records its `outcome`.
 - Only one slice may be in progress at a time, and `.sddpp/active.json` must match it.
-- Transitions are made with `ppc start`, `approve-red`, `refactor` and `finish` (see
+- Transitions are made with `ppc approve-slice`, `start`, `approve-red`, `refactor` and `finish` (see
   [how-it-works](how-it-works.md)); each one changes the project or, if the result would be invalid, nothing.
 
 ## Technical debt

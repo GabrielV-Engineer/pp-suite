@@ -114,6 +114,22 @@ export function start(root, id) {
   });
 }
 
+/** A human approves a planned slice to start. The only way a slice becomes ready. */
+export function approveSlice(root, id, by) {
+  return transact(root, () => {
+    if (!by || !by.trim()) fail('--by <name> is required: a human approves a slice to start');
+    const model = loadValid(root);
+    const entry = model.slices.find((s) => s.data.id === id) ?? fail(`unknown slice ${id}`);
+    if (entry.data.status !== 'planned') fail(`${id} is ${entry.data.status}; only a planned slice can be approved`);
+    editFrontmatter(root, entry.file, (doc) => {
+      doc.set('status', 'ready');
+      doc.set('approved_by', by.trim());
+    });
+    refreshViews(root);
+    return { slice: id, status: 'ready' };
+  });
+}
+
 export function approveRed(root, by) {
   return transact(root, () => {
     if (!by || !by.trim()) fail('--by <name> is required: a human approves the RED tests');

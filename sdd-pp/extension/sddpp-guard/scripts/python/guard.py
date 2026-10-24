@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """SDD.PP guard: while the active slice is in the GREEN or REFACTOR phase, test files are read-only,
-and approvals can only be given by a human.
+and approvals and exceptions can only be given by a human.
 
 Runs as a Claude Code PreToolUse hook (registered by Spec Kit from extension.yml).
 Exit 0 allows the tool call. Exit 2 blocks it and feeds stderr back to the model.
@@ -22,6 +22,10 @@ LOCKED_PHASES = {"green", "refactor"}
 
 # `ppc approve-red`, `node .../ppc.mjs approve-slice`, ...: the human gate, never the agent's to pass.
 APPROVAL = re.compile(r"\bppc(\.mjs)?\s+approve", re.IGNORECASE)
+
+# Fields that record a human decision. An agent never writes them: a person does, or `ppc` on a person's behalf.
+DECISION_FIELD = re.compile(r"(approved_by|red_approved_by|decided_by|accepted_reason|budget_override_reason)[\"']?\s*:")
+CONTRACT_DIR = re.compile(r"(^|/)\.sddpp/")
 
 TEST_PATH = re.compile(
     r"(^|/)(tests?|__tests__|spec)/"  # tests/, test/, __tests__/, spec/
@@ -56,6 +60,28 @@ def read_phase(root: Path):
     return data.get("phase"), None
 
 
+def _written_text(tool_input):
+    """Everything a file tool is about to write."""
+    parts = [str(tool_input.get(key, "")) for key in ("content", "new_string")]
+    for edit in tool_input.get("edits") or []:
+        if isinstance(edit, dict):
+            parts.append(str(edit.get("new_string", "")))
+    return "\n".join(parts)
+
+
+def _writes_a_decision(payload) -> bool:
+    tool = payload.get("tool_name", "")
+    args = payload.get("tool_input") or {}
+    if tool in FILE_TOOLS:
+        target = str(args.get("file_path") or args.get("notebook_path") or "").replace("\\", "/")
+        return bool(CONTRACT_DIR.search(target)) and bool(DECISION_FIELD.search(_written_text(args)))
+    if tool == "Bash":
+        command = str(args.get("command", ""))
+        # In a command line the path follows a space, so look for the folder anywhere in it.
+        return bool(".sddpp/" in command and DECISION_FIELD.search(command) and WRITES.search(command))
+    return False
+
+
 def decide(payload, root: Path):
     """Return (exit_code, message) for one PreToolUse payload."""
     # Approvals belong to a human, whatever the phase.
@@ -66,6 +92,14 @@ def decide(payload, root: Path):
                 "SDD.PP guard: approvals are human-only. Ask the human to run this command themselves "
                 "(in Claude Code, prefix it with `!`)."
             )
+
+    # Decisions belong to a human too: no file tool or shell write may record one.
+    if isinstance(payload, dict) and _writes_a_decision(payload):
+        return 2, (
+            "SDD.PP guard: approvals and exceptions are human decisions. Do not write approved_by, "
+            "red_approved_by, decided_by, accepted_reason or budget_override_reason; ask the human to "
+            "record them (ppc approve-slice, ppc approve-red, or an edit by hand)."
+        )
 
     phase, problem = read_phase(root)
     if problem is None and phase not in LOCKED_PHASES:

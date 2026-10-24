@@ -7,7 +7,7 @@ import { loadProject } from '../src/load.mjs';
 import { validateModel } from '../src/validate.mjs';
 import { checkGit } from '../src/gitcheck.mjs';
 import { generate, checkGenerated } from '../src/generate.mjs';
-import { start, approveRed, toRefactor, finish, status, initialPhase, LifecycleError } from '../src/lifecycle.mjs';
+import { start, approveSlice, approveRed, toRefactor, finish, status, initialPhase, LifecycleError } from '../src/lifecycle.mjs';
 import { CLI, lines, repo } from './helpers.mjs';
 
 const read = (dir, rel) => readFileSync(join(dir, rel), 'utf8');
@@ -79,6 +79,31 @@ test('start refuses a slice whose dependencies are not done, and a second slice 
   fails(() => start(dir, 'SL-002'), /depends on unfinished SL-001/);
   start(dir, 'SL-001');
   fails(() => start(dir, 'SL-002'), /in progress/);
+});
+
+// ── approve-slice ────────────────────────────────────────────────
+test('approve-slice: a planned slice becomes ready, with the approver recorded', (t) => {
+  const { dir } = repo(t);
+  assert.deepEqual(approveSlice(dir, 'SL-002', 'reviewer'), { slice: 'SL-002', status: 'ready' });
+  assert.equal(slice(dir, 'SL-002').status, 'ready');
+  assert.equal(slice(dir, 'SL-002').approved_by, 'reviewer');
+  assertConsistent(dir);
+});
+
+test('approve-slice refuses without a name, for an unknown slice and for one that is not planned', (t) => {
+  const { dir } = repo(t);
+  fails(() => approveSlice(dir, 'SL-002', ''), /--by/);
+  fails(() => approveSlice(dir, 'SL-099', 'reviewer'), /unknown slice/);
+  fails(() => approveSlice(dir, 'SL-001', 'reviewer'), /ready/); // already ready
+  assert.equal(slice(dir, 'SL-002').status, 'planned');
+});
+
+test('approve-slice does not start anything, and the approved slice can then be started', (t) => {
+  const { dir } = repo(t);
+  start(dir, 'SL-001');
+  approveSlice(dir, 'SL-002', 'reviewer');
+  assert.deepEqual(active(dir), { slice: 'SL-001', phase: 'red' });
+  fails(() => start(dir, 'SL-002'), /in progress|unfinished/); // still gated by one-at-a-time and dependencies
 });
 
 // ── approve-red ──────────────────────────────────────────────────
@@ -218,6 +243,13 @@ test('CLI: the whole cycle through the commands', (t) => {
   assert.equal(ppc(dir, 'validate', dir, '--strict').status, 0);
   assert.equal(ppc(dir, 'check-git', dir).status, 0);
   assert.match(ppc(dir, 'status', dir).stdout, /no slice is in progress/);
+});
+
+test('CLI: approve-slice records the approver', (t) => {
+  const { dir } = repo(t);
+  assert.equal(ppc(dir, 'approve-slice', 'SL-002', '--by', 'reviewer', dir).status, 0);
+  assert.match(ppc(dir, 'status', dir).stdout, /SL-002/);
+  assert.equal(ppc(dir, 'approve-slice', 'SL-003', dir).status, 1); // no --by
 });
 
 test('CLI: a refused transition prints why and exits 1', (t) => {

@@ -27,6 +27,7 @@ few weeks. pp-suite attacks those with rules a tool can check, not only advice.
 | Architect.PP | [The Architect](https://github.com/Hainrixz/the-architect) | Quality targets, complexity budget, architecture tests, hand-off *(planned)* |
 
 No upstream code is copied. Why these bases and not others: [upstream-analysis](docs/upstream-analysis.md).
+How slices fit inside Spec Kit: [slices-in-sdd](docs/slices-in-sdd.md).
 
 ## What is in this repo
 

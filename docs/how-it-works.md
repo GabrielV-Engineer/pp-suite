@@ -28,14 +28,16 @@ Each command either changes the project or refuses and leaves it untouched.
 
 | Command | Who runs it | What it does |
 |---|---|---|
+| `ppc approve-slice <slice> --by <name>` | **a human** | `planned` → `ready`. The only way a slice becomes ready to start |
 | `ppc start <slice>` | anyone | `ready` → in progress, red phase. Refuses a slice that is not approved, has unfinished dependencies, or when another slice is in progress |
 | `ppc approve-red --by <name>` | **a human** | Approves the committed red tests and enters green. Refuses if code is uncommitted |
 | `ppc refactor` | anyone | green → refactor (tests stay locked) |
 | `ppc finish <slice> --audit <file>` | anyone | Closes the slice. The diff size is **measured from git**, then the result is validated and checked against git; if anything is off, nothing changes |
 | `ppc status` | anyone | What is in progress |
 
-Approvals are human-only. The guard blocks the agent from running `ppc approve-*`; the human runs it
-themselves (in Claude Code, prefix the command with `!`). Like the test lock, this stops an agent that
+Approvals are human-only. The guard blocks the agent from running `ppc approve-*` and from writing any
+field that records a human decision into `.sddpp/`; the human runs the command themselves (in Claude
+Code, prefix it with `!`). Like the test lock, this stops an agent that
 cooperates; it is not a security boundary.
 
 ## Where things live

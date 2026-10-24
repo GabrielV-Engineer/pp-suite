@@ -18,7 +18,8 @@ approving at the key points. It is a set of **Spec Kit** add-ons, not a fork.
 While `.sddpp/active.json` says `"phase": "green"` or `"refactor"`, Claude Code cannot edit test files
 through its file tools, and obvious shell writes to test paths are blocked too (refactoring must not be a
 way to weaken tests). If the state file is unreadable, test files stay locked. The agent also cannot run
-`ppc approve-*`: approvals belong to a human.
+`ppc approve-*`, and it cannot write `approved_by`, `red_approved_by`, `decided_by`, `accepted_reason` or
+`budget_override_reason` into `.sddpp/`: decisions belong to a human.
 
 It is a **guard rail**, not a security boundary: writing through an interpreter or building a path from
 pieces is not recognised. The real check is `ppc check-git`, which reads the git history in CI. Details and the exact

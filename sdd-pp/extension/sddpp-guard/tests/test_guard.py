@@ -112,6 +112,41 @@ class GuardTest(unittest.TestCase):
             with self.subTest(cmd=cmd):
                 self.assertEqual(self.code(root, payload("Bash", command=cmd)), 0)
 
+    # ── approval fields are written by a human or by ppc, never by an agent's file tools ──
+    def test_the_agent_cannot_write_approval_fields_with_file_tools(self):
+        root = self.project(None)
+        for tool, args in (
+            ("Edit", {"file_path": ".sddpp/slices/SL-002-x.md", "old_string": "status: planned", "new_string": "status: ready\napproved_by: me"}),
+            ("Write", {"file_path": ".sddpp/slices/SL-002-x.md", "content": "---\nid: SL-002\nred_approved_by: me\n---\n"}),
+            ("MultiEdit", {"file_path": ".sddpp/debt/backend.yaml", "edits": [{"old_string": "proposed", "new_string": "open\n    approved_by: me"}]}),
+            ("Edit", {"file_path": ".sddpp/slices/SL-002-x.md", "old_string": "a", "new_string": "budget_override_reason: because"}),
+            ("Edit", {"file_path": ".sddpp/change-requests/CR-0001-x.md", "old_string": "a", "new_string": "decided_by: me"}),
+        ):
+            with self.subTest(tool=tool, args=args):
+                code, message = guard.decide(payload(tool, **args), root)
+                self.assertEqual(code, 2)
+                self.assertIn("human", message)
+
+    def test_the_agent_cannot_write_approval_fields_with_the_shell_either(self):
+        root = self.project(None)
+        for cmd in ("sed -i 's/planned/ready\\napproved_by: me/' .sddpp/slices/SL-002-x.md",
+                    "echo 'approved_by: me' >> .sddpp/slices/SL-002-x.md",
+                    "printf 'decided_by: me' | tee .sddpp/change-requests/CR-0001-x.md"):
+            with self.subTest(cmd=cmd):
+                self.assertEqual(self.code(root, payload("Bash", command=cmd)), 2)
+        self.assertEqual(self.code(root, payload("Bash", command="grep -rn approved_by .sddpp/slices")), 0)
+
+    def test_ordinary_edits_to_contract_files_are_allowed(self):
+        root = self.project(None)
+        for path, text in (
+            (".sddpp/slices/SL-002-x.md", "title: A clearer title"),
+            (".sddpp/debt/backend.yaml", "status: proposed"),
+            (".sddpp/slices/SL-002-x.md", "scenario: Given a user approved by nobody"),
+            ("src/app.ts", "const approved_by = 'x'"),  # outside .sddpp/: not a contract file
+        ):
+            with self.subTest(path=path):
+                self.assertEqual(self.code(root, payload("Edit", file_path=path, old_string="a", new_string=text)), 0)
+
     # ── the notion of "test file" is shared with `ppc check-git` ──
     def test_test_path_matches_the_shared_cases(self):
         shared = Path(__file__).resolve().parents[4] / "contract" / "v0.1" / "test-path-cases.json"

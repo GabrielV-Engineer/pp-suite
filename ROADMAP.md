@@ -15,6 +15,8 @@ Status key: **done** has tests in CI · **spiked** tried once by hand, not autom
 | Test-lock guard with fail-closed state handling (`sdd-pp/extension/sddpp-guard`) | done (unit tests) |
 | Slice cycle commands in `ppc`: `start`, `approve-red`, `refactor`, `finish`, `status`; each is all-or-nothing and `finish` measures the diff from git | done, tested against real temporary repositories |
 | Guard also locks tests in the refactor phase and keeps approvals human-only | done (unit tests) |
+| `ppc approve-slice`, and a guard rule against agents writing decision fields (`approved_by` and similar) into `.sddpp/` | done, each rule broken on purpose to confirm a test fails |
+| Planning with Spec Kit on one capability: constitution, `specify`, `plan`, `tasks` with the preset; slices came out contract-valid. [Findings](docs/slices-in-sdd.md) | observed once |
 | Guard registered into Claude Code through Spec Kit and honored | spiked — [findings](docs/spike-findings.md) |
 | `sddpp-slices` preset: template override and command wrap | spiked |
 | **M1:** one slice end to end with real agents (design tool run, red, review, green, audit, close). The reviewer was a stand-in | done, with limits: [report](docs/m1-report.md) |
@@ -30,7 +32,9 @@ Status key: **done** has tests in CI · **spiked** tried once by hand, not autom
 | Session-start check that the guard script is present | The dispatcher fails open when the script is missing |
 | Approval gates as a Spec Kit workflow, and the agent prompts (`sddpp-cycle`, drafted; exercised in M1) | The `ppc` side of the loop exists and is tested; the agent side is new |
 | Mutation-testing gate in the audit | M1: green added a 503 branch, a default port and a loopback bind that no test covers (finding 4) |
-| **M2:** a second slice with a dependency and a refactor phase, Spec Kit's `specify`/`plan`/`tasks` and a workflow with approval gates, a person reviewing the tests, and a harder test of the lock | Everything M1 did not cover |
+| **M2, remaining:** run a second slice that has a dependency and a refactor phase, a workflow with approval gates, **a person reviewing the tests**, and a harder test of the lock | Planning with Spec Kit is done; the rest of what M1 did not cover is not |
+| Link a slice to its spec story in the contract, and check that acceptance criteria agree | The link exists only in a Markdown table; criteria are repeated in several files ([findings](docs/slices-in-sdd.md)) |
+| Decide on Spec Kit's `lean` preset | One capability produced 8 files and 576 lines of documents |
 
 ## Later
 
