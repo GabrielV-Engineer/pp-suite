@@ -1,41 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { execFileSync, spawnSync } from 'node:child_process';
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { spawnSync } from 'node:child_process';
+import { readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { loadProject } from '../src/load.mjs';
 import { RULES } from '../src/validate.mjs';
 import { checkGit } from '../src/gitcheck.mjs';
-
-const EXAMPLE = fileURLToPath(new URL('../../../examples/todo-app/', import.meta.url));
-const CLI = fileURLToPath(new URL('../bin/ppc.mjs', import.meta.url));
-const lines = (n) => Array.from({ length: n }, (_, i) => `line ${i}`).join('\n') + '\n';
-
-/** A real git repository holding a copy of the example, so the checks run against real history. */
-function repo(t) {
-  const dir = mkdtempSync(join(tmpdir(), 'ppc-git-'));
-  t.after(() => rmSync(dir, { recursive: true, force: true }));
-  cpSync(EXAMPLE, dir, { recursive: true });
-  const git = (...args) => execFileSync('git', args, { cwd: dir, encoding: 'utf8' }).trim();
-  git('init', '-q', '-b', 'main');
-  git('config', 'user.email', 'test@example.com');
-  git('config', 'user.name', 'Test');
-  git('config', 'commit.gpgsign', 'false');
-  git('add', '-A');
-  git('commit', '-q', '-m', 'base');
-  const commit = (message, files) => {
-    for (const [path, content] of Object.entries(files)) {
-      mkdirSync(dirname(join(dir, path)), { recursive: true });
-      writeFileSync(join(dir, path), content);
-    }
-    git('add', '-A');
-    git('commit', '-q', '-m', message);
-    return git('rev-parse', 'HEAD');
-  };
-  return { dir, git, commit };
-}
+import { CLI, EXAMPLE, lines, repo } from './helpers.mjs';
 
 const RED = { 'tests/health.test.js': lines(3) }; // 3 changed lines
 const GREEN = { 'src/health.js': lines(5) }; // 5 changed lines
@@ -61,6 +32,14 @@ function finished(t, { red = RED, green = GREEN, diff_lines = 8, greenFirst = fa
   return { ...r, model, audit: s.audit, redSha, greenSha };
 }
 const rules = (found) => found.map((f) => f.rule);
+/** Commit extra files on top of whatever `finished` built, inside the same temporary repository. */
+const repoCommit = (dir, files) => {
+  const run = (...a) => spawnSync('git', a, { cwd: dir, encoding: 'utf8' });
+  for (const [path, content] of Object.entries(files)) writeFileSync(join(dir, path), content);
+  run('add', '-A');
+  run('commit', '-q', '-m', 'extra');
+  return run('rev-parse', 'HEAD').stdout.trim();
+};
 
 test('the new rules are part of the published catalog', () => {
   for (const id of ['C01', 'C02', 'C03', 'C04', 'C05']) assert.ok(id in RULES, `${id} missing from RULES`);
@@ -120,6 +99,19 @@ test('a refactor slice may not touch test files (C02) but may change production 
 
   s.audit = audit([{ sha: clean, kind: 'structural' }, { sha: touching, kind: 'structural' }], 7);
   assert.deepEqual(rules(checkGit(model, r.dir)), ['C02']);
+});
+
+test('C02: a refactor-kind commit may not touch tests in any slice, since green and refactor both lock them', (t) => {
+  const { model, dir, audit } = finished(t);
+  const touching = repoCommit(dir, { 'tests/health.test.js': lines(3) + 'weakened\n' });
+  audit.commits.push({ sha: touching, kind: 'refactor' });
+  audit.diff_lines = 9;
+  assert.deepEqual(rules(checkGit(model, dir)), ['C02']);
+});
+
+test('contract bookkeeping (.sddpp, .architect) is not code: it never trips C03 and is not measured', (t) => {
+  const { model, dir } = finished(t, { red: { ...RED, '.sddpp/active.json': '{"slice":"SL-001","phase":"red"}\n', '.sddpp/notes.md': lines(30) } });
+  assert.deepEqual(checkGit(model, dir), []); // diff stays 3 + 5 = 8
 });
 
 test('binary files count as zero lines and renames count as delete plus add', (t) => {

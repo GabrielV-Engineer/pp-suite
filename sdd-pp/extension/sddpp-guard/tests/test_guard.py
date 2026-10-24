@@ -37,9 +37,12 @@ class GuardTest(unittest.TestCase):
         root = self.project({"slice": "SL-002", "phase": "red"})
         self.assertEqual(self.code(root, payload("Edit", file_path="tests/a.test.js")), 0)
 
-    def test_refactor_phase_allows_editing_tests(self):
+    def test_refactor_phase_locks_tests_as_well(self):
+        # Refactoring must not be a way to weaken tests: if a test has to change, the RED phase reopens.
         root = self.project({"slice": "SL-002", "phase": "refactor"})
-        self.assertEqual(self.code(root, payload("Edit", file_path="tests/a.test.js")), 0)
+        self.assertEqual(self.code(root, payload("Edit", file_path="tests/a.test.js")), 2)
+        self.assertEqual(self.code(root, payload("Edit", file_path="src/a.js")), 0)
+        self.assertIn("REFACTOR", guard.decide(payload("Edit", file_path="tests/a.test.js"), root)[1])
 
     def test_idle_state_allows_everything(self):
         root = self.project({"slice": None, "phase": None})
@@ -90,6 +93,24 @@ class GuardTest(unittest.TestCase):
         message = guard.decide(payload("Edit", file_path="tests/a.test.js"), root)[1]
         self.assertIn("GREEN", message)
         self.assertIn("reopen the RED phase", message)
+
+    # ── approvals belong to a human, in every phase ──────────────
+    def test_the_agent_cannot_run_approvals(self):
+        for state in (None, {"slice": "SL-002", "phase": "red"}, {"slice": "SL-002", "phase": "green"}):
+            root = self.project(state)
+            for cmd in ("ppc approve-red --by me", "node tools/ppc/bin/ppc.mjs approve-red --by me",
+                        "cd proj && ppc  approve-red", "npx ppc approve-slice SL-003"):
+                with self.subTest(state=state, cmd=cmd):
+                    code, message = guard.decide(payload("Bash", command=cmd), root)
+                    self.assertEqual(code, 2)
+                    self.assertIn("human", message)
+
+    def test_every_other_ppc_command_is_allowed(self):
+        root = self.project({"slice": "SL-002", "phase": "red"})
+        for cmd in ("ppc start SL-002", "ppc status", "ppc validate --strict", "ppc finish SL-002 --audit a.json",
+                    "grep -rn approve docs/", "git commit -m 'approve nothing'"):
+            with self.subTest(cmd=cmd):
+                self.assertEqual(self.code(root, payload("Bash", command=cmd)), 0)
 
     # ── the notion of "test file" is shared with `ppc check-git` ──
     def test_test_path_matches_the_shared_cases(self):

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""SDD.PP guard: while the active slice is in the GREEN phase, test files are read-only.
+"""SDD.PP guard: while the active slice is in the GREEN or REFACTOR phase, test files are read-only,
+and approvals can only be given by a human.
 
 Runs as a Claude Code PreToolUse hook (registered by Spec Kit from extension.yml).
 Exit 0 allows the tool call. Exit 2 blocks it and feeds stderr back to the model.
@@ -15,6 +16,12 @@ import sys
 from pathlib import Path
 
 FILE_TOOLS = {"Edit", "Write", "MultiEdit", "NotebookEdit"}
+
+# Tests are locked in both phases, so refactoring cannot be used to weaken them.
+LOCKED_PHASES = {"green", "refactor"}
+
+# `ppc approve-red`, `node .../ppc.mjs approve-slice`, ...: the human gate, never the agent's to pass.
+APPROVAL = re.compile(r"\bppc(\.mjs)?\s+approve", re.IGNORECASE)
 
 TEST_PATH = re.compile(
     r"(^|/)(tests?|__tests__|spec)/"  # tests/, test/, __tests__/, spec/
@@ -51,10 +58,20 @@ def read_phase(root: Path):
 
 def decide(payload, root: Path):
     """Return (exit_code, message) for one PreToolUse payload."""
+    # Approvals belong to a human, whatever the phase.
+    if isinstance(payload, dict) and payload.get("tool_name") == "Bash":
+        command = str((payload.get("tool_input") or {}).get("command", ""))
+        if APPROVAL.search(command):
+            return 2, (
+                "SDD.PP guard: approvals are human-only. Ask the human to run this command themselves "
+                "(in Claude Code, prefix it with `!`)."
+            )
+
     phase, problem = read_phase(root)
-    if problem is None and phase != "green":
+    if problem is None and phase not in LOCKED_PHASES:
         return 0, ""
-    # Either the slice is in GREEN, or the state file is broken: fail closed for test files.
+    # Either the slice is in a locked phase, or the state file is broken: fail closed for test files.
+    where = f"the slice is in the {str(phase).upper()} phase" if problem is None else "the lock state is unknown"
     prefix = f"{problem}, so test files are locked. " if problem else ""
     if not isinstance(payload, dict):
         return 2, f"SDD.PP guard: {prefix}unreadable hook payload while the test lock is active."
@@ -65,26 +82,22 @@ def decide(payload, root: Path):
         target = str(args.get("file_path") or args.get("notebook_path") or "")
         if TEST_PATH.search(target.replace("\\", "/")):
             return 2, (
-                f"SDD.PP guard: {prefix}{target} is a test file and the slice is in the GREEN phase. "
+                f"SDD.PP guard: {prefix}{target} is a test file and {where}. "
                 "Tests are locked: change production code, or ask the human to reopen the RED phase."
             )
     elif tool == "Bash":
         command = str(args.get("command", ""))
         if TEST_PATH.search(command) and WRITES.search(command):
-            return 2, f"SDD.PP guard: {prefix}this command appears to modify test files while the slice is in the GREEN phase."
+            return 2, f"SDD.PP guard: {prefix}this command appears to modify test files while {where}."
     return 0, ""
 
 
 def main() -> None:
-    root = Path.cwd()
-    phase, problem = read_phase(root)
-    if problem is None and phase != "green":
-        sys.exit(0)  # no lock: do not even parse the payload
     try:
         payload = json.load(sys.stdin)
     except (ValueError, OSError):
         payload = None
-    code, message = decide(payload, root)
+    code, message = decide(payload, Path.cwd())
     if message:
         sys.stderr.write(message + "\n")
     sys.exit(code)

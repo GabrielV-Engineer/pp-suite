@@ -13,6 +13,8 @@ Status key: **done** has tests in CI · **spiked** tried once by hand, not autom
 | `ppc check-git`: audits are checked against real git history (commits exist, green/refactor leave tests untouched, red has no production code, diff size is true, red precedes green) | done, tested against real temporary repositories |
 | Worked example (`examples/todo-app`), planning stage, validated in strict mode | done |
 | Test-lock guard with fail-closed state handling (`sdd-pp/extension/sddpp-guard`) | done (unit tests) |
+| Slice cycle commands in `ppc`: `start`, `approve-red`, `refactor`, `finish`, `status`; each is all-or-nothing and `finish` measures the diff from git | done, tested against real temporary repositories |
+| Guard also locks tests in the refactor phase and keeps approvals human-only | done (unit tests) |
 | Guard registered into Claude Code through Spec Kit and honored | spiked — [findings](docs/spike-findings.md) |
 | `sddpp-slices` preset: template override and command wrap | spiked |
 
@@ -23,7 +25,7 @@ Status key: **done** has tests in CI · **spiked** tried once by hand, not autom
 | **M1 — One full cycle on the todo app:** design → one slice with red, green and audit | Proves the flow feels right before polishing anything |
 | `check-git` extension: detect commits of a slice that its audit leaves out | The audit lists commits by hand; omissions go unnoticed today |
 | Session-start check that the guard script is present | The dispatcher fails open when the script is missing |
-| SDD.PP commands: `red`, `green`, `audit`, `debt`, and the approval gates as a Spec Kit workflow | The loop itself |
+| SDD.PP agent commands (the prompts that drive an agent through red, green and audit) and the approval gates as a Spec Kit workflow | The `ppc` side of the loop exists; the agent side does not |
 | Mutation-testing gate in the audit | Catches tests that pass but verify nothing |
 
 ## Later

@@ -22,6 +22,7 @@ cd tools/ppc && npm ci && npm test              # validator, generator, CLI, doc
 node tools/ppc/bin/ppc.mjs validate examples/todo-app --strict
 node tools/ppc/bin/ppc.mjs generate examples/todo-app   # after editing example sources
 node tools/ppc/bin/ppc.mjs check-git <project>          # audits vs. real git history
+node tools/ppc/bin/ppc.mjs start|approve-red|refactor|finish|status   # the slice cycle
 python3 -m unittest discover -s sdd-pp/extension/sddpp-guard/tests
 ```
 

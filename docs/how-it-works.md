@@ -22,6 +22,22 @@ command names are provisional.
 | **6. Close** | Review the audit pack; approve or reject proposed debt | Refactors in its own commit, runs mutation testing, records debt in the component's register, regenerates the WBS |
 | **7. Design changes** | Decide | If a slice finds the design wrong, it opens a change request back to step 1 |
 
+## The slice cycle, as commands
+
+Each command either changes the project or refuses and leaves it untouched.
+
+| Command | Who runs it | What it does |
+|---|---|---|
+| `ppc start <slice>` | anyone | `ready` → in progress, red phase. Refuses a slice that is not approved, has unfinished dependencies, or when another slice is in progress |
+| `ppc approve-red --by <name>` | **a human** | Approves the committed red tests and enters green. Refuses if code is uncommitted |
+| `ppc refactor` | anyone | green → refactor (tests stay locked) |
+| `ppc finish <slice> --audit <file>` | anyone | Closes the slice. The diff size is **measured from git**, then the result is validated and checked against git; if anything is off, nothing changes |
+| `ppc status` | anyone | What is in progress |
+
+Approvals are human-only. The guard blocks the agent from running `ppc approve-*`; the human runs it
+themselves (in Claude Code, prefix the command with `!`). Like the test lock, this stops an agent that
+cooperates; it is not a security boundary.
+
 ## Where things live
 
 Everything is files in the repository, so a session can end and the next one picks up from `wbs.md`

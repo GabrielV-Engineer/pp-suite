@@ -66,6 +66,8 @@ Status flow: `planned` → `ready` → `in_progress` → `done` (or `dropped`).
 - `done` needs an **audit** (commits, diff size, tests added, mutation score, decisions, debt created,
   deviations). A spike instead records its `outcome`.
 - Only one slice may be in progress at a time, and `.sddpp/active.json` must match it.
+- Transitions are made with `ppc start`, `approve-red`, `refactor` and `finish` (see
+  [how-it-works](how-it-works.md)); each one changes the project or, if the result would be invalid, nothing.
 
 ## Technical debt
 
@@ -108,7 +110,7 @@ Errors fail validation; warnings fail only with `--strict`. `ppc rules` prints t
 | `L05` | error | A debt entry is marked paid but its paying slice is not done. |
 | `B01` | error | A slice exceeded the diff budget without a recorded reason. |
 | `C01` | error | An audit commit does not exist in the git history. (`ppc check-git`) |
-| `C02` | error | A green commit, or any commit of a refactor slice, touches a test file. (`ppc check-git`) |
+| `C02` | error | A green, refactor or structural commit touches a test file. (`ppc check-git`) |
 | `C03` | error | A red commit touches production code. (`ppc check-git`) |
 | `C04` | error | The audit `diff_lines` does not match what the commits changed. (`ppc check-git`) |
 | `C05` | error | The red commit is not an ancestor of the green commit. (`ppc check-git`) |
@@ -127,10 +129,12 @@ Cross-reference rules run only when `blueprint.yaml` itself is valid, since ever
 of the repository the project lives in, for every slice that has an audit:
 
 - every listed commit exists (`C01`);
-- a `green` commit, and any commit of a `refactor` slice, changes no test file (`C02`);
+- a `green`, `refactor` or `structural` commit changes no test file (`C02`): tests are locked after the red
+  phase, refactoring included. If a test has to change, the red phase reopens;
 - a `red` commit changes no production code (`C03`);
 - `diff_lines` equals the lines added plus deleted across the listed commits; renames count as a
-  delete plus an add and binary files as zero (`C04`);
+  delete plus an add and binary files as zero (`C04`). Files under `.sddpp/` and `.architect/` are
+  contract bookkeeping, not code: they are neither measured nor checked;
 - the first `red` commit is an ancestor of the first `green` commit (`C05`).
 
 What counts as a test file is defined once, by [`test-path-cases.json`](../contract/v0.1/test-path-cases.json);

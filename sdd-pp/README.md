@@ -9,17 +9,19 @@ approving at the key points. It is a set of **Spec Kit** add-ons, not a fork.
 |---|---|---|
 | Test-lock guard (extension) | `extension/sddpp-guard/` | Unit-tested, including its known limitations. Registered into Claude Code through Spec Kit and honored in a manual spike. |
 | Slices preset | `preset/sddpp-slices/` | Template override and command wrap verified by hand. Not run end to end. |
-| Cycle commands (`red`, `green`, `audit`, `debt`) | — | planned |
+| Slice cycle transitions (`ppc start`, `approve-red`, `refactor`, `finish`) | `tools/ppc/` | Tested against real temporary git repositories. |
+| Agent prompts that drive a session through red, green and audit | — | planned |
 | Workflow with approval gates | — | planned |
 
 ## The guard
 
-While `.sddpp/active.json` says `"phase": "green"`, Claude Code cannot edit test files through its file
-tools, and obvious shell writes to test paths are blocked too. If the state file is unreadable, test files
-stay locked.
+While `.sddpp/active.json` says `"phase": "green"` or `"refactor"`, Claude Code cannot edit test files
+through its file tools, and obvious shell writes to test paths are blocked too (refactoring must not be a
+way to weaken tests). If the state file is unreadable, test files stay locked. The agent also cannot run
+`ppc approve-*`: approvals belong to a human.
 
 It is a **guard rail**, not a security boundary: writing through an interpreter or building a path from
-pieces is not recognised. The real check is a git-based test in CI (planned). Details and the exact
+pieces is not recognised. The real check is `ppc check-git`, which reads the git history in CI. Details and the exact
 limitations: [spike findings](../docs/spike-findings.md).
 
 ```bash

@@ -35,7 +35,7 @@ export const RULES = {
   L05: 'A debt entry is marked paid but its paying slice is not done.',
   B01: 'A slice exceeded the diff budget without a recorded reason.',
   C01: 'An audit commit does not exist in the git history.',
-  C02: 'A green commit, or any commit of a refactor slice, touches a test file.',
+  C02: 'A green, refactor or structural commit touches a test file.',
   C03: 'A red commit touches production code.',
   C04: 'The audit diff_lines does not match what the commits changed.',
   C05: 'The red commit is not an ancestor of the green commit.',

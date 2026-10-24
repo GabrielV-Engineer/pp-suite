@@ -1,0 +1,210 @@
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { parseDocument } from 'yaml';
+import { loadProject } from './load.mjs';
+import { validateModel } from './validate.mjs';
+import { checkGit, dirtyPaths, measure } from './gitcheck.mjs';
+import { generate, writeGenerated } from './generate.mjs';
+
+/** A refused transition. The message says why; nothing was changed. */
+export class LifecycleError extends Error {}
+const fail = (message) => {
+  throw new LifecycleError(message);
+};
+
+const WORK_TYPES = ['skeleton', 'feature', 'fix'];
+const FRONTMATTER = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/;
+const ACTIVE = '.sddpp/active.json';
+
+/** Work slices start in red; a refactor is all refactor; a spike keeps the tests editable. */
+export const initialPhase = (type) => (type === 'refactor' ? 'refactor' : 'red');
+
+// ── transactions: every transition changes .sddpp/ or nothing at all ──────────────
+function listFiles(dir, base = dir) {
+  if (!existsSync(dir)) return [];
+  return readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? listFiles(join(dir, e.name), base) : [join(dir, e.name)]));
+}
+function snapshot(root) {
+  return new Map(listFiles(join(root, '.sddpp')).map((f) => [f, readFileSync(f)]));
+}
+function restore(root, snap) {
+  for (const f of listFiles(join(root, '.sddpp'))) if (!snap.has(f)) rmSync(f);
+  for (const [f, content] of snap) {
+    mkdirSync(dirname(f), { recursive: true });
+    writeFileSync(f, content);
+  }
+}
+function transact(root, work) {
+  const snap = snapshot(root);
+  try {
+    return work();
+  } catch (error) {
+    restore(root, snap);
+    throw error;
+  }
+}
+
+// ── helpers ───────────────────────────────────────────────────────────────────────
+const describe = (findings) => findings.map((f) => `  ${f.rule} ${f.file}: ${f.message}`).join('\n');
+
+function loadValid(root) {
+  const model = loadProject(root);
+  const errors = validateModel(model).filter((f) => f.severity === 'error');
+  if (errors.length) fail(`the project is invalid, fix it first:\n${describe(errors)}`);
+  return model;
+}
+
+/** Edit one slice's frontmatter in place, keeping the body and the other fields as they were. */
+function editFrontmatter(root, file, mutate) {
+  const abs = join(root, file);
+  const match = FRONTMATTER.exec(readFileSync(abs, 'utf8'));
+  const doc = parseDocument(match[1]);
+  mutate(doc);
+  writeFileSync(abs, `---\n${doc.toString({ lineWidth: 0 }).trimEnd()}\n---\n${match[2]}`);
+}
+
+function writeActive(root, slice, phase) {
+  mkdirSync(join(root, '.sddpp'), { recursive: true });
+  writeFileSync(join(root, ACTIVE), `${JSON.stringify({ slice, phase })}\n`);
+}
+
+/** Regenerate the derived views and make sure the project is still valid. */
+function refreshViews(root) {
+  const model = loadValid(root);
+  writeGenerated(root, generate(model));
+}
+
+function inProgress(model) {
+  const open = model.slices.filter((s) => s.data.status === 'in_progress');
+  if (open.length === 0) fail('no slice is in progress; start one with `ppc start <slice>`');
+  return open[0];
+}
+
+function requireCommitted(root) {
+  let dirty;
+  try {
+    dirty = dirtyPaths(root);
+  } catch {
+    fail('this directory is not inside a git repository');
+  }
+  if (dirty.length) fail(`there are uncommitted changes outside .sddpp/ and .architect/; commit them first:\n  ${dirty.slice(0, 8).join('\n  ')}`);
+}
+
+// ── transitions ───────────────────────────────────────────────────────────────────
+export function start(root, id) {
+  return transact(root, () => {
+    const model = loadValid(root);
+    const entry = model.slices.find((s) => s.data.id === id) ?? fail(`unknown slice ${id}`);
+    const s = entry.data;
+    if (s.status !== 'ready') fail(`${id} is ${s.status}; only a ready slice (approved by a human) can start`);
+    const busy = model.slices.find((x) => x.data.status === 'in_progress');
+    if (busy) fail(`${busy.data.id} is already in progress; finish it first (one slice at a time)`);
+    const unfinished = (s.depends_on ?? []).filter((d) => model.slices.find((x) => x.data.id === d)?.data.status !== 'done');
+    if (unfinished.length) fail(`${id} depends on unfinished ${unfinished.join(', ')}`);
+
+    const phase = initialPhase(s.type);
+    editFrontmatter(root, entry.file, (doc) => {
+      doc.set('status', 'in_progress');
+      doc.set('phase', phase);
+    });
+    writeActive(root, id, phase);
+    refreshViews(root);
+    return { slice: id, phase };
+  });
+}
+
+export function approveRed(root, by) {
+  return transact(root, () => {
+    if (!by || !by.trim()) fail('--by <name> is required: a human approves the RED tests');
+    const entry = inProgress(loadValid(root));
+    const s = entry.data;
+    if (!WORK_TYPES.includes(s.type)) fail(`${s.id} is a ${s.type} slice: it has no RED phase to approve`);
+    if (s.phase !== 'red') fail(`${s.id} is in the ${s.phase} phase, not red`);
+    requireCommitted(root);
+
+    editFrontmatter(root, entry.file, (doc) => {
+      doc.set('red_approved_by', by.trim());
+      doc.set('phase', 'green');
+    });
+    writeActive(root, s.id, 'green');
+    refreshViews(root);
+    return { slice: s.id, phase: 'green' };
+  });
+}
+
+export function toRefactor(root) {
+  return transact(root, () => {
+    const entry = inProgress(loadValid(root));
+    const s = entry.data;
+    if (s.phase !== 'green') fail(`${s.id} is in the ${s.phase} phase, not green`);
+    requireCommitted(root);
+    editFrontmatter(root, entry.file, (doc) => doc.set('phase', 'refactor'));
+    writeActive(root, s.id, 'refactor');
+    refreshViews(root);
+    return { slice: s.id, phase: 'refactor' };
+  });
+}
+
+/**
+ * Close a slice. The diff size is measured from git here, never taken from the caller, and the result
+ * is validated and checked against git before it is kept: if it would be wrong, nothing changes.
+ */
+export function finish(root, id, input) {
+  return transact(root, () => {
+    const model = loadValid(root);
+    const entry = model.slices.find((s) => s.data.id === id) ?? fail(`unknown slice ${id}`);
+    const s = entry.data;
+    if (s.status !== 'in_progress') fail(`${id} is ${s.status}, not in_progress`);
+    if (WORK_TYPES.includes(s.type) && s.phase === 'red') fail(`${id} is still in the red phase: its red tests were not approved`);
+    requireCommitted(root);
+    if ('diff_lines' in (input ?? {})) fail('diff_lines is computed from git; remove it from the audit input');
+
+    let diff_lines = 0;
+    if (s.type === 'spike') {
+      if (typeof input?.outcome !== 'string') fail('a spike needs "outcome": what it learned');
+      editFrontmatter(root, entry.file, (doc) => {
+        doc.set('status', 'done');
+        doc.delete('phase');
+        doc.set('outcome', input.outcome);
+      });
+    } else {
+      if (!Array.isArray(input?.commits) || input.commits.length === 0) fail('the audit needs "commits": [{ "sha": "...", "kind": "red|green|refactor|structural|docs" }]');
+      for (const c of input.commits) {
+        const m = measure(root, String(c.sha));
+        if (!m) fail(`commit ${c.sha} was not found in git history`);
+        diff_lines += m.lines;
+      }
+      const audit = {
+        commits: input.commits,
+        diff_lines,
+        tests_added: input.tests_added,
+        mutation_score: input.mutation_score ?? null,
+        decisions: input.decisions ?? [],
+        debt_created: input.debt_created ?? [],
+        deviations: input.deviations ?? [],
+        ...(input.budget_override_reason ? { budget_override_reason: input.budget_override_reason } : {}),
+      };
+      editFrontmatter(root, entry.file, (doc) => {
+        doc.set('status', 'done');
+        doc.delete('phase');
+        doc.set('audit', audit);
+      });
+    }
+    writeActive(root, null, null);
+    refreshViews(root);
+
+    const problems = checkGit(loadProject(root), root);
+    if (problems.length) fail(`the audit does not match git history:\n${describe(problems)}`);
+    return { slice: id, diff_lines };
+  });
+}
+
+export function status(root) {
+  const model = loadProject(root);
+  const open = model.slices.find((s) => s.data.status === 'in_progress');
+  if (!open) {
+    const ready = model.slices.filter((s) => s.data.status === 'ready').map((s) => s.data.id);
+    return { text: `no slice is in progress${ready.length ? `; ready to start: ${ready.join(', ')}` : ''}` };
+  }
+  return { text: `${open.data.id} "${open.data.title}" is in progress, phase ${open.data.phase}` };
+}

@@ -2,6 +2,12 @@ import { execFileSync } from 'node:child_process';
 import { isTestPath } from './testpaths.mjs';
 
 const SHA = /^[0-9a-f]{7,40}$/;
+/** Contract bookkeeping is neither code nor tests: it is never measured and never trips C02/C03. */
+const BOOKKEEPING = /^(\.sddpp|\.architect)\//;
+/** Commit kinds that must leave the tests untouched: green and every kind of refactoring. */
+const TESTS_LOCKED_KINDS = ['green', 'refactor', 'structural'];
+
+export const isBookkeeping = (path) => BOOKKEEPING.test(path);
 
 function git(root, args) {
   return execFileSync('git', args, { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 64 * 1024 * 1024 });
@@ -17,14 +23,35 @@ function resolve(root, sha) {
   }
 }
 
-/** Files a commit changed, with changed-line counts. Renames count as delete plus add; binaries as 0. */
+/** Code files a commit changed, with changed-line counts. Renames count as delete plus add; binaries as 0. */
 function changes(root, full) {
   const raw = git(root, ['diff-tree', '--no-commit-id', '--numstat', '-r', '--root', '--no-renames', '-z', full]);
-  return raw.split('\0').filter(Boolean).map((record) => {
-    const [added, deleted, ...path] = record.split('\t');
-    const count = (n) => (n === '-' ? 0 : Number(n));
-    return { path: path.join('\t'), lines: count(added) + count(deleted) };
-  });
+  return raw
+    .split('\0')
+    .filter(Boolean)
+    .map((record) => {
+      const [added, deleted, ...path] = record.split('\t');
+      const count = (n) => (n === '-' ? 0 : Number(n));
+      return { path: path.join('\t'), lines: count(added) + count(deleted) };
+    })
+    .filter((f) => !isBookkeeping(f.path));
+}
+
+/** What one commit changed, or null if it does not exist. */
+export function measure(root, sha) {
+  const full = resolve(root, sha);
+  if (!full) return null;
+  const files = changes(root, full);
+  return { full, files, lines: files.reduce((sum, f) => sum + f.lines, 0) };
+}
+
+/**
+ * Paths with uncommitted changes (including untracked files), leaving out contract bookkeeping.
+ * Throws when `root` is not inside a git repository.
+ */
+export function dirtyPaths(root) {
+  const raw = git(root, ['status', '--porcelain', '-z', '--no-renames', '--untracked-files=all']);
+  return raw.split('\0').filter(Boolean).map((record) => record.slice(3)).filter((path) => !isBookkeeping(path));
 }
 
 function isAncestor(root, older, newer) {
@@ -51,21 +78,19 @@ export function checkGit(model, root) {
     const first = {};
 
     for (const { sha, kind } of s.audit.commits) {
-      const full = resolve(root, sha);
-      if (!full) {
+      const m = measure(root, sha);
+      if (!m) {
         add('C01', file, `${s.id}: commit ${sha} was not found in git history`);
         allFound = false;
         continue;
       }
-      first[kind] ??= full;
-      const files = changes(root, full);
-      total += files.reduce((sum, f) => sum + f.lines, 0);
-      const tests = files.filter((f) => isTestPath(f.path)).map((f) => f.path);
-      const production = files.filter((f) => !isTestPath(f.path)).map((f) => f.path);
+      first[kind] ??= m.full;
+      total += m.lines;
+      const tests = m.files.filter((f) => isTestPath(f.path)).map((f) => f.path);
+      const production = m.files.filter((f) => !isTestPath(f.path)).map((f) => f.path);
 
-      if (tests.length && (kind === 'green' || s.type === 'refactor')) {
-        const why = kind === 'green' ? 'a green commit must leave tests untouched' : 'a refactor slice must leave tests untouched';
-        add('C02', file, `${s.id}: ${sha} (${kind}) touches ${tests.join(', ')}; ${why}`);
+      if (tests.length && TESTS_LOCKED_KINDS.includes(kind)) {
+        add('C02', file, `${s.id}: ${sha} (${kind}) touches ${tests.join(', ')}; tests are locked after the red phase`);
       }
       if (kind === 'red' && production.length) add('C03', file, `${s.id}: ${sha} (red) touches production code: ${production.join(', ')}`);
     }

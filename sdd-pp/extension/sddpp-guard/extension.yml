@@ -4,7 +4,7 @@ extension:
   id: "sddpp-guard"
   name: "SDD.PP Guard"
   version: "0.1.0"
-  description: "Locks test files while the active slice is in the green phase."
+  description: "Locks test files in the green and refactor phases, and keeps approvals human-only."
   author: "GabrielV-Engineer"
   repository: "https://github.com/GabrielV-Engineer/pp-suite"
   license: "MIT"
