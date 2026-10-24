@@ -7,8 +7,10 @@ Status key: **done** has tests in CI · **spiked** tried once by hand, not autom
 | Item | Status |
 |---|---|
 | Contract v0.1 schemas (blueprint, slice, debt, ADR, evidence, change request, active state) | done |
-| `ppc validate`: 30 rules (parsing, schema, cross-references, lifecycle, budget, generated views), each with a test | done |
+| `ppc validate`: parsing, schema, cross-reference, lifecycle, budget and generated-view rules, each with a test that makes it fire (`ppc rules` lists them all, `check-git` rules included) | done |
+| Shared definition of "test file" (`contract/v0.1/test-path-cases.json`), tested by both the guard and `ppc` | done |
 | `ppc generate`: WBS and one debt table per component, with a staleness check | done |
+| `ppc check-git`: audits are checked against real git history (commits exist, green/refactor leave tests untouched, red has no production code, diff size is true, red precedes green) | done, tested against real temporary repositories |
 | Worked example (`examples/todo-app`), planning stage, validated in strict mode | done |
 | Test-lock guard with fail-closed state handling (`sdd-pp/extension/sddpp-guard`) | done (unit tests) |
 | Guard registered into Claude Code through Spec Kit and honored | spiked — [findings](docs/spike-findings.md) |
@@ -19,7 +21,7 @@ Status key: **done** has tests in CI · **spiked** tried once by hand, not autom
 | Item | Why |
 |---|---|
 | **M1 — One full cycle on the todo app:** design → one slice with red, green and audit | Proves the flow feels right before polishing anything |
-| `ppc check-git`: a green commit must not touch test files; audit commits and diff size must match git | The real check behind the guard, and the missing half of the audit |
+| `check-git` extension: detect commits of a slice that its audit leaves out | The audit lists commits by hand; omissions go unnoticed today |
 | Session-start check that the guard script is present | The dispatcher fails open when the script is missing |
 | SDD.PP commands: `red`, `green`, `audit`, `debt`, and the approval gates as a Spec Kit workflow | The loop itself |
 | Mutation-testing gate in the audit | Catches tests that pass but verify nothing |
@@ -35,5 +37,4 @@ Status key: **done** has tests in CI · **spiked** tried once by hand, not autom
 
 ## Open questions
 
-- License for the repository (none chosen yet).
 - Whether a slice file or Spec Kit's `tasks.md` should be the source of truth for status once both exist.

@@ -28,6 +28,8 @@ jobs:
         run: node tools/ppc/bin/ppc.mjs validate examples/todo-app --strict
       - name: The example's generated views are current
         run: node tools/ppc/bin/ppc.mjs generate examples/todo-app --check
+      - name: Audits match git history (the example has none yet)
+        run: node tools/ppc/bin/ppc.mjs check-git examples/todo-app
 
   guard:
     runs-on: ubuntu-latest

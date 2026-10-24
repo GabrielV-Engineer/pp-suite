@@ -1,0 +1,24 @@
+{
+  "description": "What counts as a test file. Both the Python guard and ppc check-git must agree with every case; their test suites read this file.",
+  "cases": [
+    { "path": "tests/math.test.js", "test": true },
+    { "path": "test/math.js", "test": true },
+    { "path": "src/__tests__/a.js", "test": true },
+    { "path": "src/user.spec.ts", "test": true },
+    { "path": "spec/models/user_spec.rb", "test": true },
+    { "path": "pkg/test_math.py", "test": true },
+    { "path": "/abs/project/tests/x.js", "test": true },
+    { "path": "tests\\win\\x.js", "test": true },
+    { "path": "app/Tests/Unit.cs", "test": true },
+    { "path": "src/foo-test.js", "test": true },
+    { "path": "src/math.js", "test": false },
+    { "path": "src/contest.js", "test": false },
+    { "path": "src/latest.ts", "test": false },
+    { "path": "src/attestation.js", "test": false },
+    { "path": "src/protest.js", "test": false },
+    { "path": "testing/helper.js", "test": false },
+    { "path": "docs/spec-notes.md", "test": false },
+    { "path": "specs/001-feature/spec.md", "test": false },
+    { "path": "README.md", "test": false }
+  ]
+}

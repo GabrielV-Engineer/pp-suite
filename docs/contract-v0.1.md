@@ -107,6 +107,11 @@ Errors fail validation; warnings fail only with `--strict`. `ppc rules` prints t
 | `L04` | error | More than one slice is in progress. |
 | `L05` | error | A debt entry is marked paid but its paying slice is not done. |
 | `B01` | error | A slice exceeded the diff budget without a recorded reason. |
+| `C01` | error | An audit commit does not exist in the git history. (`ppc check-git`) |
+| `C02` | error | A green commit, or any commit of a refactor slice, touches a test file. (`ppc check-git`) |
+| `C03` | error | A red commit touches production code. (`ppc check-git`) |
+| `C04` | error | The audit `diff_lines` does not match what the commits changed. (`ppc check-git`) |
+| `C05` | error | The red commit is not an ancestor of the green commit. (`ppc check-git`) |
 | `A01` | error / warning | An ADR lacks a required section (error when accepted, warning otherwise). |
 | `W01` | warning | A work slice does not state what it leaves out of scope. |
 | `W02` | warning | Evidence has expired and must be re-checked. |
@@ -116,8 +121,25 @@ Errors fail validation; warnings fail only with `--strict`. `ppc rules` prints t
 
 Cross-reference rules run only when `blueprint.yaml` itself is valid, since everything else points at it.
 
+### Checking audits against git
+
+`ppc validate` reads the audit as written. `ppc check-git` makes it a fact, by reading the real history
+of the repository the project lives in, for every slice that has an audit:
+
+- every listed commit exists (`C01`);
+- a `green` commit, and any commit of a `refactor` slice, changes no test file (`C02`);
+- a `red` commit changes no production code (`C03`);
+- `diff_lines` equals the lines added plus deleted across the listed commits; renames count as a
+  delete plus an add and binary files as zero (`C04`);
+- the first `red` commit is an ancestor of the first `green` commit (`C05`).
+
+What counts as a test file is defined once, by [`test-path-cases.json`](../contract/v0.1/test-path-cases.json);
+the Python guard and `ppc` are both tested against it.
+
 ## What the contract does not check yet
 
-- That the audit's commits exist in git, that their diff size is true, or that a green commit left the
-  test files untouched. The audit is a claim until a git-based check exists (see the roadmap).
+- That `tests_added` and `mutation_score` are true: they are still claims. A mutation-testing gate is on
+  the roadmap.
 - That an approval was given by a real person: `approved_by` is a name, not a signature.
+- That the commits listed in an audit are *all* the commits of the slice: `check-git` verifies the ones
+  that are listed, not that none was left out.

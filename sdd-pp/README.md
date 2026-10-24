@@ -7,7 +7,7 @@ approving at the key points. It is a set of **Spec Kit** add-ons, not a fork.
 
 | Piece | Path | Status |
 |---|---|---|
-| Test-lock guard (extension) | `extension/sddpp-guard/` | Unit-tested (16 tests). Registered into Claude Code through Spec Kit and honored in a manual spike. |
+| Test-lock guard (extension) | `extension/sddpp-guard/` | Unit-tested, including its known limitations. Registered into Claude Code through Spec Kit and honored in a manual spike. |
 | Slices preset | `preset/sddpp-slices/` | Template override and command wrap verified by hand. Not run end to end. |
 | Cycle commands (`red`, `green`, `audit`, `debt`) | — | planned |
 | Workflow with approval gates | — | planned |

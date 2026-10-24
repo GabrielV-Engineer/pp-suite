@@ -39,6 +39,6 @@ and the slice files. See [contract-v0.1.md](contract-v0.1.md) for the layout.
 | Property | Enforced by | Strength |
 |---|---|---|
 | Tests are not edited during GREEN | The guard (`PreToolUse` hook) | A guard rail: stops a cooperating agent only |
-| Tests were not edited during GREEN | A git check in CI (planned) | The real check |
+| Tests were not edited during GREEN | `ppc check-git`, in CI | The real check, read from git history |
 | Traceability and lifecycle rules | `ppc validate`, in CI | Mechanical |
 | Human approvals | `approved_by` fields, checked for presence | A record, not a signature |

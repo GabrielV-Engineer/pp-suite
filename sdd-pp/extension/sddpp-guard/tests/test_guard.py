@@ -91,6 +91,15 @@ class GuardTest(unittest.TestCase):
         self.assertIn("GREEN", message)
         self.assertIn("reopen the RED phase", message)
 
+    # ── the notion of "test file" is shared with `ppc check-git` ──
+    def test_test_path_matches_the_shared_cases(self):
+        shared = Path(__file__).resolve().parents[4] / "contract" / "v0.1" / "test-path-cases.json"
+        cases = json.loads(shared.read_text(encoding="utf-8"))["cases"]
+        self.assertGreater(len(cases), 10)
+        for case in cases:
+            with self.subTest(path=case["path"]):
+                self.assertEqual(bool(guard.TEST_PATH.search(case["path"].replace("\\", "/"))), case["test"])
+
     # ── fail closed on a broken state file ───────────────────────
     def test_invalid_json_state_locks_tests(self):
         root = self.project(raw="{not json")

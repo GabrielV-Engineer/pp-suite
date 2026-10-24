@@ -3,11 +3,13 @@ import { resolve } from 'node:path';
 import { loadProject } from '../src/load.mjs';
 import { validateModel, RULES } from '../src/validate.mjs';
 import { generate, writeGenerated, checkGenerated } from '../src/generate.mjs';
+import { checkGit } from '../src/gitcheck.mjs';
 
 const USAGE = `ppc — pp-suite contract tool
 
   ppc validate [dir] [--strict]   check a project against the contract (strict: warnings fail too)
   ppc generate [dir] [--check]    write the derived views (WBS, debt tables); --check only verifies them
+  ppc check-git [dir]             verify every slice audit against the real git history
   ppc rules                       list every rule the validator can emit
 `;
 
@@ -31,6 +33,12 @@ if (command === 'rules') {
   if (!findings.some((f) => f.severity === 'error') && model.blueprint) findings.push(...checkGenerated(root, generate(model)));
   const { errors, warnings } = report(findings);
   process.exit(errors || (flags.has('--strict') && warnings) ? 1 : 0);
+} else if (command === 'check-git') {
+  const model = loadProject(root);
+  const findings = validateModel(model);
+  if (!findings.some((f) => f.severity === 'error')) findings.push(...checkGit(model, root));
+  const { errors } = report(findings);
+  process.exit(errors ? 1 : 0);
 } else if (command === 'generate') {
   const model = loadProject(root);
   const findings = validateModel(model);

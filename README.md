@@ -44,11 +44,16 @@ Requires Node 22+ and Python 3.
 
 ```bash
 cd tools/ppc && npm ci
-npm test                                         # 61 tests: validator, generator, CLI, docs consistency
+npm test                                         # validator, generator, git checks, CLI, docs consistency
 node bin/ppc.mjs validate ../../examples/todo-app --strict
 node bin/ppc.mjs rules                           # every rule the validator can emit
+node bin/ppc.mjs check-git ../../examples/todo-app   # audits vs. real git history (none in the example yet)
 cd ../.. && python3 -m unittest discover -s sdd-pp/extension/sddpp-guard/tests
 ```
+
+## License
+
+[MIT](LICENSE).
 
 ## Principles
 
