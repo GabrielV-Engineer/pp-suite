@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:pp-suite:contract:0.1:active",
+  "title": "Active slice state (.sddpp/active.json)",
+  "description": "Machine state read by the test-lock guard. JSON on purpose: the guard uses only the standard library.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["slice", "phase"],
+  "properties": {
+    "slice": { "type": ["string", "null"], "pattern": "^SL-\\d{3,}$" },
+    "phase": { "enum": ["red", "green", "refactor", null] }
+  }
+}

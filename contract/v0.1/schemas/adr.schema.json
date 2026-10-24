@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:pp-suite:contract:0.1:adr",
+  "title": "Architecture decision record (.architect/decisions/ADR-NNNN-*.md frontmatter)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "title", "status", "date", "drivers"],
+  "properties": {
+    "id": { "type": "string", "pattern": "^ADR-\\d{4}$" },
+    "title": { "type": "string", "minLength": 5 },
+    "status": { "enum": ["proposed", "accepted", "superseded", "rejected"] },
+    "date": { "type": "string", "format": "date" },
+    "drivers": { "type": "array", "items": { "type": "string", "pattern": "^(CAP|QA|CON)-\\d{3}$" }, "uniqueItems": true },
+    "evidence": { "type": "array", "items": { "type": "string", "pattern": "^EV-\\d{3}$" }, "uniqueItems": true },
+    "supersedes": { "type": "array", "items": { "type": "string", "pattern": "^ADR-\\d{4}$" }, "uniqueItems": true }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "status": { "const": "accepted" } }, "required": ["status"] },
+      "then": { "properties": { "drivers": { "type": "array", "minItems": 1 } } }
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:pp-suite:contract:0.1:change-request",
+  "title": "Change request (.sddpp/change-requests/CR-NNNN-*.md frontmatter)",
+  "description": "How SDD.PP asks Architect.PP to change the blueprint. SDD.PP never edits .architect/ itself.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "title", "status", "raised_by", "affects"],
+  "properties": {
+    "id": { "type": "string", "pattern": "^CR-\\d{4}$" },
+    "title": { "type": "string", "minLength": 5 },
+    "status": { "enum": ["open", "accepted", "rejected", "applied"] },
+    "raised_by": { "type": "string", "pattern": "^SL-\\d{3,}$" },
+    "affects": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "components": { "type": "array", "items": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" } },
+        "adrs": { "type": "array", "items": { "type": "string", "pattern": "^ADR-\\d{4}$" } },
+        "quality_attributes": { "type": "array", "items": { "type": "string", "pattern": "^QA-\\d{3}$" } }
+      }
+    },
+    "decided_by": { "type": "string", "minLength": 1 }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "status": { "enum": ["accepted", "rejected", "applied"] } }, "required": ["status"] },
+      "then": { "required": ["decided_by"] }
+    }
+  ]
+}

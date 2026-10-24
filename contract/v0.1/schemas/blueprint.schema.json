@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:pp-suite:contract:0.1:blueprint",
+  "title": "Blueprint manifest (.architect/blueprint.yaml)",
+  "description": "Machine-readable output of Architect.PP. Read-only input for SDD.PP.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contract_version", "revision", "project", "non_goals", "constraints", "quality_attributes", "capabilities", "components", "budgets"],
+  "properties": {
+    "contract_version": { "const": "0.1" },
+    "revision": { "type": "integer", "minimum": 1, "description": "Incremented on every accepted change request." },
+    "project": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "level", "summary"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+        "name": { "type": "string", "minLength": 1 },
+        "level": { "enum": ["lite", "standard", "full"] },
+        "summary": { "type": "string", "minLength": 10 }
+      }
+    },
+    "non_goals": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 3 } },
+    "constraints": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "statement"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^CON-\\d{3}$" },
+          "statement": { "type": "string", "minLength": 10 }
+        }
+      }
+    },
+    "quality_attributes": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "attribute", "scenario", "metric", "target"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^QA-\\d{3}$" },
+          "attribute": { "enum": ["performance", "security", "reliability", "maintainability", "usability", "compatibility", "portability", "operability"] },
+          "scenario": { "type": "string", "minLength": 10 },
+          "metric": { "type": "string", "minLength": 3 },
+          "target": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "capabilities": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "name", "description", "priority"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^CAP-\\d{3}$" },
+          "name": { "type": "string", "minLength": 1 },
+          "description": { "type": "string", "minLength": 10 },
+          "priority": { "enum": ["must", "should", "could"] }
+        }
+      }
+    },
+    "components": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "code", "name", "kind", "responsibility", "may_depend_on", "justified_by"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+          "code": { "type": "string", "pattern": "^[A-Z]{2,5}$", "description": "Prefix of this component's debt ids: DEBT-<code>-NNN." },
+          "name": { "type": "string", "minLength": 1 },
+          "kind": { "enum": ["frontend", "backend", "database", "infra", "library", "other"] },
+          "responsibility": { "type": "string", "minLength": 10 },
+          "may_depend_on": { "type": "array", "items": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" }, "uniqueItems": true },
+          "justified_by": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "type": "string", "pattern": "^(CAP|QA|CON)-\\d{3}$" },
+            "description": "No component without a requirement behind it."
+          }
+        }
+      }
+    },
+    "budgets": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["max_slice_diff_lines"],
+      "properties": {
+        "max_slice_diff_lines": { "type": "integer", "minimum": 20, "maximum": 2000 }
+      }
+    }
+  }
+}

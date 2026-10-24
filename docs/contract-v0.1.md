@@ -1,0 +1,123 @@
+# Contract v0.1
+
+The contract is the only interface between **Architect.PP** (designs) and **SDD.PP** (builds). The two
+never import each other's code; they only agree on these files. Schemas live in
+[`contract/v0.1/schemas/`](../contract/v0.1/schemas); `ppc validate` checks them plus the
+cross-reference rules below.
+
+Status: **v0.1, unstable.** Expect breaking changes until v1.0.
+
+## Layout and ownership
+
+```
+.architect/                      written by Architect.PP, read-only for SDD.PP
+  blueprint.yaml                 manifest: capabilities, components, quality attributes, budgets
+  brief.md  architecture.md  glossary.md
+  decisions/ADR-0001-*.md        decisions with rejected alternatives
+  evidence/EV-001-*.md           sourced claims behind recommendations, with an expiry date
+.sddpp/                          written by SDD.PP
+  slices/SL-001-*.md             one file per slice: the leaves of the WBS
+  debt/<component>.yaml          one register per component (the source of truth)
+  debt/<component>.md            generated table (do not edit)
+  change-requests/CR-0001-*.md   how SDD.PP asks for a blueprint change
+  active.json                    {slice, phase}: machine state read by the test-lock guard
+  wbs.md                         generated work breakdown (do not edit)
+```
+
+SDD.PP never edits `.architect/`. If a slice finds the design wrong, it opens a **change request**; the
+blueprint `revision` is bumped when Architect.PP applies it.
+
+Spec Kit's own folders (`.specify/`, `specs/`) coexist with these and are not governed by the contract.
+
+## Identifiers
+
+| Kind | Format | Example |
+|---|---|---|
+| Capability | `CAP-NNN` | `CAP-001` |
+| Quality attribute | `QA-NNN` | `QA-001` |
+| Constraint | `CON-NNN` | `CON-001` |
+| Component | lowercase slug, plus a 2–5 letter `code` | `frontend` / `FE` |
+| Slice | `SL-NNN` | `SL-002` |
+| Debt | `DEBT-<component code>-NNN` | `DEBT-FE-001` |
+| ADR | `ADR-NNNN` | `ADR-0001` |
+| Evidence | `EV-NNN` | `EV-001` |
+| Change request | `CR-NNNN` | `CR-0001` |
+
+A file name starts with its id (`SL-002-create-and-list-tasks.md`). Ids are never reused.
+
+## Slices
+
+A slice is a thin vertical cut: **one observable behavior through the layers it needs** (not always all
+of them). Every leaf of the work breakdown is a slice.
+
+| Type | Purpose | Requires |
+|---|---|---|
+| `skeleton` | First end-to-end path, deployed and checked by CI | acceptance criteria |
+| `feature` | New behavior for a capability | capability, acceptance criteria |
+| `refactor` | Pays technical debt; behavior does not change | `pays` (debt ids) |
+| `spike` | Time-boxed exploration, discarded | `timebox_hours` (≤ 8), `disposable: true` |
+| `fix` | Repairs a defect, starting from a test that reproduces it | acceptance criteria |
+
+Status flow: `planned` → `ready` → `in_progress` → `done` (or `dropped`).
+
+- `ready` and later need `approved_by`: a human approved the slice to start.
+- `in_progress` needs a `phase`: `red` (tests only), `green` (production code only), `refactor`.
+- From `green` on, work slices need `red_approved_by`: a human approved the RED tests first.
+- `done` needs an **audit** (commits, diff size, tests added, mutation score, decisions, debt created,
+  deviations). A spike instead records its `outcome`.
+- Only one slice may be in progress at a time, and `.sddpp/active.json` must match it.
+
+## Technical debt
+
+One YAML register per component; an entry lives only in its owner's file, and `also_affects` links the
+others. Status flow: `proposed` → `open` → `scheduled` → `paid` (or `accepted` / `dropped`).
+
+- Anything beyond `proposed` needs `approved_by`: the AI proposes, a human decides.
+- `accepted` needs `accepted_reason`; `scheduled` and `paid` need `paid_by` (a refactor slice that lists
+  the debt in `pays`).
+- `origin` says where it came from: a `slice`, a `decision` (ADR), the `blueprint`, or an `audit`.
+
+## Rules checked by `ppc validate`
+
+Errors fail validation; warnings fail only with `--strict`. `ppc rules` prints this table.
+
+| Rule | Severity | Meaning |
+|---|---|---|
+| `PARSE` | error | A file could not be parsed. |
+| `SCHEMA` | error | An artifact does not match its JSON Schema. |
+| `R00` | error | A required file is missing. |
+| `R01` | error | A component has no debt register file. |
+| `T01` | error | A slice references a capability that does not exist. |
+| `T02` | error | A slice references a component that does not exist. |
+| `T03` | error | A slice references a quality attribute that does not exist. |
+| `T04` | error | A slice depends on a slice that does not exist. |
+| `T05` | error | Slice dependencies contain a cycle. |
+| `T06` | error | A capability has no slice (no requirement without a slice). |
+| `T07` | error | A component references an unknown requirement or component. |
+| `T08` | error | An ADR references an unknown driver, evidence or ADR. |
+| `T09` | error | A debt entry is inconsistent with its component, origin or paying slice. |
+| `T10` | error | A refactor slice pays a debt entry that does not point back at it. |
+| `T11` | error | A change request references an unknown slice, component, ADR or quality attribute. |
+| `T12` | error | An id is duplicated, or a file name does not match its id. |
+| `T13` | error | A slice audit references unknown decisions or debt, or debt with the wrong origin. |
+| `T14` | error | A slice was planned against a blueprint revision that does not exist yet. |
+| `L01` | error | A slice has a phase while it is not in progress. |
+| `L02` | error | The audit commits are not ordered red before green. |
+| `L03` | error | `active.json` is missing or does not match the slice in progress. |
+| `L04` | error | More than one slice is in progress. |
+| `L05` | error | A debt entry is marked paid but its paying slice is not done. |
+| `B01` | error | A slice exceeded the diff budget without a recorded reason. |
+| `A01` | error / warning | An ADR lacks a required section (error when accepted, warning otherwise). |
+| `W01` | warning | A work slice does not state what it leaves out of scope. |
+| `W02` | warning | Evidence has expired and must be re-checked. |
+| `W03` | warning | An unfinished slice was planned against an older blueprint revision. |
+| `W04` | warning | A slice has many acceptance criteria and probably needs splitting. |
+| `G01` | error | A generated view is missing or stale (`ppc generate` fixes it). |
+
+Cross-reference rules run only when `blueprint.yaml` itself is valid, since everything else points at it.
+
+## What the contract does not check yet
+
+- That the audit's commits exist in git, that their diff size is true, or that a green commit left the
+  test files untouched. The audit is a claim until a git-based check exists (see the roadmap).
+- That an approval was given by a real person: `approved_by` is a name, not a signature.

@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:pp-suite:contract:0.1:evidence",
+  "title": "Research evidence (.architect/evidence/EV-NNN-*.md frontmatter)",
+  "description": "A claim that backs a recommendation, with its source and an expiry date so it gets re-checked.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "claim", "source_url", "source_type", "retrieved", "expires", "confidence", "quote"],
+  "properties": {
+    "id": { "type": "string", "pattern": "^EV-\\d{3}$" },
+    "claim": { "type": "string", "minLength": 10 },
+    "source_url": { "type": "string", "pattern": "^https://" },
+    "source_type": { "enum": ["primary", "secondary"] },
+    "retrieved": { "type": "string", "format": "date" },
+    "expires": { "type": "string", "format": "date" },
+    "confidence": { "enum": ["high", "medium", "low"] },
+    "quote": { "type": "string", "minLength": 10, "description": "Verbatim text from the source that supports the claim." }
+  }
+}

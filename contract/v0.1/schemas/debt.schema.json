@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:pp-suite:contract:0.1:debt",
+  "title": "Technical debt register of one component (.sddpp/debt/<component>.yaml)",
+  "description": "One file per component. A debt entry lives in exactly one file: the owning component's.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["component", "entries"],
+  "properties": {
+    "component": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+    "entries": { "type": "array", "items": { "$ref": "#/$defs/entry" } }
+  },
+  "$defs": {
+    "entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "title", "description", "kind", "origin", "created", "proposed_by", "cost_of_delay", "trigger", "status"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^DEBT-[A-Z]{2,5}-\\d{3,}$" },
+        "title": { "type": "string", "minLength": 5 },
+        "description": { "type": "string", "minLength": 15 },
+        "kind": { "enum": ["duplication", "design", "test", "performance", "security", "dependency", "documentation", "accessibility", "other"] },
+        "origin": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type", "ref"],
+          "properties": {
+            "type": { "enum": ["slice", "decision", "blueprint", "audit"] },
+            "ref": { "type": "string", "minLength": 1 }
+          }
+        },
+        "created": { "type": "string", "format": "date" },
+        "proposed_by": { "enum": ["ai", "human"] },
+        "cost_of_delay": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["level", "rationale"],
+          "properties": {
+            "level": { "enum": ["low", "medium", "high"] },
+            "rationale": { "type": "string", "minLength": 10 }
+          }
+        },
+        "trigger": { "type": "string", "minLength": 5, "description": "When this debt must be paid." },
+        "status": { "enum": ["proposed", "open", "scheduled", "paid", "accepted", "dropped"] },
+        "approved_by": { "type": "string", "minLength": 1 },
+        "accepted_reason": { "type": "string", "minLength": 10 },
+        "paid_by": { "type": "string", "pattern": "^SL-\\d{3,}$" },
+        "also_affects": { "type": "array", "items": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" }, "uniqueItems": true }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "status": { "enum": ["open", "scheduled", "paid", "accepted", "dropped"] } }, "required": ["status"] },
+          "then": { "required": ["approved_by"] }
+        },
+        {
+          "if": { "properties": { "status": { "const": "accepted" } }, "required": ["status"] },
+          "then": { "required": ["accepted_reason"] }
+        },
+        {
+          "if": { "properties": { "status": { "enum": ["scheduled", "paid"] } }, "required": ["status"] },
+          "then": { "required": ["paid_by"] }
+        }
+      ]
+    }
+  }
+}
