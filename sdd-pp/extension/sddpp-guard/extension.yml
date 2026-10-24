@@ -1,0 +1,23 @@
+schema_version: "1.0"
+
+extension:
+  id: "sddpp-guard"
+  name: "SDD.PP Guard"
+  version: "0.1.0"
+  description: "Locks test files while the active slice is in the green phase."
+  author: "GabrielV-Engineer"
+  repository: "https://github.com/GabrielV-Engineer/pp-suite"
+  license: "MIT"
+
+requires:
+  speckit_version: ">=1.2.0"
+
+provides:
+  commands:
+    - name: "speckit.sddpp-guard.pre-tool"
+      file: "commands/pre-tool.md"
+      description: "Runtime event handler: lock test files during the green phase"
+
+events:
+  pre_tool_use:
+    command: speckit.sddpp-guard.pre-tool

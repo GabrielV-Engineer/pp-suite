@@ -1,0 +1,32 @@
+schema_version: "1.0"
+
+preset:
+  id: "sddpp-slices"
+  name: "SDD.PP Slices"
+  version: "0.1.0"
+  description: "Turns the Spec Kit task list into thin vertical slices, test-first, with a diff budget."
+  author: "GabrielV-Engineer"
+  repository: "https://github.com/GabrielV-Engineer/pp-suite"
+  license: "MIT"
+
+requires:
+  speckit_version: ">=1.2.0"
+
+provides:
+  # Commands are declared in this same list, with type "command" (they are ignored under a separate key).
+  templates:
+    - type: "template"
+      name: "tasks-template"
+      file: "templates/tasks-template.md"
+      description: "Slice index: one line per slice, pointing at its slice file"
+      replaces: "tasks-template"
+
+    - type: "command"
+      name: "speckit.tasks"
+      file: "commands/tasks-wrapper.md"
+      description: "Wrap speckit.tasks with the SDD.PP slice rules"
+      strategy: "wrap"
+
+tags:
+  - "slices"
+  - "tdd"
