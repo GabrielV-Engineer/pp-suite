@@ -12,6 +12,10 @@ They talk through one versioned [contract](docs/contract-v0.1.md), and neither i
 > exist and are tested. One slice has been taken end to end with real agents, with a stand-in as the
 > human reviewer: see the [M1 report](docs/m1-report.md). The design layer and the install command are
 > not built. See the [roadmap](ROADMAP.md).
+>
+> **Does it help? Not shown.** A 45-run experiment found that on thin slices SDD.PP did not produce better
+> tested or more focused code than a plain prompt, and cost 2.5 times as much: see the
+> [experiment report](docs/experiment-report.md) for what it could and could not test.
 
 ## Why
 
@@ -28,7 +32,7 @@ few weeks. pp-suite attacks those with rules a tool can check, not only advice.
 
 No upstream code is copied. Why these bases and not others: [upstream-analysis](docs/upstream-analysis.md).
 How slices fit inside Spec Kit: [slices-in-sdd](docs/slices-in-sdd.md).
-How hard the test lock is to get around: [lock-adversarial](docs/lock-adversarial.md). Mutation testing: [mutation-testing](docs/mutation-testing.md). The refactor phase with a real agent: [refactor-exercise](docs/refactor-exercise.md).
+The experiment, with every number: [experiment-report](docs/experiment-report.md). How hard the test lock is to get around: [lock-adversarial](docs/lock-adversarial.md). Mutation testing: [mutation-testing](docs/mutation-testing.md). The refactor phase with a real agent: [refactor-exercise](docs/refactor-exercise.md).
 
 ## What is in this repo
 

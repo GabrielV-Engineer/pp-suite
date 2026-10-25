@@ -1,0 +1,99 @@
+{
+  "duration_api_ms": 64273,
+  "stop_reason": "end_turn",
+  "session_id": "3bae6261-6a89-40ec-a557-33d8438dc5bd",
+  "total_cost_usd": 0.29909150000000007,
+  "usage": {
+    "input_tokens": 18,
+    "cache_creation_input_tokens": 47499,
+    "cache_read_input_tokens": 379295,
+    "output_tokens": 7113,
+    "output_tokens_details": {
+      "thinking_tokens": 1601
+    },
+    "server_tool_use": {
+      "web_search_requests": 0,
+      "web_fetch_requests": 0
+    },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 47499,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 1063,
+        "cache_read_input_tokens": 57723,
+        "cache_creation_input_tokens": 301,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 301
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "modelUsage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 18,
+      "outputTokens": 7113,
+      "cacheReadInputTokens": 379295,
+      "cacheCreationInputTokens": 47499,
+      "webSearchRequests": 0,
+      "costUSD": 0.29909150000000007,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 1601,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "permission_denials": [],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": {
+      "background": 0,
+      "foreground": 0,
+      "unset": 0
+    },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": {
+      "parent": 0,
+      "user": 0,
+      "system": 0
+    },
+    "refused": {
+      "depth_limit": 0,
+      "concurrency_limit": 0,
+      "budget": 0
+    },
+    "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 11,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "Escribí y confirmé los tests rojos de SL-008, en `tests/task-order.test.ts` (commit `b5fa55a`). Fallan 8 tests y no pasa nada raro: `npm test` da 18 de 26 en verde. Los 18 son los anteriores más el test de latencia de AC-4. No toqué código de producción. `npm run typecheck` está limpio.\n\n**Qué cubren los tests**\n- **AC-1:** crear A, B, C y comprobar que `GET /api/tasks` devuelve C, B, A. Un cuarto task D queda arriba.\n- **AC-2:** tres casos.\n  - 40 POST seguidos deben salir en orden inverso, y se lee 5 veces.\n  - Tres filas con el mismo `created_at` exacto deben salir con la guardada última primero.\n  - Una fila con id mayor pero `created_at` más antiguo debe ir después, porque la fecha manda sobre el orden de guardado.\n- **AC-3:** la API responde 200 con `{tasks: []}`. La página tiene un elemento `id=\"empty-state\"` con texto, y `app.js` lo referencia.\n- **AC-4:** con 1000 tareas el cuerpo pesa menos de 400000 bytes y vienen todas, la más nueva primero. El p95 de 20 peticiones seguidas es menor de 100 ms.\n\n**Por qué fallan**\nHoy `listTasks` ordena por `id` ascendente, así que el orden sale invertido. Además la página no tiene estado vacío. Los fallos son aserciones de comportamiento, no errores de sintaxis ni de import.\n\n**Qué no pude verificar o conviene saber**\n- **Estado vacío:** solo se comprueba con aserciones sobre el HTML y el texto del script, como hacía SL-002. No usé navegador, así que no se prueba que el elemento se muestre al estar vacía la lista ni que se oculte al haber tareas. Tampoco que no haya error en la consola.\n- **Nombre fijado:** el id `empty-state` es una elección mía, porque el slice no define el nombre. Si prefieres otro, hay que cambiarlo en el test.\n- **Latencia (AC-4):** ese test ya pasa hoy, así que no pone presión en el código nuevo. Sirve para detectar si el ordenamiento la empeora. Los 1000 registros los inserto directo en SQLite con `node:sqlite`, parando antes el servidor. Eso no rompe la regla de arquitectura, que solo mira `src/` y `public/`. El p95 depende de la máquina.\n- **Mismo instante (AC-2):** no hay forma de forzar dos creaciones en el mismo milisegundo a través del servidor real. Por eso hay dos casos: uno con 40 POST seguidos (puede que no coincidan fechas) y otro con `created_at` idéntico insertado a mano, que sí lo garantiza.\n\n**Siguiente paso:** lee los tests y aprueba con `! ppc approve-red --by <tu nombre>`. Yo no lo ejecuté, como pide la fase.",
+  "ttft_ms": 3392,
+  "type": "result",
+  "duration_ms": 78140,
+  "uuid": "3322534a-c51b-41e7-99a5-6f51fec18588",
+  "ttft_stream_ms": 2587,
+  "time_to_request_ms": 61,
+  "first_content_frame_ms": 2587,
+  "queued_turn_count": 0,
+  "result_index": 0
+}

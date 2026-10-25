@@ -1,0 +1,60 @@
+{
+  "slice": "SL-006",
+  "head": "bc04e8716de049b0c4832259025f4442d5e63b60",
+  "commits": 1,
+  "test_edit_commits_after_first": 0,
+  "largest_commit_lines": 143,
+  "review_load": {
+    "production_lines": 28,
+    "test_lines": 115
+  },
+  "test_cases": 24,
+  "out_of_scope": {
+    "soft_delete_or_undo": 0,
+    "bulk_delete": 0,
+    "other_mutating_routes": 0,
+    "extra_reads": 0,
+    "total": 0
+  },
+  "own_tests": {
+    "tests": 22,
+    "pass": 22,
+    "fail": 0
+  },
+  "acceptance": {
+    "tests": 3,
+    "pass": 3,
+    "fail": 0
+  },
+  "mutation": {
+    "score": 0.8444,
+    "by_file": {
+      "src/app.ts": 0.8,
+      "src/tasks.ts": 1
+    },
+    "counts": {
+      "src/app.ts": {
+        "detected": 28,
+        "judged": 35
+      },
+      "src/tasks.ts": {
+        "detected": 10,
+        "judged": 10
+      }
+    },
+    "survivors": 7,
+    "files": [
+      "src/app.ts",
+      "src/tasks.ts"
+    ]
+  },
+  "session": {
+    "sessions": 1,
+    "usd": 0.274,
+    "minutes": 1.172,
+    "turns": 17,
+    "any_error": false,
+    "test_edit_calls": 0,
+    "guard_blocks": 0
+  }
+}

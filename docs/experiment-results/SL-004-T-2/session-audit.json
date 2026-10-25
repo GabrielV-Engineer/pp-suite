@@ -1,0 +1,114 @@
+{
+  "duration_api_ms": 65498,
+  "stop_reason": "end_turn",
+  "session_id": "217b1bfe-8fef-40a3-8ed2-df49879321fa",
+  "total_cost_usd": 0.2707023,
+  "usage": {
+    "input_tokens": 32,
+    "cache_creation_input_tokens": 36782,
+    "cache_read_input_tokens": 672603,
+    "output_tokens": 5625,
+    "output_tokens_details": {
+      "thinking_tokens": 807
+    },
+    "server_tool_use": {
+      "web_search_requests": 0,
+      "web_fetch_requests": 0
+    },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 36782,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 901,
+        "cache_read_input_tokens": 48697,
+        "cache_creation_input_tokens": 393,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 393
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "modelUsage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 32,
+      "outputTokens": 5625,
+      "cacheReadInputTokens": 672603,
+      "cacheCreationInputTokens": 36782,
+      "webSearchRequests": 0,
+      "costUSD": 0.2707023,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 807,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "permission_denials": [
+    {
+      "tool_name": "Bash",
+      "tool_use_id": "toolu_014GMCWMqFpWwuvGXLAxac6z",
+      "tool_input": {
+        "command": "python3 -I - <<'EOF'\np='.sddpp/debt/backend.yaml'\ns=open(p).read()\nold=\"rationale: The limit is a sanity bound for a personal list; the owner would have to type hundreds of emoji to notice, and the error message explains the limit. }\"\nnew='rationale: \"The limit is a sanity bound for a personal list. The owner would have to type hundreds of emoji to notice, and the error message explains the limit.\" }'\nassert old in s\nopen(p,'w').write(s.replace(old,new))\nEOF\nppc generate 2>&1 | tail -5; git status --short"
+      }
+    },
+    {
+      "tool_name": "Bash",
+      "tool_use_id": "toolu_01DA2vQTMREpJ87PYhBVsq6p",
+      "tool_input": {
+        "command": "cat > .sddpp/audit-input.json <<'EOF'\n{\n  \"commits\": [\n    { \"sha\": \"8434e544835e5b03bb4b8181080b6cfa7e36e6d8\", \"kind\": \"red\" },\n    { \"sha\": \"34adafc1eda3717875c79da502db806f921bb893\", \"kind\": \"green\" }\n  ],\n  \"tests_added\": 10,\n  \"mutation_score\": 0.8696,\n  \"decisions\": [],\n  \"debt_created\": [\"DEBT-BE-005\"],\n  \"deviations\": [\n    \"Mutation run (ppc mutation --files src/tasks.ts,src/app.ts, whole files, not only this slice's lines): score 0.8696, 40 killed, 6 survived. All 6 survivors are StringLiteral/ObjectLiteral mutants on src/app.ts lines 7, 13, 27 and 28 (health endpoint and static serving, from SL-001); none are in the lines this slice added. Already tracked as DEBT-BE-003.\",\n    \"DEBT-BE-004 (POST body shape is trusted) stays unresolved: the slice did not cover malformed JSON or a non-string title, so those still answer 500. Its trigger said to confirm in SL-004 whether it was in scope; the slice text does not include it, so it is left proposed for the human to decide.\",\n    \"DEBT-FE-001 is only partly paid: public/app.js now checks response.ok and keeps the typed text on a rejected title, but a fetch rejection (server down), a non-JSON error body and the GET in showTasks still have no handling. The page script is checked only by string assertions on its source, not run in a browser.\",\n    \"Cosmetic: green commit left a formatting slip in public/app.js ('const list =document...' without a space). Not fixed in the audit phase to keep the diff to bookkeeping.\",\n    \"The 400 body shape { error: { code: 'validation_failed', message } } was chosen in the red tests; if the blueprint defines an error contract, it was not cross-checked here. No ADR needed.\"\n  ]\n}\nEOF\nppc finish SL-004 --audit .sddpp/audit-input.json 2>&1 | tail -15"
+      }
+    }
+  ],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": {
+      "background": 0,
+      "foreground": 0,
+      "unset": 0
+    },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": {
+      "parent": 0,
+      "user": 0,
+      "system": 0
+    },
+    "refused": {
+      "depth_limit": 0,
+      "concurrency_limit": 0,
+      "budget": 0
+    },
+    "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 17,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "Cerré SL-004. `ppc finish` aceptó la auditoría y `ppc validate` da 0 errores y 1 aviso (W05: QA-003 no está referenciado por ninguna slice). El cierre quedó en el commit `440e60e`.\n\n**Qué se entregó:** la API responde 400 con `validation_failed` cuando el título está vacío tras recortar espacios (AC-1) o supera los 500 caracteres (AC-2). La página muestra el motivo en un elemento `#form-message` con `role=\"alert\"`. `ppc` midió 30 líneas de producción y 141 de tests.\n\n**Lo que verifiqué:**\n- `npm test` pasa los 26 tests; los 10 de esta slice están en `tests/titles.test.ts`.\n- `npm run typecheck` termina sin errores.\n- `ppc mutation` sobre `src/tasks.ts` y `src/app.ts` da una puntuación de 0.8696 (40 muertos, 6 supervivientes). Los 6 supervivientes están en líneas de SL-001 (`/api/health` y archivos estáticos) y ninguno en el código que añadió esta slice. `ppc` calculó su propia puntuación al cerrar; no vi ese valor.\n\n**Lo que no pude verificar:** el script de la página (`public/app.js`) no se ejecutó en un navegador. Los tests solo comprueban su texto fuente. Tampoco comprobé si el blueprint define un formato de error que el cuerpo `{ error: { code, message } }` deba respetar.\n\n**Deuda propuesta (la decide una persona):**\n- **DEBT-BE-005 (nueva):** la longitud se cuenta en unidades UTF-16, así que un emoji cuenta como 2. Riesgo bajo.\n- **DEBT-BE-004 (ya existía):** un cuerpo mal formado o un título que no sea cadena sigue dando 500, porque la slice no lo cubría. Su disparador pedía confirmar aquí si entraba en el alcance; queda propuesta y sin cambios.\n- **DEBT-FE-001 (ya existía):** solo está resuelta en parte. La página ya comprueba `response.ok`, pero sigue sin manejar un fallo de red, un cuerpo de error que no sea JSON, ni el GET de `showTasks`.\n\n**Desviaciones:** quedó un espacio que falta en `public/app.js` (`const list =document...`) y no lo corregí. Al principio mi entrada de deuda rompió el YAML por un `;` en el texto, y la corregí antes de generar las vistas. No hizo falta ningún ADR.",
+  "ttft_ms": 3308,
+  "type": "result",
+  "duration_ms": 120107,
+  "uuid": "c3023ad8-68ba-4e1a-85d6-746768f17e90",
+  "ttft_stream_ms": 2174,
+  "time_to_request_ms": 49,
+  "first_content_frame_ms": 2174,
+  "queued_turn_count": 0,
+  "result_index": 0
+}

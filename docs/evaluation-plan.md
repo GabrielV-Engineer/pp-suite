@@ -118,5 +118,5 @@ its result looks bad.
 | Design and decision rules | written (this file) |
 | Pilot: one slice, one run per condition, to check the measuring works | done: [pilot-sl002](pilot-sl002.md). It found a circular measure and a false positive, and proves nothing |
 | Instrument: `tools/eval` measures a run from git, test output and the session transcript (tested, 14 tests); neutral acceptance tests for SL-002, SL-004, SL-006 and SL-008, each self-contained; out-of-scope markers per slice fixed in `tools/eval/slices/`; mutation score (H1) | done. The acceptance tests were checked in both directions on the demo: they fail where the slice is not built and pass on a reference implementation |
-| The experiment itself (5 or more runs per condition, more than one slice) | not started: waiting for a decision on how many slices and runs to pay for |
-| Evidence that the methodology helps | **none yet** |
+| The experiment itself (5 runs per condition, 3 slices, 45 runs) | done on 2026-10-25: [experiment-report](experiment-report.md) |
+| Evidence that the methodology helps | **none.** By the rules above the claim is **not supported** at this size: T did not beat a plain prompt on untested behavior or scope, and cost 2.5 times as much. The experiment could not test the claims about long projects or the human reviewer |

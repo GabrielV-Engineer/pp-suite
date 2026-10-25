@@ -1,0 +1,99 @@
+{
+  "duration_api_ms": 41641,
+  "stop_reason": "end_turn",
+  "session_id": "8ce72dab-843e-49fc-9eb0-a99a6eb4c3f2",
+  "total_cost_usd": 0.2436055,
+  "usage": {
+    "input_tokens": 16,
+    "cache_creation_input_tokens": 40902,
+    "cache_read_input_tokens": 309155,
+    "output_tokens": 4905,
+    "output_tokens_details": {
+      "thinking_tokens": 906
+    },
+    "server_tool_use": {
+      "web_search_requests": 0,
+      "web_fetch_requests": 0
+    },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 40902,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 986,
+        "cache_read_input_tokens": 51097,
+        "cache_creation_input_tokens": 330,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 330
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "modelUsage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 16,
+      "outputTokens": 4905,
+      "cacheReadInputTokens": 309155,
+      "cacheCreationInputTokens": 40902,
+      "webSearchRequests": 0,
+      "costUSD": 0.2436055,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 906,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "permission_denials": [],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": {
+      "background": 0,
+      "foreground": 0,
+      "unset": 0
+    },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": {
+      "parent": 0,
+      "user": 0,
+      "system": 0
+    },
+    "refused": {
+      "depth_limit": 0,
+      "concurrency_limit": 0,
+      "budget": 0
+    },
+    "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 9,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "Los tests de SL-004 están escritos y commiteados (`07f44f5`), pero todavía no hay nada aprobado. Para aprobarlos, ejecuta tú mismo `ppc approve-red --by <tu nombre>`. En Claude Code, escríbelo con `!` delante. Yo no lo corrí porque el guard lo bloquea a propósito.\n\n**Qué hice**\n- `ppc status` confirmó que SL-004 estaba en progreso, en fase red.\n- Escribí `tests/titles.test.ts`, que solo toca tests. Cada test usa el servidor real con un SQLite real, como los de SL-002.\n- **AC-1:** un título vacío, de solo espacios o de solo tabs y saltos de línea devuelve `400 validation_failed` con un mensaje. El mensaje dice que el título es obligatorio. No se crea ninguna tarea, y un título corregido después sí se acepta.\n- **AC-2:** un título de 501 caracteres, o de 501 entre espacios, devuelve `400 validation_failed`. El mensaje dice que es demasiado largo. No se crea ninguna tarea. Dos tests fijan el límite: 500 exactos se aceptan, y 500 con espacios en los bordes también, porque solo cuenta el largo ya recortado.\n- **Página:** hay un test que comprueba que `index.html` tiene una región `id=\"task-error\" role=\"alert\"`. Otro comprueba que `app.js` usa `error.message` y no usa `innerHTML`.\n- No incluí nada del apartado \"Out of scope\" (títulos duplicados, normalización más allá del recorte).\n\n**Resultado de la ejecución:** 14 tests, 10 fallan y 4 pasan.\n- Los 10 que fallan lo hacen por la razón correcta: la API responde `500` en vez de `400`, porque hoy solo el `CHECK` de la migración rechaza esos títulos. Y la página no tiene la región de mensaje.\n- Los 4 que pasan son los dos \"no se crea ninguna tarea\" y los dos de 500 caracteres. Los dos \"no se crea ninguna tarea\" pasan sin demostrar nada, porque el `CHECK` ya impide guardar esos títulos. Los de 500 caracteres pasan porque ese comportamiento ya existe y solo fijan el límite.\n- `tsc --noEmit` salió limpio.\n\n**Qué no pude verificar**\n- Los tests de la página son aserciones de texto sobre `index.html` y `app.js`, como en SL-002. No comprueban que el mensaje aparezca de verdad en un navegador.\n- Los tests fijan los nombres `task-error` y `role=\"alert\"` y las palabras \"required\" y \"too long\" en los mensajes. Son decisiones mías, porque ni el slice ni el blueprint las definen, así que conviene que las revises al aprobar.",
+  "ttft_ms": 7461,
+  "type": "result",
+  "duration_ms": 44879,
+  "uuid": "3c7fd81f-f989-4a68-9813-89a016b1b491",
+  "ttft_stream_ms": 6258,
+  "time_to_request_ms": 61,
+  "first_content_frame_ms": 6258,
+  "queued_turn_count": 0,
+  "result_index": 0
+}

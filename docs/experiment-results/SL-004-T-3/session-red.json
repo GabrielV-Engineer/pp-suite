@@ -1,0 +1,99 @@
+{
+  "duration_api_ms": 28437,
+  "stop_reason": "end_turn",
+  "session_id": "db9e1871-76b3-45fa-ac76-752eeba1374f",
+  "total_cost_usd": 0.21584480000000003,
+  "usage": {
+    "input_tokens": 12,
+    "cache_creation_input_tokens": 39349,
+    "cache_read_input_tokens": 212648,
+    "output_tokens": 3716,
+    "output_tokens_details": {
+      "thinking_tokens": 370
+    },
+    "server_tool_use": {
+      "web_search_requests": 0,
+      "web_fetch_requests": 0
+    },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 39349,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 781,
+        "cache_read_input_tokens": 49175,
+        "cache_creation_input_tokens": 699,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 699
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "modelUsage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 12,
+      "outputTokens": 3716,
+      "cacheReadInputTokens": 212648,
+      "cacheCreationInputTokens": 39349,
+      "webSearchRequests": 0,
+      "costUSD": 0.21584480000000003,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 370,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "permission_denials": [],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": {
+      "background": 0,
+      "foreground": 0,
+      "unset": 0
+    },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": {
+      "parent": 0,
+      "user": 0,
+      "system": 0
+    },
+    "refused": {
+      "depth_limit": 0,
+      "concurrency_limit": 0,
+      "budget": 0
+    },
+    "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 8,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "The red-phase tests for SL-004 are written and committed (`7cf8bb0`), and I'm now stopped waiting for your approval.\n\n**What I did**\n- I added `tests/titles.test.ts`, which contains only tests. I changed no production code and did not touch the slice state.\n- **AC-1** (empty after trimming):\n  - Empty, spaces-only, and tab/newline-only titles must get `400 validation_failed` with a \"title is required\" message, and the list must stay unchanged.\n  - The page must have a `#form-message` element with `role=\"alert\"`, and `app.js` must write `error.message` into it with `textContent` and no `innerHTML`.\n- **AC-2** (over 500 characters):\n  - 501 characters must get `400 validation_failed` with a \"too long\" message and create nothing.\n  - The same applies to 501 characters padded with spaces, since the limit counts after trimming.\n  - Two boundary tests cover exactly 500 characters, with and without outer spaces, which must be accepted. I took these from the spec's story 3, scenario 3.\n- Out-of-scope items (duplicate titles, extra normalization) are not tested.\n\n**Test run:** 9 tests, 7 fail and 2 pass.\n- **Server rejections:** empty and 501-character titles return `500` instead of `400`. The server has no title validation yet, so this is the expected reason to fail.\n- **Page tests:** `#form-message` is missing from the HTML, and `app.js` doesn't use it.\n- **Passing tests:** the two 500-character boundary tests already pass. They guard against the later fix over-rejecting valid titles.\n\n**Not verified**\n- The page behavior is only checked by looking at the served HTML and script text. There is no browser test, because the blueprint excludes them, so whether the message actually shows up is untested.\n- I didn't run `npm test` for the whole suite or `tsc`. I only ran the new file.\n- The tests assume the error message wording from `contracts/tasks-api.md`, matched loosely as `/title is required/i` and `/too long/i`.\n- Non-string or missing `title` is in the contract but not in AC-1 or AC-2, so I left it untested.\n\n**Next step for you:** read the tests, then run `ppc approve-red --by <your name>` yourself. In Claude Code, prefix it with `!`. I haven't run it.",
+  "ttft_ms": 2787,
+  "type": "result",
+  "duration_ms": 31746,
+  "uuid": "5b56fcf1-5e03-45b4-8a64-5a96c4fd23fd",
+  "ttft_stream_ms": 1973,
+  "time_to_request_ms": 92,
+  "first_content_frame_ms": 1974,
+  "queued_turn_count": 0,
+  "result_index": 0
+}

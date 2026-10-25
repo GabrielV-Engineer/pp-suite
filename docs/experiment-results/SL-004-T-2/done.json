@@ -1,0 +1,18 @@
+{
+  "id": "SL-004-T-2",
+  "slice": "SL-004",
+  "condition": "T",
+  "rep": 2,
+  "base": "e4b45d6335b7288772048f5181f581fbf6d3572f",
+  "sessions": [
+    "red:ok",
+    "green:ok",
+    "audit:ok"
+  ],
+  "outcome": {
+    "closed": true,
+    "stopped_early": null,
+    "status_after": "no slice is in progress"
+  },
+  "finished_at": "2026-10-25T13:47:58.312Z"
+}

@@ -1,0 +1,99 @@
+{
+  "duration_api_ms": 33390,
+  "stop_reason": "end_turn",
+  "session_id": "89ad5d97-1baa-4863-9c96-647cc131b6f6",
+  "total_cost_usd": 0.2194041,
+  "usage": {
+    "input_tokens": 14,
+    "cache_creation_input_tokens": 37841,
+    "cache_read_input_tokens": 263021,
+    "output_tokens": 4171,
+    "output_tokens_details": {
+      "thinking_tokens": 522
+    },
+    "server_tool_use": {
+      "web_search_requests": 0,
+      "web_fetch_requests": 0
+    },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 37841,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 827,
+        "cache_read_input_tokens": 49757,
+        "cache_creation_input_tokens": 392,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 392
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "modelUsage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 14,
+      "outputTokens": 4171,
+      "cacheReadInputTokens": 263021,
+      "cacheCreationInputTokens": 37841,
+      "webSearchRequests": 0,
+      "costUSD": 0.2194041,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 522,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "permission_denials": [],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": {
+      "background": 0,
+      "foreground": 0,
+      "unset": 0
+    },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": {
+      "parent": 0,
+      "user": 0,
+      "system": 0
+    },
+    "refused": {
+      "depth_limit": 0,
+      "concurrency_limit": 0,
+      "budget": 0
+    },
+    "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 8,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "Escribí los tests de SL-004 y los commiteé. 8 de los 11 fallan, por la razón correcta. Falta tu aprobación.\n\n**Qué hice**\n- Creé `tests/validation.test.ts` y no toqué código de producción ni el estado del slice. El commit es `6cc0d5c`, con el mensaje `red(SL-004): …`.\n- **AC-1 (título vacío tras recortar):** los títulos `\"\"`, solo espacios y solo tabs o saltos de línea reciben `400 validation_failed` con el mensaje \"A title is required.\" del contrato. Los tests comprueban que la lista queda igual. La página debe tener un elemento `#form-message` con `role=\"alert\"`, y `app.js` debe leer `error.message` y escribirlo con `textContent`.\n- **AC-2 (más de 500 caracteres):** 501 y 5000 caracteres, y 501 con espacios alrededor, reciben `400` con el mensaje \"too long\" y no se crea nada. Los títulos de exactamente 500 caracteres, con o sin espacios alrededor, se aceptan (es el escenario 3 del User Story 3 y el contrato).\n- No probé nada de \"Out of scope\" (duplicados, normalización más allá de recortar).\n\n**Salida de los tests**\n- Los 6 fallos de API devuelven 500 en lugar de 400, porque hoy `createTask` no valida nada.\n- Los 2 fallos de página dicen que `form-message` no existe ni en `index.html` ni en `app.js`.\n- Los 3 que pasan (500 caracteres aceptados dos veces, y crear un título válido tras uno rechazado) son guardas de frontera, no pruebas de la funcionalidad nueva.\n\n**Qué no pude verificar**\n- No hay tests en navegador, porque están fuera del alcance del proyecto. El comportamiento de la página solo se comprueba con regex sobre el HTML y el JS, así que no demuestran que el mensaje se vea al enviar el formulario.\n- Los mensajes exactos salen de `contracts/tasks-api.md`, no de los criterios del slice. Si prefieres no fijar el texto, hay que relajar esas aserciones.\n- `tsc --noEmit` no mostró errores.\n\n**Siguiente paso:** lee los tests y aprueba con `! ppc approve-red --by <tu nombre>`. Yo no lo ejecuto.",
+  "ttft_ms": 2275,
+  "type": "result",
+  "duration_ms": 39610,
+  "uuid": "f2556223-1bb3-4283-95ff-767f5d6b2bd6",
+  "ttft_stream_ms": 1818,
+  "time_to_request_ms": 99,
+  "first_content_frame_ms": 1818,
+  "queued_turn_count": 0,
+  "result_index": 0
+}

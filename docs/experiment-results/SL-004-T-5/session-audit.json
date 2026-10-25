@@ -1,0 +1,114 @@
+{
+  "duration_api_ms": 57653,
+  "stop_reason": "end_turn",
+  "session_id": "55ee5b62-7b8f-4da3-8843-6191c8a8baea",
+  "total_cost_usd": 0.23446459999999997,
+  "usage": {
+    "input_tokens": 26,
+    "cache_creation_input_tokens": 34511,
+    "cache_read_input_tokens": 523186,
+    "output_tokens": 4405,
+    "output_tokens_details": {
+      "thinking_tokens": 507
+    },
+    "server_tool_use": {
+      "web_search_requests": 0,
+      "web_fetch_requests": 0
+    },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 34511,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 805,
+        "cache_read_input_tokens": 46483,
+        "cache_creation_input_tokens": 336,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 336
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "modelUsage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 26,
+      "outputTokens": 4405,
+      "cacheReadInputTokens": 523186,
+      "cacheCreationInputTokens": 34511,
+      "webSearchRequests": 0,
+      "costUSD": 0.23446459999999997,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 507,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "permission_denials": [
+    {
+      "tool_name": "Bash",
+      "tool_use_id": "toolu_0197jLKbqvgRA9Zs6LxwNyLz",
+      "tool_input": {
+        "command": "cat > .sddpp/audit-input.json <<'EOF'\n{\n  \"commits\": [\n    { \"sha\": \"2b041995c1b000a58c65e8cae7660f5cfbfd4ebb\", \"kind\": \"red\" },\n    { \"sha\": \"eb3169ce386252753d53ae502db28e77ae263322\", \"kind\": \"green\" }\n  ],\n  \"tests_added\": 10,\n  \"mutation_score\": null,\n  \"decisions\": [],\n  \"debt_created\": [],\n  \"deviations\": [\n    \"No new debt proposed. DEBT-BE-004 (request body shape) and DEBT-FE-001 (page ignores failed requests) were both triggered by this slice and remain proposed: the slice did not pay them. titleProblem(title) calls title.trim() without checking the type, so a missing or non-string title still gives a 500 instead of a 400. Only an empty or over-long string is validated, as the slice says. The page shows the API message on a non-ok response, but it still has no handling for a fetch rejection or a non-JSON error body, and a failed GET is still unhandled. Their status and approval are for the human to decide.\",\n    \"The limit counts the trimmed title (500 characters accepted, 501 rejected, outer spaces not counted). The slice only says 'longer than 500 characters'. The red tests pin this interpretation. No ADR needed.\",\n    \"Error shape { error: { code: 'validation_failed', message } } with status 400 comes from the commit message and the tests, not from the slice file or the blueprint. Check it matches the API conventions of the spec.\",\n    \"Mutation testing not run: mutation_score is null. Stryker is installed but no configuration or run was part of this phase.\",\n    \"The page script (public/app.js) is only checked by string assertions on its source. No test runs it in a browser, so the message actually appearing on the page is not verified end to end.\",\n    \"npm test (26 of 26 passing, 10 of them from tests/titles.test.ts) and npm run typecheck pass.\"\n  ]\n}\nEOF\nppc finish SL-004 --audit .sddpp/audit-input.json"
+      }
+    },
+    {
+      "tool_name": "Bash",
+      "tool_use_id": "toolu_012GW6CKQQ8p7LhRn25Lq7yS",
+      "tool_input": {
+        "command": "ppc finish SL-004 --audit .sddpp/audit-input.json; echo \"exit $?\"; git status --short"
+      }
+    }
+  ],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": {
+      "background": 0,
+      "foreground": 0,
+      "unset": 0
+    },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": {
+      "parent": 0,
+      "user": 0,
+      "system": 0
+    },
+    "refused": {
+      "depth_limit": 0,
+      "concurrency_limit": 0,
+      "budget": 0
+    },
+    "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 14,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "SL-004 está cerrado. `ppc finish` midió 28 líneas de producción (el presupuesto es 200) y 131 líneas de test. El commit de cierre es `9b2bfc0`, el árbol está limpio y `ppc status` dice que no hay ningún slice en curso.\n\n**Lo que hice**\n- `npm test` pasa con 26 de 26 tests, 10 de ellos de `tests/titles.test.ts`, y `npm run typecheck` pasa.\n- Escribí el input de auditoría con los commits red (`2b04199…`) y green (`eb3169c…`), `tests_added: 10` y las desviaciones. Después lo borré, como pide `audit.md`.\n- No propuse deuda nueva.\n- Quité `mutation_score` del input porque `ppc` lo calcula y lo rechazó.\n\n**Deuda y desviaciones para que decidas**\n- **`DEBT-BE-004`:** sigue en `proposed` y este slice la activó pero no la pagó. `titleProblem` llama a `title.trim()` sin comprobar el tipo, así que un cuerpo malformado o un título que no sea string sigue dando 500 en vez de 400.\n- **`DEBT-FE-001`:** sigue en `proposed` y tampoco quedó pagada. La página ya muestra el mensaje de la API cuando la respuesta no es OK. Aún no maneja un `fetch` que falle, un error que no sea JSON, ni un GET fallido.\n- **Interpretación del límite:** los 500 caracteres se cuentan después de recortar los espacios de los extremos. El slice solo dice \"más de 500 caracteres\"; los tests de red fijan esta lectura. No hace falta ADR.\n- **Forma del error:** `400` con `error.code = validation_failed` y `error.message` sale del commit y de los tests, no del slice ni del blueprint. Conviene confirmar que coincide con las convenciones de la spec.\n\n**Lo que no pude verificar**\n- No corrió mutation testing. Stryker está instalado, pero no hay una ejecución cuyo resultado `ppc` pudiera leer.\n- `public/app.js` solo se prueba con aserciones de texto sobre su código fuente. Nadie lo ejecutó en un navegador, así que no está verificado de punta a punta que el mensaje aparezca en la página.",
+  "ttft_ms": 6278,
+  "type": "result",
+  "duration_ms": 68846,
+  "uuid": "1bec5d5e-7e28-448d-a9fe-ab7ede2c6646",
+  "ttft_stream_ms": 5185,
+  "time_to_request_ms": 74,
+  "first_content_frame_ms": 5185,
+  "queued_turn_count": 0,
+  "result_index": 0
+}

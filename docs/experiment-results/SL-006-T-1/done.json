@@ -1,0 +1,19 @@
+{
+  "id": "SL-006-T-1",
+  "slice": "SL-006",
+  "condition": "T",
+  "rep": 1,
+  "base": "e4b45d6335b7288772048f5181f581fbf6d3572f",
+  "sessions": [
+    "red:ok",
+    "green:ok",
+    "audit:ok"
+  ],
+  "outcome": {
+    "closed": true,
+    "stopped_early": null,
+    "status_after": "no slice is in progress",
+    "remeasured": "The first measurement failed (see docs/evaluation-plan.md, \"Measurement change\"); measured again from the saved bundle, src/ only."
+  },
+  "finished_at": "2026-10-25T02:59:47.927Z"
+}

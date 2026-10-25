@@ -1,0 +1,66 @@
+{
+  "slice": "SL-004",
+  "head": "a407a989d4ac24e7fb5f53d020e876230eca0c8f",
+  "commits": 1,
+  "test_edit_commits_after_first": 0,
+  "largest_commit_lines": 135,
+  "review_load": {
+    "production_lines": 42,
+    "test_lines": 93
+  },
+  "test_cases": 24,
+  "out_of_scope": {
+    "duplicate_titles": 0,
+    "normalization": 0,
+    "extra_routes": 0,
+    "unrelated_features": 0,
+    "total": 0
+  },
+  "own_tests": {
+    "tests": 24,
+    "pass": 24,
+    "fail": 0
+  },
+  "acceptance": {
+    "tests": 4,
+    "pass": 4,
+    "fail": 0
+  },
+  "mutation": {
+    "score": 0.6667,
+    "by_file": {
+      "public/app.js": 0,
+      "src/app.ts": 0.8158,
+      "src/tasks.ts": 0.9667
+    },
+    "counts": {
+      "public/app.js": {
+        "detected": 0,
+        "judged": 22
+      },
+      "src/app.ts": {
+        "detected": 31,
+        "judged": 38
+      },
+      "src/tasks.ts": {
+        "detected": 29,
+        "judged": 30
+      }
+    },
+    "survivors": 30,
+    "files": [
+      "public/app.js",
+      "src/app.ts",
+      "src/tasks.ts"
+    ]
+  },
+  "session": {
+    "sessions": 1,
+    "usd": 0.243,
+    "minutes": 0.828,
+    "turns": 15,
+    "any_error": false,
+    "test_edit_calls": 0,
+    "guard_blocks": 0
+  }
+}

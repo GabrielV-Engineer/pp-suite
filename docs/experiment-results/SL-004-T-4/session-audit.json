@@ -1,0 +1,114 @@
+{
+  "duration_api_ms": 55725,
+  "stop_reason": "end_turn",
+  "session_id": "827149c9-d35f-470c-a104-eaf5e8c2018a",
+  "total_cost_usd": 0.2971809000000001,
+  "usage": {
+    "input_tokens": 32,
+    "cache_creation_input_tokens": 39845,
+    "cache_read_input_tokens": 689969,
+    "output_tokens": 6874,
+    "output_tokens_details": {
+      "thinking_tokens": 1072
+    },
+    "server_tool_use": {
+      "web_search_requests": 0,
+      "web_fetch_requests": 0
+    },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 39845,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 702,
+        "cache_read_input_tokens": 51900,
+        "cache_creation_input_tokens": 253,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 253
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "modelUsage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 32,
+      "outputTokens": 6874,
+      "cacheReadInputTokens": 689969,
+      "cacheCreationInputTokens": 39845,
+      "webSearchRequests": 0,
+      "costUSD": 0.2971809000000001,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 1072,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "permission_denials": [
+    {
+      "tool_name": "Bash",
+      "tool_use_id": "toolu_01QfP8vHojiHQUXDbzWdMuJk",
+      "tool_input": {
+        "command": "git show --stat 07f44f5 6cf13be | cat; git show 6cf13be | cat; cat .sddpp/debt/backend.yaml .sddpp/debt/frontend.yaml; grep -n \"code\\|DEBT\" .architect/blueprint.yaml | head -20; (npm test 2>&1 | tail -25); (npm run typecheck 2>&1 | tail -15)"
+      }
+    },
+    {
+      "tool_name": "Bash",
+      "tool_use_id": "toolu_015fG81VHUBUzLD9ovAkDhyi",
+      "tool_input": {
+        "command": "cat >> .sddpp/debt/backend.yaml <<'EOF'\n  - id: DEBT-BE-005\n    title: Title length is counted in UTF-16 code units\n    description: src/app.ts compares trimmed.length with MAX_TITLE_LENGTH (500). String length counts UTF-16 code units, so a title with emoji or other characters outside the BMP counts two units per character and is rejected below 500 visible characters. No test covers a non-BMP title, and the spec says \"500 characters\" without defining the unit.\n    kind: design\n    origin: { type: slice, ref: SL-004 }\n    created: 2026-10-25\n    proposed_by: ai\n    cost_of_delay: { level: low, rationale: A single owner typing short task titles; hitting the limit with emoji needs a title of more than 250 of them. }\n    trigger: When the spec defines the unit of the 500-character limit, or when a title with non-BMP characters is reported as wrongly rejected.\n    status: proposed\nEOF\ncat > .sddpp/audit-input.json <<'EOF'\n{\n  \"commits\": [\n    { \"sha\": \"07f44f54cd1ae278b823ede750f596181783c2f6\", \"kind\": \"red\" },\n    { \"sha\": \"6cf13bebf27995d5c4712c05922daabe16038097\", \"kind\": \"green\" }\n  ],\n  \"tests_added\": 14,\n  \"mutation_score\": 86.05,\n  \"decisions\": [],\n  \"debt_created\": [\"DEBT-BE-005\"],\n  \"deviations\": [\n    \"Mutation score 86.05 is Stryker on src/app.ts only (37 of 43 mutants killed); public/app.js was not mutated and src/tasks.ts is untouched. All 6 survivors are outside this slice: the /api/health 503 body (already DEBT-BE-003), the PUBLIC_DIR fallback and the static route paths. Every mutant in the new validation block was killed.\",\n    \"The page behavior is only checked by string assertions on public/app.js and public/index.html (no browser test), so the message actually appearing on the page was not verified in a browser.\",\n    \"The green commit includes a stray style change in public/app.js: 'const list =document.getElementById' lost a space. Harmless, not reverted because the tests are locked in green and it is only formatting.\",\n    \"Validation lives in the route handler in src/app.ts and trims the title, then src/tasks.ts trims again; the rule is not in the tasks module. The slice says it does not touch the database layer, and it does not, but the duplicated trim is a small design smell, not recorded as debt.\",\n    \"DEBT-BE-004 (malformed body or non-string title still gives 500, since title.trim() throws) and DEBT-FE-001 (the page checks response.ok now, but a network failure on fetch or a non-JSON error body is still unhandled) both name SL-004 as their trigger. This slice does not cover a malformed body, so DEBT-BE-004 is unchanged and still proposed; DEBT-FE-001 is only partly addressed. I did not edit either entry; a human decides their status.\",\n    \"No ADR needed: the error shape {error: {code: 'validation_failed', message}} with status 400 was chosen by the red tests and is not recorded in a decision.\"\n  ]\n}\nEOF\nppc finish SL-004 --audit .sddpp/audit-input.json"
+      }
+    }
+  ],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": {
+      "background": 0,
+      "foreground": 0,
+      "unset": 0
+    },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": {
+      "parent": 0,
+      "user": 0,
+      "system": 0
+    },
+    "refused": {
+      "depth_limit": 0,
+      "concurrency_limit": 0,
+      "budget": 0
+    },
+    "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 25,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "SL-004 is closed. `ppc finish` accepted the audit, and the bookkeeping is committed as `7e24bea chore(SL-004): close slice`. Before finishing I ran `npm test` (30 of 30 pass) and `npm run typecheck` (clean).\n\n**What shipped**\n- `POST /api/tasks` now trims the title and answers 400 with `validation_failed` and a message when it is empty or longer than 500 characters.\n- The page has a `role=\"alert\"` region and shows that message when a title is rejected.\n- `ppc` measured 31 production lines and 154 test lines, so there was no budget problem.\n\n**Debt**\n- I proposed DEBT-BE-005: the 500-character limit counts UTF-16 code units, so emoji count as two. The spec does not say what unit \"characters\" means, and no test covers it. I did not set `approved_by`.\n- DEBT-BE-004 (a malformed body or non-string title still gives a 500) and DEBT-FE-001 (the page still ignores network failures and non-JSON error bodies) both name SL-004 as their trigger. I left both entries unchanged and listed them in the deviations. The slice does not cover a malformed body, and FE-001 is only partly addressed, so you decide their status.\n\n**Deviations I recorded**\n- The green commit left a stray formatting slip in `public/app.js` (`const list =document...`).\n- The trim is done in the route handler and again in `src/tasks.ts`. I flagged it but did not record it as debt.\n- `ppc finish` rejects `mutation_score` in the audit input, even as `null`, because it computes the score itself. I removed the key.\n\n**What I could not verify**\n- The message appearing on the page was not checked in a browser. The page tests only match strings in the source of `public/app.js` and `public/index.html`.\n- I ran Stryker on `src/app.ts` only and got 86.05%: 37 of 43 mutants killed, and every mutant in the new validation code was killed. The 6 survivors are in the health 503 body and the static routes. I did not mutate `public/app.js`. That score is not in the audit record.",
+  "ttft_ms": 3855,
+  "type": "result",
+  "duration_ms": 107333,
+  "uuid": "b3d5f363-e5e4-42c4-9c2b-9331e718c511",
+  "ttft_stream_ms": 2744,
+  "time_to_request_ms": 61,
+  "first_content_frame_ms": 2745,
+  "queued_turn_count": 0,
+  "result_index": 0
+}

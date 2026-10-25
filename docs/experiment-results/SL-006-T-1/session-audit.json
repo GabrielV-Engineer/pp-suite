@@ -1,0 +1,114 @@
+{
+  "duration_api_ms": 41411,
+  "stop_reason": "end_turn",
+  "session_id": "705551d8-bb72-4536-8c50-3200896a7257",
+  "total_cost_usd": 0.2610457,
+  "usage": {
+    "input_tokens": 32,
+    "cache_creation_input_tokens": 36272,
+    "cache_read_input_tokens": 674337,
+    "output_tokens": 4846,
+    "output_tokens_details": {
+      "thinking_tokens": 363
+    },
+    "server_tool_use": {
+      "web_search_requests": 0,
+      "web_fetch_requests": 0
+    },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 36272,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 679,
+        "cache_read_input_tokens": 48372,
+        "cache_creation_input_tokens": 208,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 208
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "modelUsage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 32,
+      "outputTokens": 4846,
+      "cacheReadInputTokens": 674337,
+      "cacheCreationInputTokens": 36272,
+      "webSearchRequests": 0,
+      "costUSD": 0.2610457,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 363,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "permission_denials": [
+    {
+      "tool_name": "Bash",
+      "tool_use_id": "toolu_01AbZbgFLQYhu2VuyUhHQoiE",
+      "tool_input": {
+        "command": "cat >> .sddpp/debt/frontend.yaml <<'EOF'\n  - id: DEBT-FE-002\n    title: The delete handler ignores the response and is only checked by string assertions\n    description: The click handler in public/app.js does not check response.ok. If DELETE answers 404 or fails, the page just reloads the list with no message. The confirm-then-DELETE order is asserted by reading the script source, not by running it, so a behavioural regression (wrong id, wrong method) in the browser would not be caught.\n    kind: test\n    origin: { type: slice, ref: SL-006 }\n    created: 2026-10-24\n    proposed_by: ai\n    cost_of_delay: { level: low, rationale: \"Same situation as DEBT-FE-001: a local page talking to its own server; a failed delete leaves the task visible, so nothing is lost silently.\" }\n    trigger: Together with DEBT-FE-001, in the first slice that adds error feedback to the page or a browser-driven test.\n    status: proposed\nEOF\ncat > .sddpp/audit-input.json <<'EOF'\n{\n  \"commits\": [\n    { \"sha\": \"1c0cf609f510b25dd8d8aadc57310daf0244d758\", \"kind\": \"red\" },\n    { \"sha\": \"88dc4d343d4e216684e7d82862d93674abd992d3\", \"kind\": \"green\" }\n  ],\n  \"tests_added\": 8,\n  \"mutation_score\": null,\n  \"decisions\": [],\n  \"debt_created\": [\"DEBT-FE-002\"],\n  \"deviations\": [\n    \"Mutation testing (Stryker) was not run, so mutation_score is null.\",\n    \"npm test (24 passing) and npm run typecheck (clean) were run before finishing.\",\n    \"The page behaviour (confirm dialog, button, list refresh) was not exercised in a browser: the tests only assert on the script source, and nobody clicked it.\",\n    \"Choices made without a record: the 404 body uses { error: { code: 'not_found', message } } (no earlier error shape exists to follow), the delete button is labelled 'Delete', and the confirm text names the task title. None seems to need an ADR.\",\n    \"Approvals of the slice and of red were given by the automated experiment harness, not by a human.\"\n  ]\n}\nEOF\nppc finish SL-006 --audit .sddpp/audit-input.json"
+      }
+    },
+    {
+      "tool_name": "Bash",
+      "tool_use_id": "toolu_01VfEwoTjkajgF42LngyryxM",
+      "tool_input": {
+        "command": "ppc finish SL-006 --audit .sddpp/audit-input.json; echo exit=$?; git status --short"
+      }
+    }
+  ],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": {
+      "background": 0,
+      "foreground": 0,
+      "unset": 0
+    },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": {
+      "parent": 0,
+      "user": 0,
+      "system": 0
+    },
+    "refused": {
+      "depth_limit": 0,
+      "concurrency_limit": 0,
+      "budget": 0
+    },
+    "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 18,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "SL-006 is closed, and the bookkeeping is committed as `95b5ce5 chore(SL-006): close slice`.\n\n**What shipped:** `DELETE /api/tasks/:id` returns 204 when it deletes a task and 404 when the task doesn't exist. The page now has a Delete button that asks for confirmation before it sends the request. The slice adds 8 tests. `ppc finish` measured 22 production lines and 157 test lines, so there was no budget problem.\n\n**What I ran:** `npm test` passed all 24 tests and `npm run typecheck` was clean.\n\n**Debt proposed (you decide):** I added `DEBT-FE-002` in `.sddpp/debt/frontend.yaml` with status `proposed` and did not set `approved_by`. The delete handler in `public/app.js` ignores `response.ok`, so a failed delete shows no message. Its confirm-then-DELETE order is only checked by reading the script source. It is low urgency and sits alongside `DEBT-FE-001`.\n\n**Deviations and what I could not verify:**\n- **Mutation score:** I did not run Stryker. `ppc` rejected `mutation_score` in the audit input because it computes that value itself, so I removed the field. The deviation text I wrote in the audit input still says \"mutation_score is null\".\n- **Page behaviour:** The tests only assert on the script source, so the confirm dialog, the button and the list refresh were never run in a browser.\n- **Choices with no record:**\n  - The 404 body is `{ error: { code: \"not_found\", message } }`. No earlier error shape existed to follow.\n  - The button label is \"Delete\".\n  - The confirm text names the task title.\n  - None of these seems to need an ADR.\n- **Approvals:** The approvals of the slice and of the red phase came from the automated experiment harness, not a human.\n- **Commands that didn't run:** Two of my own commands (a multi-line `cat` and a trailing `echo $?`) were refused by the shell check and never ran. I redid those steps with the file tools.",
+  "ttft_ms": 3035,
+  "type": "result",
+  "duration_ms": 57674,
+  "uuid": "1752d9aa-39ef-4211-9395-4a16f009bfb6",
+  "ttft_stream_ms": 1985,
+  "time_to_request_ms": 126,
+  "first_content_frame_ms": 1986,
+  "queued_turn_count": 0,
+  "result_index": 0
+}

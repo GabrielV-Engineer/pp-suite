@@ -1,0 +1,15 @@
+{
+  "id": "SL-006-B2-3",
+  "slice": "SL-006",
+  "condition": "B2",
+  "rep": 3,
+  "base": "3fbc90e34c2c3ff569c6426a7d1ad2b2bce81164",
+  "sessions": [
+    "all:ok"
+  ],
+  "outcome": {
+    "closed": null,
+    "stopped_early": null
+  },
+  "finished_at": "2026-10-25T18:30:31.426Z"
+}

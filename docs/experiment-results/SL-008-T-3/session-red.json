@@ -1,0 +1,99 @@
+{
+  "duration_api_ms": 51768,
+  "stop_reason": "end_turn",
+  "session_id": "9c010e0b-5502-4db8-8162-924ee042753e",
+  "total_cost_usd": 0.2984166999999999,
+  "usage": {
+    "input_tokens": 20,
+    "cache_creation_input_tokens": 47609,
+    "cache_read_input_tokens": 430807,
+    "output_tokens": 6486,
+    "output_tokens_details": {
+      "thinking_tokens": 1037
+    },
+    "server_tool_use": {
+      "web_search_requests": 0,
+      "web_fetch_requests": 0
+    },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 47609,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 924,
+        "cache_read_input_tokens": 57831,
+        "cache_creation_input_tokens": 303,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 303
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "modelUsage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 20,
+      "outputTokens": 6486,
+      "cacheReadInputTokens": 430807,
+      "cacheCreationInputTokens": 47609,
+      "webSearchRequests": 0,
+      "costUSD": 0.2984166999999999,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 1037,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "permission_denials": [],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": {
+      "background": 0,
+      "foreground": 0,
+      "unset": 0
+    },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": {
+      "parent": 0,
+      "user": 0,
+      "system": 0
+    },
+    "refused": {
+      "depth_limit": 0,
+      "concurrency_limit": 0,
+      "budget": 0
+    },
+    "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 11,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "I wrote and committed the SL-008 red tests in `tests/task-order.test.ts` (commit `74b84fb`, tests only). I did not run `ppc approve-red`. Please read the tests, then run `ppc approve-red --by <your name>` yourself (in Claude Code, prefix it with `!`).\n\nRunning that file gives 9 failing and 2 passing out of 11. The failures are for the right reason: the list comes back oldest first (`['A','B','C']` instead of `['C','B','A']`), and the page has no `empty-state` element. `npm run typecheck` is clean. I did not run the full `npm test`, only this file.\n\n| AC | What the tests check | Result now |\n|---|---|---|\n| AC-1 | A, B, C added in order list as C, B, A, and a later D goes on top. A seeded case has the lowest id with the newest `created_at`, so it checks creation time rather than id. | Fail |\n| AC-2 | Four rows seeded with an identical `created_at` list last-saved first, over 5 requests. Thirty tasks posted back to back list in reverse order. | Fail |\n| AC-3 | `GET /api/tasks` answers `200 {\"tasks\":[]}` on an empty list. The page has an `empty-state` element outside the `<ul>` with some text, and `app.js` references it and toggles it based on `tasks.length`. | API check passes, 3 page checks fail |\n| AC-4 | 1000 seeded tasks, 20 sequential GETs, p95 under 100 ms and body under 400000 bytes. A second test checks they come back newest first. | Latency/size test passes, ordering test fails |\n\nTwo tests already pass, as expected: the empty list is already `200 {\"tasks\":[]}`, and 1000 tasks already fit the AC-4 latency and size budget. They guard against regressions rather than drive new code.\n\nFor the tie and 1000-task cases, the tests seed rows directly into the SQLite file with `node:sqlite` while the server is stopped. The architecture test only restricts `src/`, but this is the first test that opens the database directly, so you may want to look at it.\n\n**What I could not verify:**\n- **Page behavior:** there is no browser test, which is a blueprint non-goal. The empty-state checks are string and HTML assertions, as in SL-002. They show the element and script wiring exist, not that the empty state actually shows or hides.\n- **Latency:** the p95 check was timed on this machine in one run, so it may be flaky elsewhere.\n- **Test strictness:** I did not measure mutation score, so I can't say how strict the tests are.\n- **AC-3 script check:** the `hidden`/`classList` regex fixes the implementation style loosely. The contract only names the `empty-state` id, so it is the least precise assertion.",
+  "ttft_ms": 3725,
+  "type": "result",
+  "duration_ms": 57137,
+  "uuid": "2ea96afc-b660-41a6-a2e2-1b2d3fce89ef",
+  "ttft_stream_ms": 2584,
+  "time_to_request_ms": 61,
+  "first_content_frame_ms": 2584,
+  "queued_turn_count": 0,
+  "result_index": 0
+}

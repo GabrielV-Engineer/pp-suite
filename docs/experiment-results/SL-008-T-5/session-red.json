@@ -1,0 +1,107 @@
+{
+  "duration_api_ms": 92258,
+  "stop_reason": "end_turn",
+  "session_id": "ebe9cc1a-577a-4062-bbeb-d92ed5d273ad",
+  "total_cost_usd": 0.3868396,
+  "usage": {
+    "input_tokens": 18,
+    "cache_creation_input_tokens": 52809,
+    "cache_read_input_tokens": 396276,
+    "output_tokens": 13594,
+    "output_tokens_details": {
+      "thinking_tokens": 3171
+    },
+    "server_tool_use": {
+      "web_search_requests": 0,
+      "web_fetch_requests": 0
+    },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 52809,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 949,
+        "cache_read_input_tokens": 62900,
+        "cache_creation_input_tokens": 434,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 434
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "modelUsage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 18,
+      "outputTokens": 13594,
+      "cacheReadInputTokens": 396276,
+      "cacheCreationInputTokens": 52809,
+      "webSearchRequests": 0,
+      "costUSD": 0.3868396,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 3171,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "permission_denials": [
+    {
+      "tool_name": "Bash",
+      "tool_use_id": "toolu_018VdBoomoATY7hrQKG4fcWu",
+      "tool_input": {
+        "command": "cat > tests/helpers/seed.ts <<'EOF'\nimport { DatabaseSync } from \"node:sqlite\";\n\nexport interface SeedTask {\n  title: string;\n  created_at: string;\n}\n\n/**\n * Inserts tasks straight into a database file whose server is already running (so the `tasks`\n * table exists). The public API stamps `created_at` itself, so this is the only way to put\n * tasks at exactly the same instant, or out of order, on purpose. Rows get ids in array order.\n */\nexport function seedTasks(dbPath: string, tasks: SeedTask[]): void {\n  const db = new DatabaseSync(dbPath);\n  try {\n    db.exec(\"PRAGMA busy_timeout = 5000\");\n    const insert = db.prepare(\n      \"INSERT INTO tasks (title, created_at, updated_at) VALUES (?, ?, ?)\",\n    );\n    db.exec(\"BEGIN\");\n    for (const task of tasks) insert.run(task.title, task.created_at, task.created_at);\n    db.exec(\"COMMIT\");\n  } finally {\n    db.close();\n  }\n}\nEOF\ncat > tests/newest-first.test.ts <<'EOF'\nimport assert from \"node:assert/strict\";\nimport { readFileSync } from \"node:fs\";\nimport { join } from \"node:path\";\nimport { runInNewContext } from \"node:vm\";\nimport { after, before, describe, it } from \"node:test\";\nimport { seedTasks } from \"./helpers/seed.ts\";\nimport { newDbPath, ROOT, startServer, type Running } from \"./helpers/server.ts\";\n\ninterface Task {\n  id: number;\n  title: string;\n  created_at: string;\n  updated_at: string;\n  completed_at: string | null;\n}\n\nasync function createTask(server: Running, title: string): Promise<Task> {\n  const response = await fetch(`${server.baseUrl}/api/tasks`, {\n    method: \"POST\",\n    headers: { \"content-type\": \"application/json\" },\n    body: JSON.stringify({ title }),\n  });\n  assert.equal(response.status, 201);\n  return ((await response.json()) as { task: Task }).task;\n}\n\nasync function listTitles(server: Running): Promise<string[]> {\n  const response = await fetch(`${server.baseUrl}/api/tasks`);\n  assert.equal(response.status, 200);\n  const { tasks } = (await response.json()) as { tasks: Task[] };\n  return tasks.map((task) => task.title);\n}\n\ndescribe(\"SL-008 open tasks newest first, with an empty state\", () => {\n  describe(\"AC-1: open tasks added in the order A, B, C\", () => {\n    let server: Running;\n\n    before(async () => {\n      server = await startServer();\n    });\n    after(async () => {\n      await server?.stop();\n    });\n\n    it(\"AC-1: GET /api/tasks lists C, B, A\", async () => {\n      for (const title of [\"A\", \"B\", \"C\"]) await createTask(server, title);\n      assert.deepEqual(await listTitles(server), [\"C\", \"B\", \"A\"]);\n    });\n\n    it(\"AC-1: a task added later goes to the top of the list\", async () => {\n      await createTask(server, \"D\");\n      assert.deepEqual(await listTitles(server), [\"D\", \"C\", \"B\", \"A\"]);\n    });\n  });\n\n  describe(\"AC-1: creation time decides first\", () => {\n    const dbPath = newDbPath();\n    let server: Running;\n\n    before(async () => {\n      server = await startServer(dbPath);\n      // Saved first but created last, and the other way round: id order and time order disagree.\n      seedTasks(dbPath, [\n        { title: \"created last, saved first\", created_at: \"2026-03-01T10:00:03.000Z\" },\n        { title: \"created first, saved last\", created_at: \"2026-03-01T10:00:01.000Z\" },\n        { title: \"created second, saved second\", created_at: \"2026-03-01T10:00:02.000Z\" },\n      ]);\n    });\n    after(async () => {\n      await server?.stop();\n    });\n\n    it(\"AC-1: the later created_at is listed first, whatever the id\", async () => {\n      assert.deepEqual(await listTitles(server), [\n        \"created last, saved first\",\n        \"created second, saved second\",\n        \"created first, saved last\",\n      ]);\n    });\n  });\n\n  describe(\"AC-2: tasks created within the same instant\", () => {\n    const dbPath = newDbPath();\n    let server: Running;\n\n    before(async () => {\n      server = await startServer(dbPath);\n      const sameInstant = \"2026-03-01T10:00:00.000Z\";\n      seedTasks(\n        dbPath,\n        [\"first\", \"second\", \"third\", \"fourth\", \"fifth\"].map((title) => ({\n          title,\n          created_at: sameInstant,\n        })),\n      );\n    });\n    after(async () => {\n      await server?.stop();\n    });\n\n    it(\"AC-2: the one saved last is listed first\", async () => {\n      assert.deepEqual(await listTitles(server), [\"fifth\", \"fourth\", \"third\", \"second\", \"first\"]);\n    });\n\n    it(\"AC-2: the order is the same on every request\", async () => {\n      const expected = await listTitles(server);\n      for (let request = 0; request < 10; request++) {\n        assert.deepEqual(await listTitles(server), expected);\n      }\n    });\n\n    it(\"AC-2: tasks posted back to back come out in exact reverse order\", async () => {\n      const titles = Array.from({ length: 30 }, (_, index) => `burst ${index}`);\n      for (const title of titles) await createTask(server, title);\n\n      const listed = (await listTitles(server)).filter((title) => title.startsWith(\"burst \"));\n      assert.deepEqual(listed, [...titles].reverse());\n    });\n  });\n\n  describe(\"AC-3: an empty list\", () => {\n    let server: Running;\n    let html: string;\n    let script: string;\n\n    before(async () => {\n      server = await startServer();\n      html = await (await fetch(`${server.baseUrl}/`)).text();\n      script = await (await fetch(`${server.baseUrl}/app.js`)).text();\n    });\n    after(async () => {\n      await server?.stop();\n    });\n\n    it(\"AC-3: GET /api/tasks answers 200 with an empty list, not an error\", async () => {\n      const response = await fetch(`${server.baseUrl}/api/tasks`);\n      assert.equal(response.status, 200);\n      assert.deepEqual(await response.json(), { tasks: [] });\n    });\n\n    it(\"AC-3: the page has an empty-state element, outside the task list\", () => {\n      assert.match(html, /<[a-z0-9]+(?=[^>]*\\bid=[\"']empty-state[\"'])[^>]*>/i);\n      assert.doesNotMatch(\n        html,\n        /<ul[^>]*id=[\"']task-list[\"'][^>]*>(?:(?!<\\/ul>)[\\s\\S])*id=[\"']empty-state[\"']/i,\n        \"the empty state must not be an item inside the ul\",\n      );\n    });\n\n    // No browser (non-goal), so the real public/app.js runs against a minimal fake page.\n    // \"Visible\" means the element's `hidden` property is false.\n    function runPage(tasks: Pick<Task, \"title\">[]) {\n      const initiallyHidden = (id: string) =>\n        new RegExp(`<[a-z0-9]+(?=[^>]*\\\\bid=[\"']${id}[\"'])(?=[^>]*\\\\shidden\\\\b)[^>]*>`, \"i\").test(\n          html,\n        );\n      const elements = new Map<string, any>();\n      const makeElement = (hidden = false): any => ({\n        hidden,\n        textContent: \"\",\n        value: \"\",\n        children: [] as any[],\n        addEventListener() {},\n        replaceChildren(...nodes: any[]) {\n          this.children = nodes;\n        },\n        append(...nodes: any[]) {\n          this.children.push(...nodes);\n        },\n      });\n      const document = {\n        getElementById(id: string) {\n          if (!elements.has(id)) elements.set(id, makeElement(initiallyHidden(id)));\n          return elements.get(id);\n        },\n        createElement: () => makeElement(),\n      };\n      const errors: unknown[] = [];\n      const fetched: string[] = [];\n      const fetchStub = async (url: string) => {\n        fetched.push(String(url));\n        return { ok: true, status: 200, json: async () => ({ tasks }) };\n      };\n      runInNewContext(script, {\n        document,\n        fetch: fetchStub,\n        console: { ...console, error: (...args: unknown[]) => errors.push(args) },\n      });\n      const settled = (async () => {\n        for (let turn = 0; turn < 10; turn++) await new Promise((r) => setImmediate(r));\n      })();\n      return { document, errors, fetched, settled };\n    }\n\n    it(\"AC-3: with no tasks the page shows the empty state and no error\", async () => {\n      const page = runPage([]);\n      await page.settled;\n\n      assert.ok(page.fetched.some((url) => url.includes(\"/api/tasks\")));\n      assert.equal(page.document.getElementById(\"task-list\").children.length, 0);\n      assert.equal(page.document.getElementById(\"empty-state\").hidden, false);\n      assert.deepEqual(page.errors, []);\n    });\n\n    it(\"AC-3: with tasks the page lists them in API order and hides the empty state\", async () => {\n      const page = runPage([{ title: \"C\" }, { title: \"B\" }, { title: \"A\" }]);\n      await page.settled;\n\n      const shown = page.document.getElementById(\"task-list\").children.map((li: any) => li.textContent);\n      assert.deepEqual(shown, [\"C\", \"B\", \"A\"]);\n      assert.equal(page.document.getElementById(\"empty-state\").hidden, true);\n    });\n  });\n\n  describe(\"AC-4: about 1000 stored tasks\", () => {\n    const dbPath = newDbPath();\n    let server: Running;\n\n    before(async () => {\n      server = await startServer(dbPath);\n      const start = Date.parse(\"2026-03-01T00:00:00.000Z\");\n      seedTasks(\n        dbPath,\n        Array.from({ length: 1000 }, (_, index) => ({\n          title: `Task number ${String(index).padStart(4, \"0\")}: something to do soon`,\n          created_at: new Date(start + index * 1000).toISOString(),\n        })),\n      );\n    });\n    after(async () => {\n      await server?.stop();\n    });\n\n    it(\"AC-4: 20 sequential GET /api/tasks have p95 under 100 ms and a body under 400000 bytes\", async () => {\n      const durations: number[] = [];\n      let largestBody = 0;\n      for (let request = 0; request < 20; request++) {\n        const begun = performance.now();\n        const response = await fetch(`${server.baseUrl}/api/tasks`);\n        const body = await response.arrayBuffer();\n        durations.push(performance.now() - begun);\n        assert.equal(response.status, 200);\n        largestBody = Math.max(largestBody, body.byteLength);\n      }\n\n      durations.sort((a, b) => a - b);\n      const p95 = durations[Math.ceil(0.95 * durations.length) - 1];\n      assert.ok(p95 < 100, `p95 was ${p95.toFixed(1)} ms`);\n      assert.ok(largestBody < 400_000, `body was ${largestBody} bytes`);\n    });\n\n    it(\"AC-4: with 1000 tasks the newest is still listed first\", async () => {\n      const titles = await listTitles(server);\n      assert.equal(titles.length, 1000);\n      assert.equal(titles[0], \"Task number 0999: something to do soon\");\n      assert.equal(titles[999], \"Task number 0000: something to do soon\");\n    });\n  });\n});\nEOF\nsed -i '/^import { join } from \"node:path\";$/d;/^import { readFileSync } from \"node:fs\";$/d' tests/newest-first.test.ts\nsed -i 's/import { newDbPath, ROOT, startServer/import { newDbPath, startServer/' tests/newest-first.test.ts\nnode --test tests/newest-first.test.ts 2>&1 | grep -v \"^#\\|duration_ms\\|^    ---\\|^    \\.\\.\\.\\|stack:\\|at \\|code:\\|name:\\|operator:\" | head -80; npx tsc --noEmit 2>&1 | head"
+      }
+    }
+  ],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": {
+      "background": 0,
+      "foreground": 0,
+      "unset": 0
+    },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": {
+      "parent": 0,
+      "user": 0,
+      "system": 0
+    },
+    "refused": {
+      "depth_limit": 0,
+      "concurrency_limit": 0,
+      "budget": 0
+    },
+    "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 11,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "Los tests de SL-008 están escritos y commiteados (`d3f3638`), y 8 de 12 fallan por la razón correcta. No escribí código de producción. Falta tu aprobación: lee los tests y ejecuta `ppc approve-red --by <tu nombre>` (en Claude Code, con prefijo `!`). Yo no lo ejecuté.\n\n**Qué hice**\n- `tests/newest-first.test.ts` tiene 12 tests, nombrados `AC-1` a `AC-4`.\n- `tests/helpers/seed.ts` inserta tareas directo en el archivo SQLite con `node:sqlite`. La API fija `created_at` ella misma, así que es la única forma de fabricar un empate exacto de instante o un orden de id distinto al de fecha. La prueba de arquitectura solo vigila `src/` y `public/`, así que no choca con ella.\n- No toqué nada de **Out of scope**: ni tareas completadas, ni paginación, ni endpoints nuevos.\n\n**Cómo fallan hoy**\n- **AC-1 y AC-2:** `listTasks` hace `ORDER BY id`. La salida real es `['A','B','C']` cuando se espera `['C','B','A']`.\n- **AC-3:** `index.html` no tiene `#empty-state`, y `app.js` no lo muestra ni lo oculta.\n- **AC-4:** el test de orden con 1000 tareas falla igual por `ORDER BY id`.\n- `npm run typecheck` pasa sin errores.\n\n**Qué no pude verificar o no queda cubierto**\n- **Pasan sin cambios (4 de 12):**\n  - El test de latencia y tamaño de AC-4 pasa ya, porque 1000 filas son rápidas aunque el orden sea el viejo. Es una guarda de regresión, no un test rojo.\n  - Otros 3 pasan por trivialidad: la API ya devuelve `200 {tasks: []}`, el orden idéntico en peticiones repetidas, y la página con lista vacía sin errores.\n- **AC-3 sin navegador:** como los tests de navegador son un non-goal, ejecuto el `app.js` real en un DOM falso dentro de `node:vm`. Defino \"visible\" como `hidden === false` en `#empty-state`. Esa convención sale de mi lectura del contrato de página y no está escrita en la slice, así que conviene que la valides al aprobar. No se comprobó el renderizado real en un navegador.\n- **Empate de instante vía API:** solo puedo provocarlo de forma probabilística (30 POST seguidos). El caso determinista usa los datos sembrados.\n- **Latencia:** la medí en esta máquina; no sé si el umbral de 100 ms es estable en otra.",
+  "ttft_ms": 2852,
+  "type": "result",
+  "duration_ms": 95999,
+  "uuid": "ba521bf4-74b5-4169-9c94-fd468911d511",
+  "ttft_stream_ms": 1600,
+  "time_to_request_ms": 62,
+  "first_content_frame_ms": 1600,
+  "queued_turn_count": 0,
+  "result_index": 0
+}

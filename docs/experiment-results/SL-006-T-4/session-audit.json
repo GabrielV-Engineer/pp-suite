@@ -1,0 +1,114 @@
+{
+  "duration_api_ms": 55475,
+  "stop_reason": "end_turn",
+  "session_id": "58e9b789-2bd2-48fb-86c8-aaf40fe49cf3",
+  "total_cost_usd": 0.2651070000000001,
+  "usage": {
+    "input_tokens": 30,
+    "cache_creation_input_tokens": 36841,
+    "cache_read_input_tokens": 629830,
+    "output_tokens": 5470,
+    "output_tokens_details": {
+      "thinking_tokens": 524
+    },
+    "server_tool_use": {
+      "web_search_requests": 0,
+      "web_fetch_requests": 0
+    },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 36841,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 605,
+        "cache_read_input_tokens": 48933,
+        "cache_creation_input_tokens": 216,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 216
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "modelUsage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 30,
+      "outputTokens": 5470,
+      "cacheReadInputTokens": 629830,
+      "cacheCreationInputTokens": 36841,
+      "webSearchRequests": 0,
+      "costUSD": 0.2651070000000001,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 524,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "permission_denials": [
+    {
+      "tool_name": "Bash",
+      "tool_use_id": "toolu_01XEBndaXdbM7sMETJBNeYpt",
+      "tool_input": {
+        "command": "cat >> .sddpp/debt/backend.yaml <<'EOF'\n  - id: DEBT-BE-005\n    title: DELETE /api/tasks/:id converts the id with Number() and accepts non-decimal forms\n    description: src/app.ts does Number(c.req.param(\"id\")). Strings such as \"0x1\", \"1e0\" or \"+1\" convert to 1 and delete task 1 instead of answering 404, and no test covers a non-numeric or malformed id. Deletion is permanent, so a loose id is worse here than on a read.\n    kind: design\n    origin: { type: slice, ref: SL-006 }\n    created: 2026-10-25\n    proposed_by: ai\n    cost_of_delay: { level: low, rationale: The only client is the page, which sends the numeric id it got from the API; a hand-made request on loopback is the owner's own. }\n    trigger: When the other id-based routes (complete, rename) are added, so the id parsing is shared and strict in one place.\n    status: proposed\nEOF\ncat >> .sddpp/debt/frontend.yaml <<'EOF'\n  - id: DEBT-FE-002\n    title: The delete button ignores the response and its behavior is only checked by string assertions\n    description: deleteTask in public/app.js does not check response.ok, so a failed DELETE (for example a 404 because another tab already deleted the task) is silent and the list is simply reloaded. The confirm() gate and the DELETE call are verified only by assertions on the script source, never by driving the page in a browser (browser end-to-end tests are a non-goal). Same family as DEBT-FE-001.\n    kind: test\n    origin: { type: slice, ref: SL-006 }\n    created: 2026-10-25\n    proposed_by: ai\n    cost_of_delay: { level: low, rationale: A failed delete leaves the task visible after the reload, so the owner can see it did not happen; no data is lost. }\n    trigger: Together with DEBT-FE-001, in the first slice that adds error feedback to the page.\n    status: proposed\nEOF\ngit log --format='%H %s' -4\n"
+      }
+    },
+    {
+      "tool_name": "Bash",
+      "tool_use_id": "toolu_01AreV83XHMz1WbNHpVvPGFY",
+      "tool_input": {
+        "command": "ppc finish SL-006 --audit .sddpp/audit-input.json; echo \"exit $?\"; git status --short"
+      }
+    }
+  ],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": {
+      "background": 0,
+      "foreground": 0,
+      "unset": 0
+    },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": {
+      "parent": 0,
+      "user": 0,
+      "system": 0
+    },
+    "refused": {
+      "depth_limit": 0,
+      "concurrency_limit": 0,
+      "budget": 0
+    },
+    "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 19,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "SL-006 is closed and committed as `5c3d7bd chore(SL-006): close slice`. `ppc status` now reports no slice in progress.\n\n**What shipped**\n- `DELETE /api/tasks/:id` answers 204 when it deletes a task and 404 `not_found` when the task doesn't exist.\n- The page has a Delete button per task, behind a browser `confirm()`.\n- `ppc` measured 24 production lines and 122 test lines, well within budget. There were 5 new tests.\n\n**What I verified**\n- `npm test` passed 21 of 21, including the 5 new tests for SL-006.\n- `npm run typecheck` was clean.\n\n**What I could not verify**\n- **Mutation score:** I did not run it. `ppc finish` rejects a `mutation_score` field in the audit input, so I removed it. Whether `ppc` computes the score itself at finish, I don't know.\n- **Page behavior:** I did not drive the page in a browser. The `confirm()` prompt, the Delete button and the list refresh are checked only by string assertions on `public/app.js`.\n\n**Debt proposed** (status `proposed`; you decide)\n- `DEBT-BE-005`: the route parses the id with `Number()`, so `0x1`, `1e0` or `+1` delete task 1 instead of returning 404. Cost of delay is low.\n- `DEBT-FE-002`: the Delete button ignores the response (a failed DELETE is silent), and its behavior is only string-tested. Cost of delay is low.\n\n**Deviations**\n- The 404 message text (\"Task not found\") is my own choice. The slice doesn't specify it, and the test checks only the error code.\n- No ADR is needed.\n- The first `ppc finish` run was refused because of the `mutation_score` field. That is fixed and nothing else changed.",
+  "ttft_ms": 2938,
+  "type": "result",
+  "duration_ms": 65917,
+  "uuid": "8801824a-a75f-438f-838f-a7b28b939915",
+  "ttft_stream_ms": 2524,
+  "time_to_request_ms": 72,
+  "first_content_frame_ms": 2524,
+  "queued_turn_count": 0,
+  "result_index": 0
+}

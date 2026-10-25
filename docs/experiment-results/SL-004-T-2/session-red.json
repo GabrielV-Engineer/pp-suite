@@ -1,0 +1,99 @@
+{
+  "duration_api_ms": 33278,
+  "stop_reason": "end_turn",
+  "session_id": "5c579b40-7276-4706-8ee4-2d701bdf9d6f",
+  "total_cost_usd": 0.2336534,
+  "usage": {
+    "input_tokens": 16,
+    "cache_creation_input_tokens": 40455,
+    "cache_read_input_tokens": 307514,
+    "output_tokens": 4105,
+    "output_tokens_details": {
+      "thinking_tokens": 405
+    },
+    "server_tool_use": {
+      "web_search_requests": 0,
+      "web_fetch_requests": 0
+    },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 40455,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 857,
+        "cache_read_input_tokens": 50613,
+        "cache_creation_input_tokens": 367,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 367
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "modelUsage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 16,
+      "outputTokens": 4105,
+      "cacheReadInputTokens": 307514,
+      "cacheCreationInputTokens": 40455,
+      "webSearchRequests": 0,
+      "costUSD": 0.2336534,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 405,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "permission_denials": [],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": {
+      "background": 0,
+      "foreground": 0,
+      "unset": 0
+    },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": {
+      "parent": 0,
+      "user": 0,
+      "system": 0
+    },
+    "refused": {
+      "depth_limit": 0,
+      "concurrency_limit": 0,
+      "budget": 0
+    },
+    "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 9,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "Escribí y commiteé los tests rojos de SL-004 en `tests/titles.test.ts`. No toqué código de producción ni el estado del slice. De los 10 tests, 8 fallan y 2 pasan.\n\n**Qué especifican**\n- **AC-1:** los títulos vacíos, solo con espacios, o solo con tabs y saltos de línea, dan `400 validation_failed` con el mensaje \"A title is required.\" y la lista queda igual. Tras un rechazo, corregir el título crea la tarea.\n- **AC-2:** un título de 501 caracteres, con o sin espacios alrededor, da `400 validation_failed` con \"The title is too long (maximum 500 characters).\" y no se crea nada. Un título de exactamente 500 caracteres se acepta, también con espacios externos, porque se recorta antes de contar.\n- **La página (AC-1 y AC-2):** `index.html` debe tener un elemento `#form-message` con `role=\"alert\"`. `app.js` debe escribir `error.message` ahí, sin `innerHTML`. Esto sale del contrato de la página en `contracts/tasks-api.md`.\n\n**Resultado de la corrida**\n- Los 8 que fallan lo hacen por la razón correcta. Hoy el servidor deja pasar el título y la restricción CHECK de SQLite lo rechaza, así que responde `500` en lugar de `400`. Tampoco existe `#form-message` ni el código que lo usa.\n- Los 2 que pasan son los límites de 500 caracteres, que ya se aceptan. Los dejé como protección para que la validación nueva no rechace de más.\n\nEl commit es `red(SL-004): empty and over-long titles are rejected with 400 and the page shows the reason`.\n\n**Qué no pude verificar**\n- Los tests de la página solo miran el HTML y el JS como texto. El proyecto excluye los tests de navegador (E2E), así que nada comprueba que el mensaje se vea realmente al enviar el formulario.\n- El segundo test de `app.js` busca `error.message` con una expresión regular un poco flexible. Puede aceptar código que no sea la implementación esperada.\n- Corrí solo `tests/titles.test.ts`, no la suite completa con `npm test`. No comprobé que los tests anteriores sigan pasando ni que `typecheck` pase.\n\nAhora te toca leer los tests y aprobarlos tú mismo con `!ppc approve-red --by <tu nombre>`. Yo no lo ejecuto.",
+  "ttft_ms": 2914,
+  "type": "result",
+  "duration_ms": 35911,
+  "uuid": "787c9285-8c4e-4759-9dbf-f5153070d7b7",
+  "ttft_stream_ms": 1768,
+  "time_to_request_ms": 65,
+  "first_content_frame_ms": 1768,
+  "queued_turn_count": 0,
+  "result_index": 0
+}

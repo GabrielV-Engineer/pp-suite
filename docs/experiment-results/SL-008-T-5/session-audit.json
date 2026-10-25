@@ -1,0 +1,107 @@
+{
+  "duration_api_ms": 31276,
+  "stop_reason": "end_turn",
+  "session_id": "4b023bba-27f2-4455-84da-0f0e70cb88b6",
+  "total_cost_usd": 0.21229909999999996,
+  "usage": {
+    "input_tokens": 22,
+    "cache_creation_input_tokens": 33930,
+    "cache_read_input_tokens": 433451,
+    "output_tokens": 3319,
+    "output_tokens_details": {
+      "thinking_tokens": 410
+    },
+    "server_tool_use": {
+      "web_search_requests": 0,
+      "web_fetch_requests": 0
+    },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 33930,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 604,
+        "cache_read_input_tokens": 45932,
+        "cache_creation_input_tokens": 306,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 306
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "modelUsage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 22,
+      "outputTokens": 3319,
+      "cacheReadInputTokens": 433451,
+      "cacheCreationInputTokens": 33930,
+      "webSearchRequests": 0,
+      "costUSD": 0.21229909999999996,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 410,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "permission_denials": [
+    {
+      "tool_name": "Bash",
+      "tool_use_id": "toolu_01XhUWFNF6aD4Eh5vqCMhWao",
+      "tool_input": {
+        "command": "cat > .sddpp/audit-input.json <<'EOF'\n{\n  \"commits\": [\n    { \"sha\": \"d3f3638675faa5809f7218b1d3abc33e6855b536\", \"kind\": \"red\" },\n    { \"sha\": \"de99e3030583ee19d80425ae28017324a58bc9b7\", \"kind\": \"green\" }\n  ],\n  \"tests_added\": 12,\n  \"mutation_score\": null,\n  \"decisions\": [],\n  \"debt_created\": [],\n  \"deviations\": [\n    \"No new debt was found or created in this slice.\",\n    \"Mutation testing was not run (Stryker is installed but was not executed for this slice), so mutation_score is null.\",\n    \"listTasks does not filter on completed_at: it lists every task, newest first. The title says open tasks, but completed tasks have no meaning until SL-003, which the slice puts out of scope. SL-003 must decide where completed tasks sit.\",\n    \"The empty state and the page script are verified by tests that simulate the DOM, not in a real browser (browser end-to-end tests are a non-goal), so the real rendering of the hidden attribute was not checked.\",\n    \"The 100 ms p95 and 400000 byte budget (AC-4) is checked by the AC-4 test on one machine; it was not measured on other hardware. The query sorts by created_at with no index, which is fine at about 1000 rows but was not measured beyond that.\",\n    \"No ADR is needed: the tie order (created_at DESC, then id DESC) follows the slice text and uses the existing AUTOINCREMENT id.\"\n  ]\n}\nEOF\nppc finish SL-008 --audit .sddpp/audit-input.json"
+      }
+    }
+  ],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": {
+      "background": 0,
+      "foreground": 0,
+      "unset": 0
+    },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": {
+      "parent": 0,
+      "user": 0,
+      "system": 0
+    },
+    "refused": {
+      "depth_limit": 0,
+      "concurrency_limit": 0,
+      "budget": 0
+    },
+    "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 12,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "Cerré SL-008 con `ppc finish`; el cierre quedó en el commit `d403970`.\n\n**Qué se entregó**\n- `listTasks` ordena por `created_at DESC, id DESC`. El orden es estable cuando dos tareas se crean en el mismo instante.\n- La página tiene un `#empty-state` que se oculta cuando hay tareas.\n- No hay endpoints, campos ni migraciones nuevos.\n\n**Tamaño medido por `ppc`:** 5 líneas de producción y 285 de test. No hubo problema con el presupuesto de diff.\n\n**Verificado**\n- `npm test`: 28 de 28 pasan, incluidos los 12 tests nuevos de SL-008.\n- `npm run typecheck`: sin errores.\n\n**Deuda:** no encontré ninguna nueva, así que no propuse ninguna.\n\n**No pude verificar**\n- Mutación: Stryker está instalado pero no lo ejecuté. `ppc` rechazó el campo `mutation_score` en la entrada de la auditoría, así que lo quité y no hay puntuación registrada.\n- Estado vacío: los tests simulan el DOM, no usan un navegador real (los tests e2e son un non-goal). No comprobé cómo se ve de verdad.\n- Rendimiento (AC-4): el test lo mide en una sola máquina. La consulta no tiene índice sobre `created_at`; con unas 1000 filas no hace falta, pero no medí con más.\n\n**Desviaciones**\n- `listTasks` no filtra por `completed_at`, así que lista todas las tareas aunque el título diga \"abiertas\". Dónde van las completadas lo decide SL-003, que el slice deja fuera de alcance.\n- No hace falta ningún ADR.",
+  "ttft_ms": 3627,
+  "type": "result",
+  "duration_ms": 40136,
+  "uuid": "dd1b29ef-b1ce-44ed-8521-2d3ad578d222",
+  "ttft_stream_ms": 2409,
+  "time_to_request_ms": 63,
+  "first_content_frame_ms": 2409,
+  "queued_turn_count": 0,
+  "result_index": 0
+}

@@ -1,0 +1,99 @@
+{
+  "duration_api_ms": 45751,
+  "stop_reason": "end_turn",
+  "session_id": "02b3cc21-588f-441a-93b7-4850cf43d3d5",
+  "total_cost_usd": 0.27835020000000005,
+  "usage": {
+    "input_tokens": 16,
+    "cache_creation_input_tokens": 45748,
+    "cache_read_input_tokens": 316662,
+    "output_tokens": 6366,
+    "output_tokens_details": {
+      "thinking_tokens": 1620
+    },
+    "server_tool_use": {
+      "web_search_requests": 0,
+      "web_fetch_requests": 0
+    },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 45748,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 853,
+        "cache_read_input_tokens": 55951,
+        "cache_creation_input_tokens": 322,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 322
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "modelUsage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 16,
+      "outputTokens": 6366,
+      "cacheReadInputTokens": 316662,
+      "cacheCreationInputTokens": 45748,
+      "webSearchRequests": 0,
+      "costUSD": 0.27835020000000005,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 1620,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "permission_denials": [],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": {
+      "background": 0,
+      "foreground": 0,
+      "unset": 0
+    },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": {
+      "parent": 0,
+      "user": 0,
+      "system": 0
+    },
+    "refused": {
+      "depth_limit": 0,
+      "concurrency_limit": 0,
+      "budget": 0
+    },
+    "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 10,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "I wrote and committed the SL-008 tests (`0643c00`, `red(SL-008): …`). They are in `tests/list-order.test.ts`, and I touched nothing else. Of the 10 tests, 7 fail and 3 pass. `npm run typecheck` is clean. I ran only that file, not the full `npm test`.\n\n**What the tests cover**\n- **AC-1:** Tasks created as A, B, C come back as C, B, A, and a later D goes to the top.\n- **AC-2:** Rows seeded with an identical `created_at` come back with the last-saved first, and ten repeated requests give the same order. Thirty tasks posted back to back come back in exactly reverse order.\n- **AC-3:** The page needs an element with `id=\"empty-state\"` that has text in it, and `app.js` has to reference it. `GET /api/tasks` on an empty list must return 200 with `[]`.\n- **AC-4:** About 1000 seeded tasks, 20 sequential requests, p95 under 100 ms and body under 400000 bytes. I also check that the newest task is first and the oldest last at that size.\n\n**Why they fail**\n- **AC-1 and AC-2:** The list comes back oldest first. `listTasks` in `src/tasks.ts` still uses `ORDER BY id`.\n- **AC-3:** The page has no empty-state element.\n- **AC-4 ordering check:** It fails for the same oldest-first reason.\n\n**What I could not verify**\n- **Three tests pass already:** the empty-list API response (AC-3), the repeated-request stability (AC-2) and the p95/body-size check (AC-4). The first two hold trivially for a fixed order, and the third is the performance requirement the existing code already meets. They are regression guards, not red tests.\n- **Page behavior:** I could not check that the empty state actually shows or hides in a browser. The AC-3 page tests check the source of `index.html` and `app.js` as text, like the existing tests do. The `empty-state` id is my own choice, so check that you are happy with it.\n- **Seeded rows:** AC-2 and AC-4 write rows straight into the SQLite file with `node:sqlite` so they control `created_at`. The architecture test only scans `src/` and `public/`, so this is allowed. It does tie the tests to the `tasks` column names.\n- **Timing:** The p95 check depends on this machine's speed.\n\n**Next step:** Read the tests and approve them yourself by running `ppc approve-red --by <your name>`. In Claude Code, prefix it with `!`. I did not run it.",
+  "ttft_ms": 2037,
+  "type": "result",
+  "duration_ms": 49512,
+  "uuid": "d8b79765-69c3-428c-af51-ac38fdaa101a",
+  "ttft_stream_ms": 1595,
+  "time_to_request_ms": 58,
+  "first_content_frame_ms": 1595,
+  "queued_turn_count": 0,
+  "result_index": 0
+}

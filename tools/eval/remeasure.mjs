@@ -21,10 +21,14 @@ for (const id of ids) {
   const done = JSON.parse(readFileSync(doneFile, 'utf8'));
   const dir = join(work, 'remeasure', id);
   rmSync(dir, { recursive: true, force: true });
-  cpSync(join(work, done.condition === 'T' ? 'template-t' : 'template-b'), dir, { recursive: true });
+  // verbatimSymlinks: by default Node rewrites relative symlinks as absolute ones, which git then sees as local changes
+  cpSync(join(work, done.condition === 'T' ? 'template-t' : 'template-b'), dir, { recursive: true, verbatimSymlinks: true });
   const fetched = sh(dir, 'git', ['fetch', '-q', join(results, 'run.bundle'), 'HEAD:refs/heads/run']);
   if (fetched.status !== 0) throw new Error(`${id}: cannot read the bundle: ${fetched.stderr}`);
-  sh(dir, 'git', ['checkout', '-q', 'run']);
+  const checkedOut = sh(dir, 'git', ['checkout', '-q', 'run']);
+  const head = sh(dir, 'git', ['rev-parse', 'HEAD']).stdout.trim();
+  const tip = sh(dir, 'git', ['rev-parse', 'run']).stdout.trim();
+  if (checkedOut.status !== 0 || head !== tip) throw new Error(`${id}: could not check out the run (${checkedOut.stderr.trim().slice(0, 300)})`);
   const sessions = ['red', 'green', 'audit', 'all'].map((p) => join(results, `session-${p}.json`)).filter(existsSync);
   const measured = sh(dir, 'node', [join(HERE, 'measure.mjs'), dir, done.base, '--slice', done.slice, '--session', sessions.join(',')], { timeout: 20 * 60 * 1000 });
   rmSync(dir, { recursive: true, force: true });

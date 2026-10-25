@@ -1,0 +1,107 @@
+{
+  "duration_api_ms": 31543,
+  "stop_reason": "end_turn",
+  "session_id": "4bd7eb7b-3412-4d8a-858b-322859c77e41",
+  "total_cost_usd": 0.20641610000000002,
+  "usage": {
+    "input_tokens": 22,
+    "cache_creation_input_tokens": 32749,
+    "cache_read_input_tokens": 425461,
+    "output_tokens": 3283,
+    "output_tokens_details": {
+      "thinking_tokens": 352
+    },
+    "server_tool_use": {
+      "web_search_requests": 0,
+      "web_fetch_requests": 0
+    },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 32749,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 680,
+        "cache_read_input_tokens": 44789,
+        "cache_creation_input_tokens": 268,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 268
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "modelUsage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 22,
+      "outputTokens": 3283,
+      "cacheReadInputTokens": 425461,
+      "cacheCreationInputTokens": 32749,
+      "webSearchRequests": 0,
+      "costUSD": 0.20641610000000002,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 352,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "permission_denials": [
+    {
+      "tool_name": "Bash",
+      "tool_use_id": "toolu_01FQ8XQM8sD8bKkHw4UZaX2y",
+      "tool_input": {
+        "command": "cat > .sddpp/audit-input.json <<'EOF'\n{\n  \"commits\": [\n    { \"sha\": \"0470aa540e1220e32e670a4b368abd4a3416656c\", \"kind\": \"red\" },\n    { \"sha\": \"b5e91b63449e402332b7b74d80d87d428cd0142b\", \"kind\": \"green\" }\n  ],\n  \"tests_added\": 11,\n  \"mutation_score\": null,\n  \"decisions\": [],\n  \"debt_created\": [],\n  \"deviations\": [\n    \"Mutation testing (Stryker) was not run for this slice, so mutation_score is null.\",\n    \"The empty state and the page script are only checked by string assertions on public/index.html and public/app.js; no browser drives them (known, see DEBT-FE-001).\",\n    \"ORDER BY created_at DESC, id DESC has no index on created_at. AC-4 (1000 tasks, p95 < 100 ms) passes without it, and the slice forbids touching the database layer, so no migration was added. Not recorded as debt because there is no measured problem.\"\n  ]\n}\nEOF\nppc finish SL-008 --audit .sddpp/audit-input.json"
+      }
+    }
+  ],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": {
+      "background": 0,
+      "foreground": 0,
+      "unset": 0
+    },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": {
+      "parent": 0,
+      "user": 0,
+      "system": 0
+    },
+    "refused": {
+      "depth_limit": 0,
+      "concurrency_limit": 0,
+      "budget": 0
+    },
+    "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 12,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "SL-008 está cerrada. `ppc finish` la aceptó y quedó commiteada como `bb67435 chore(SL-008): close slice`.\n\n**Qué se entregó**\n- El listado ahora ordena por `created_at DESC, id DESC`, así que sale la tarea más nueva primero. Con el mismo `created_at`, gana la guardada al final.\n- La página tiene un estado vacío: un `<p id=\"empty-state\">` que `public/app.js` oculta o muestra según haya tareas.\n- Tamaño medido por `ppc`: 5 líneas de producción y 249 de tests. No hubo problema con el presupuesto de diff.\n- Los commits del slice son `red` (`0470aa5`) y `green` (`b5e91b6`). Se añadieron 11 tests.\n\n**Lo que verifiqué**\n- `npm test` pasa: 27 de 27, incluidos los de AC-1 a AC-4.\n- `npm run typecheck` pasa sin errores.\n\n**Lo que no pude verificar**\n- No corrí el mutation testing con Stryker. `ppc` no acepta que yo informe el `mutation_score`, así que el slice se cerró sin ese dato.\n- El estado vacío y el script de la página solo se comprueban con aserciones de texto sobre `public/index.html` y `public/app.js`. Ningún navegador los ejecutó.\n- AC-4 (1000 tareas, p95 menor de 100 ms) pasa en este equipo y no medí en otro.\n\n**Deuda**\n- No propuse deuda nueva. Los fallos de la página ya están en DEBT-FE-001.\n- No hay índice sobre `created_at`. No lo añadí porque el slice excluye la capa de base de datos y AC-4 pasa sin él. Queda anotado en las desviaciones, por si prefieres abrir una deuda.\n\n**Desviaciones**\n- Ninguna frente al slice ni al blueprint.\n- No hay decisiones que requieran un ADR.",
+  "ttft_ms": 2491,
+  "type": "result",
+  "duration_ms": 40353,
+  "uuid": "362ea463-d180-43a4-a4b8-ef9a56da24ea",
+  "ttft_stream_ms": 1332,
+  "time_to_request_ms": 61,
+  "first_content_frame_ms": 1332,
+  "queued_turn_count": 0,
+  "result_index": 0
+}

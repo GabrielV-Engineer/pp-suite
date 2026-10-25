@@ -1,0 +1,114 @@
+{
+  "duration_api_ms": 57938,
+  "stop_reason": "end_turn",
+  "session_id": "ea5ad99c-d66a-49c4-acd8-202fea0269d2",
+  "total_cost_usd": 0.3452187000000001,
+  "usage": {
+    "input_tokens": 26,
+    "cache_creation_input_tokens": 46844,
+    "cache_read_input_tokens": 601507,
+    "output_tokens": 9764,
+    "output_tokens_details": {
+      "thinking_tokens": 732
+    },
+    "server_tool_use": {
+      "web_search_requests": 0,
+      "web_fetch_requests": 0
+    },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 46844,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 499,
+        "cache_read_input_tokens": 57044,
+        "cache_creation_input_tokens": 325,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 325
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "modelUsage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 26,
+      "outputTokens": 9764,
+      "cacheReadInputTokens": 601507,
+      "cacheCreationInputTokens": 46844,
+      "webSearchRequests": 0,
+      "costUSD": 0.3452187000000001,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 732,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "permission_denials": [
+    {
+      "tool_name": "Bash",
+      "tool_use_id": "toolu_01WrRVkYz5Jdg8Mikh1C2Npk",
+      "tool_input": {
+        "command": "cat > tests/list-order.test.ts <<'EOF'\nimport assert from \"node:assert/strict\";\nimport { DatabaseSync } from \"node:sqlite\";\nimport { runInNewContext } from \"node:vm\";\nimport { after, before, describe, it } from \"node:test\";\nimport { newDbPath, startServer, type Running } from \"./helpers/server.ts\";\n\ninterface Task {\n  id: number;\n  title: string;\n  created_at: string;\n}\n\nasync function createTask(server: Running, title: string): Promise<void> {\n  const response = await fetch(`${server.baseUrl}/api/tasks`, {\n    method: \"POST\",\n    headers: { \"content-type\": \"application/json\" },\n    body: JSON.stringify({ title }),\n  });\n  assert.equal(response.status, 201);\n}\n\nasync function listTitles(server: Running): Promise<string[]> {\n  const response = await fetch(`${server.baseUrl}/api/tasks`);\n  assert.equal(response.status, 200);\n  const { tasks } = (await response.json()) as { tasks: Task[] };\n  return tasks.map((task) => task.title);\n}\n\n/** Inserts rows straight into the SQLite file, in the given order, bypassing the API. */\nfunction insertRows(dbPath: string, rows: { title: string; createdAt: string }[]): void {\n  const db = new DatabaseSync(dbPath);\n  db.exec(\"PRAGMA busy_timeout = 5000\");\n  const insert = db.prepare(\n    \"INSERT INTO tasks (title, created_at, updated_at) VALUES (?, ?, ?)\",\n  );\n  db.exec(\"BEGIN\");\n  for (const row of rows) insert.run(row.title, row.createdAt, row.createdAt);\n  db.exec(\"COMMIT\");\n  db.close();\n}\n\ndescribe(\"SL-008 list open tasks newest first, with an empty state\", () => {\n  describe(\"AC-1: tasks added as A, B, C\", () => {\n    let server: Running;\n\n    before(async () => {\n      server = await startServer();\n    });\n    after(async () => {\n      await server?.stop();\n    });\n\n    it(\"AC-1: GET /api/tasks lists C, B, A\", async () => {\n      for (const title of [\"A\", \"B\", \"C\"]) {\n        await createTask(server, title);\n        await new Promise((resolve) => setTimeout(resolve, 5));\n      }\n      assert.deepEqual(await listTitles(server), [\"C\", \"B\", \"A\"]);\n    });\n\n    it(\"AC-1: creation time decides the order, not the row id\", async () => {\n      const dbPath = newDbPath();\n      const other = await startServer(dbPath);\n      try {\n        // Saved first but created latest, and the other way round.\n        insertRows(dbPath, [\n          { title: \"newest\", createdAt: \"2026-03-01T10:00:03.000Z\" },\n          { title: \"oldest\", createdAt: \"2026-03-01T10:00:01.000Z\" },\n          { title: \"middle\", createdAt: \"2026-03-01T10:00:02.000Z\" },\n        ]);\n        assert.deepEqual(await listTitles(other), [\"newest\", \"middle\", \"oldest\"]);\n      } finally {\n        await other.stop();\n      }\n    });\n  });\n\n  describe(\"AC-2: tasks created within the same instant\", () => {\n    it(\"AC-2: the one saved last is listed first, every time\", async () => {\n      const dbPath = newDbPath();\n      const server = await startServer(dbPath);\n      try {\n        const instant = \"2026-03-01T10:00:00.000Z\";\n        insertRows(dbPath, [\n          { title: \"first\", createdAt: instant },\n          { title: \"second\", createdAt: instant },\n          { title: \"third\", createdAt: instant },\n        ]);\n        for (let attempt = 0; attempt < 5; attempt++) {\n          assert.deepEqual(await listTitles(server), [\"third\", \"second\", \"first\"]);\n        }\n      } finally {\n        await server.stop();\n      }\n    });\n\n    it(\"AC-2: ties are broken by save order alongside different instants\", async () => {\n      const dbPath = newDbPath();\n      const server = await startServer(dbPath);\n      try {\n        insertRows(dbPath, [\n          { title: \"tie-1\", createdAt: \"2026-03-01T10:00:02.000Z\" },\n          { title: \"early\", createdAt: \"2026-03-01T10:00:01.000Z\" },\n          { title: \"tie-2\", createdAt: \"2026-03-01T10:00:02.000Z\" },\n        ]);\n        assert.deepEqual(await listTitles(server), [\"tie-2\", \"tie-1\", \"early\"]);\n      } finally {\n        await server.stop();\n      }\n    });\n  });\n\n  describe(\"AC-3: an empty list\", () => {\n    let server: Running;\n    let html: string;\n    let script: string;\n\n    before(async () => {\n      server = await startServer();\n      html = await (await fetch(`${server.baseUrl}/`)).text();\n      script = await (await fetch(`${server.baseUrl}/app.js`)).text();\n    });\n    after(async () => {\n      await server?.stop();\n    });\n\n    it(\"AC-3: the API answers 200 with an empty list\", async () => {\n      const response = await fetch(`${server.baseUrl}/api/tasks`);\n      assert.equal(response.status, 200);\n      assert.deepEqual(await response.json(), { tasks: [] });\n    });\n\n    it(\"AC-3: the page has an empty-state element with text\", () => {\n      assert.match(html, /<[a-z]+[^>]+id=[\"']empty-state[\"'][^>]*>\\s*[^<\\s][^<]*</);\n    });\n\n    /** Runs the real page script against a minimal fake DOM and a canned API answer. */\n    async function runPage(tasks: { title: string }[]) {\n      const element = (id: string) => ({\n        id,\n        hidden: false,\n        value: \"\",\n        children: [] as { textContent: string }[],\n        addEventListener() {},\n        replaceChildren(...nodes: { textContent: string }[]) {\n          this.children = nodes;\n        },\n      });\n      const elements: Record<string, ReturnType<typeof element>> = {};\n      for (const id of [\"task-form\", \"task-title\", \"task-list\", \"empty-state\"]) {\n        elements[id] = element(id);\n      }\n      elements[\"empty-state\"].hidden = true;\n      const document = {\n        getElementById: (id: string) => elements[id] ?? element(id),\n        createElement: () => ({ textContent: \"\" }),\n      };\n      const fetch = async () => ({ json: async () => ({ tasks }) });\n      runInNewContext(script, { document, fetch });\n      await new Promise((resolve) => setTimeout(resolve, 20));\n      return elements;\n    }\n\n    it(\"AC-3: with no tasks the page script shows the empty state and no items\", async () => {\n      const page = await runPage([]);\n      assert.equal(page[\"empty-state\"].hidden, false);\n      assert.equal(page[\"task-list\"].children.length, 0);\n    });\n\n    it(\"AC-3: with tasks the page script hides the empty state\", async () => {\n      const page = await runPage([{ title: \"A\" }]);\n      assert.equal(page[\"empty-state\"].hidden, true);\n      assert.equal(page[\"task-list\"].children.length, 1);\n    });\n  });\n\n  describe(\"AC-4: about 1000 stored tasks\", () => {\n    it(\"AC-4: 20 sequential GET /api/tasks have p95 under 100 ms and a body under 400000 bytes\", async () => {\n      const dbPath = newDbPath();\n      const server = await startServer(dbPath);\n      try {\n        const start = Date.parse(\"2026-03-01T10:00:00.000Z\");\n        insertRows(\n          dbPath,\n          Array.from({ length: 1000 }, (_, i) => ({\n            title: `Task ${i} ${\"x\".repeat(100)}`,\n            createdAt: new Date(start + i * 1000).toISOString(),\n          })),\n        );\n\n        const timings: number[] = [];\n        let size = 0;\n        for (let i = 0; i < 20; i++) {\n          const began = performance.now();\n          const response = await fetch(`${server.baseUrl}/api/tasks`);\n          const body = await response.text();\n          timings.push(performance.now() - began);\n          size = Buffer.byteLength(body);\n          assert.equal(response.status, 200);\n        }\n        timings.sort((a, b) => a - b);\n        const p95 = timings[Math.ceil(timings.length * 0.95) - 1];\n        assert.ok(p95 < 100, `p95 was ${p95.toFixed(1)} ms`);\n        assert.ok(size < 400000, `body was ${size} bytes`);\n\n        const titles = await listTitles(server);\n        assert.equal(titles.length, 1000);\n        assert.ok(titles[0].startsWith(\"Task 999 \"));\n      } finally {\n        await server.stop();\n      }\n    });\n  });\n});\nEOF\nnpm test 2>&1 | grep -E \"^# |not ok|✖\" | head -30"
+      }
+    },
+    {
+      "tool_name": "Bash",
+      "tool_use_id": "toolu_017E85uPDoEWXmuKP5bgF4qc",
+      "tool_input": {
+        "command": "sed -i 's/ORDER BY id\")/ORDER BY created_at DESC, id DESC\")/' src/tasks.ts && sed -i 's|<ul id=\"task-list\"></ul>|<p id=\"empty-state\" hidden>No tasks yet. Add your first one above.</p>\\n      <ul id=\"task-list\"></ul>|' public/index.html && grep -n \"ORDER\" src/tasks.ts && grep -n empty public/index.html"
+      }
+    }
+  ],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": {
+      "background": 0,
+      "foreground": 0,
+      "unset": 0
+    },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": {
+      "parent": 0,
+      "user": 0,
+      "system": 0
+    },
+    "refused": {
+      "depth_limit": 0,
+      "concurrency_limit": 0,
+      "budget": 0
+    },
+    "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 17,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "SL-008 is implemented and committed as `a9684d6`. `npm test` passes (25 of 25) and `npm run typecheck` is clean.\n\nI wrote `tests/list-order.test.ts` first and ran it against the old code. The ordering, empty-state and \"Task 999 first\" checks failed, as expected. The 1000-task latency and size check passed, so the budget was already met.\n\n- **AC-1 and AC-2 (order):** `listTasks` in `src/tasks.ts` now sorts by `created_at DESC, id DESC`, so tasks created in the same instant keep one fixed order, last saved first. No database or migration changes.\n- **AC-3 (empty state):** `public/index.html` has a `<p id=\"empty-state\" hidden>` message, and `public/app.js` hides it whenever there is at least one task.\n- **AC-4 (performance):** the test loads 1000 tasks and makes 20 sequential `GET /api/tasks` requests. p95 is under 100 ms and the body is under 400000 bytes.\n\n**Test approach:**\n- **Insert path:** the tests insert rows straight into the SQLite file with `node:sqlite`. This is how they force same-instant ties and rows whose id order differs from creation order. The architecture test only checks `src/` and `public/`, so it still passes.\n- **Page script:** the empty-state test runs `app.js` against a small fake DOM in `node:vm` instead of a real browser. It checks the show/hide logic but not how the page actually renders.",
+  "ttft_ms": 1619,
+  "type": "result",
+  "duration_ms": 68058,
+  "uuid": "aa01dc34-102c-427f-8ac4-94df9b7d8f75",
+  "ttft_stream_ms": 1220,
+  "time_to_request_ms": 64,
+  "first_content_frame_ms": 1221,
+  "queued_turn_count": 0,
+  "result_index": 0
+}

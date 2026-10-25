@@ -1,0 +1,107 @@
+{
+  "duration_api_ms": 23840,
+  "stop_reason": "end_turn",
+  "session_id": "755aa174-e026-4fb2-b73b-ef1da0f13792",
+  "total_cost_usd": 0.21083980000000002,
+  "usage": {
+    "input_tokens": 18,
+    "cache_creation_input_tokens": 36871,
+    "cache_read_input_tokens": 353498,
+    "output_tokens": 2797,
+    "output_tokens_details": {
+      "thinking_tokens": 168
+    },
+    "server_tool_use": {
+      "web_search_requests": 0,
+      "web_fetch_requests": 0
+    },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 36871,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 437,
+        "cache_read_input_tokens": 48898,
+        "cache_creation_input_tokens": 281,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 281
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "modelUsage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 18,
+      "outputTokens": 2797,
+      "cacheReadInputTokens": 353498,
+      "cacheCreationInputTokens": 36871,
+      "webSearchRequests": 0,
+      "costUSD": 0.21083980000000002,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 168,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "permission_denials": [
+    {
+      "tool_name": "Bash",
+      "tool_use_id": "toolu_01VLu9cEiZ9woj96oTDMbWGv",
+      "tool_input": {
+        "command": "cat migrations/001-create-tasks.sql\npython3 - <<'EOF'\nimport re\np='src/tasks.ts'\ns=open(p).read()\ns=s.replace('ORDER BY id\")','ORDER BY created_at DESC, id DESC\")')\nopen(p,'w').write(s)\np='public/index.html'\ns=open(p).read()\ns=s.replace('      <ul id=\"task-list\"></ul>\\n','      <p id=\"empty-state\" hidden>No tasks yet. Add your first task above.</p>\\n      <ul id=\"task-list\"></ul>\\n')\nopen(p,'w').write(s)\np='public/app.js'\ns=open(p).read()\ns=s.replace('const list = document.getElementById(\"task-list\");\\n','const list = document.getElementById(\"task-list\");\\nconst emptyState = document.getElementById(\"empty-state\");\\n')\ns=s.replace('  list.replaceChildren(','  emptyState.hidden = tasks.length > 0;\\n  list.replaceChildren(')\nopen(p,'w').write(s)\nEOF\ngit diff --stat; npm test 2>&1 | grep -E \"^ℹ|✖\"; npm run typecheck 2>&1 | tail -5"
+      }
+    }
+  ],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": {
+      "background": 0,
+      "foreground": 0,
+      "unset": 0
+    },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": {
+      "parent": 0,
+      "user": 0,
+      "system": 0
+    },
+    "refused": {
+      "depth_limit": 0,
+      "concurrency_limit": 0,
+      "budget": 0
+    },
+    "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 14,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "SL-008 is green: all 27 tests pass, `tsc --noEmit` is clean, and the green commit is `702c014`. I didn't run `ppc refactor` or touch the locked tests.\n\n**What changed**\n- **Order:** `src/tasks.ts` now sorts the list by `created_at DESC, id DESC`. That gives newest first, and the task saved last wins when two share the same instant (AC-1, AC-2).\n- **Empty state:** `public/index.html` has a hidden `<p id=\"empty-state\">` outside the `<ul>`. `public/app.js` shows it only when `tasks.length` is 0 (AC-3).\n- **Performance:** AC-4 passes with no index. I made no database or migration change, as the slice requires.\n\n**What I could not verify**\n- The empty-state test checks the HTML and script text, not a real browser, so I haven't seen the empty state render. Browser end-to-end tests are a non-goal for this project.\n- The 100 ms p95 result comes from a single run on this machine. I didn't repeat it to check it holds.\n- `.architect/architecture.md` says the list puts open tasks first and completed ones after. I didn't implement that part because it belongs to SL-003 and no test asks for it.\n\nThe slice is ready for `/speckit-sddpp-cycle-audit`.",
+  "ttft_ms": 2371,
+  "type": "result",
+  "duration_ms": 37419,
+  "uuid": "37468d9b-e4fd-443a-aa12-b1ba62326888",
+  "ttft_stream_ms": 1260,
+  "time_to_request_ms": 62,
+  "first_content_frame_ms": 1260,
+  "queued_turn_count": 0,
+  "result_index": 0
+}

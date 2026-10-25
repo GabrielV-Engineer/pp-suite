@@ -1,0 +1,107 @@
+{
+  "duration_api_ms": 38586,
+  "stop_reason": "end_turn",
+  "session_id": "f77dff88-5a6d-47f4-a8d8-f522bf3b8f49",
+  "total_cost_usd": 0.22829249999999998,
+  "usage": {
+    "input_tokens": 24,
+    "cache_creation_input_tokens": 35068,
+    "cache_read_input_tokens": 482525,
+    "output_tokens": 3972,
+    "output_tokens_details": {
+      "thinking_tokens": 398
+    },
+    "server_tool_use": {
+      "web_search_requests": 0,
+      "web_fetch_requests": 0
+    },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 35068,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 503,
+        "cache_read_input_tokens": 47103,
+        "cache_creation_input_tokens": 273,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 273
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "modelUsage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 24,
+      "outputTokens": 3972,
+      "cacheReadInputTokens": 482525,
+      "cacheCreationInputTokens": 35068,
+      "webSearchRequests": 0,
+      "costUSD": 0.22829249999999998,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 398,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "permission_denials": [
+    {
+      "tool_name": "Bash",
+      "tool_use_id": "toolu_01AshdqJPNFmaLch5poXtqt3",
+      "tool_input": {
+        "command": "cat >> .sddpp/debt/frontend.yaml <<'EOF'\n  - id: DEBT-FE-002\n    title: The delete button ignores the response and its confirm flow is only checked by string assertions\n    description: The click handler in public/app.js calls fetch DELETE and then reloads the list without checking response.ok or catching a fetch error, same gap as DEBT-FE-001. The confirm() step and the DELETE call are verified only by assertions on the script source (no browser test, per the non-goals), so the confirmation behaviour was not run in a real browser.\n    kind: test\n    origin: { type: slice, ref: SL-006 }\n    created: 2026-10-25\n    proposed_by: ai\n    cost_of_delay: { level: low, rationale: Local single-user page; a failed delete is visible because the task stays in the list, and there is no data loss. }\n    trigger: Together with DEBT-FE-001, in the first slice that adds error feedback to the page.\n    status: proposed\nEOF\ncat > .sddpp/audit-input.json <<'EOF'\n{\n  \"commits\": [\n    { \"sha\": \"e02718374d703e29a98536c7f64497e76b20a4f5\", \"kind\": \"red\" },\n    { \"sha\": \"2fe2d3a2a2b19be9650957e4c302f0e45c5e4d89\", \"kind\": \"green\" }\n  ],\n  \"tests_added\": 6,\n  \"mutation_score\": null,\n  \"decisions\": [],\n  \"debt_created\": [\"DEBT-FE-002\"],\n  \"deviations\": [\n    \"Mutation testing (Stryker) was not run, so mutation_score is null.\",\n    \"The confirm() dialog and the delete button were not exercised in a real browser; the test only asserts on the page script source (no browser tests per the blueprint non-goals).\",\n    \"The slice lists the database component, but no migration or db.ts change was needed: deletion is a DELETE ... RETURNING statement in src/tasks.ts.\",\n    \"No ADR needed: the 204 empty body and the 404 error shape { error: { code: 'not_found' } } follow the existing API conventions.\"\n  ]\n}\nEOF\nppc finish SL-006 --audit .sddpp/audit-input.json 2>&1 | tail -20; git status --short"
+      }
+    }
+  ],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": {
+      "background": 0,
+      "foreground": 0,
+      "unset": 0
+    },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": {
+      "parent": 0,
+      "user": 0,
+      "system": 0
+    },
+    "refused": {
+      "depth_limit": 0,
+      "concurrency_limit": 0,
+      "budget": 0
+    },
+    "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 14,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "SL-006 is closed with `ppc finish`, and the bookkeeping is committed as `e251ca3 chore(SL-006): close slice`. The tests (22) and the type check pass.\n\n**What shipped**\n- `DELETE /api/tasks/:id` answers 204 with no body when the task existed, and 404 `not_found` when it didn't.\n- The row is removed for good.\n- The page has a Delete button that asks `confirm()` first, then reloads the list.\n- Six tests were added, covering AC-1 and AC-2, including the kill -9 and restart case.\n- `ppc` measured 22 production lines and 139 test lines.\n\n**Debt proposed (you decide):**\n- **DEBT-FE-002:** the Delete handler ignores a failed response, the same gap as DEBT-FE-001. Cost of delay is low. I added it to `.sddpp/debt/frontend.yaml`.\n\n**Deviations recorded in the audit**\n- **Database component:** the slice lists it, but no `db.ts` or migration change was needed.\n- **ADR:** none needed.\n\n**What I could not verify**\n- **Browser behaviour:** the `confirm()` dialog and the Delete button never ran in a real browser. The test only checks the page script's source text, because the blueprint rules out browser tests.\n- **Mutation testing:** I did not run Stryker. `ppc finish` refused the `mutation_score: null` field that `audit.md` shows, so I removed it from the audit input. `ppc` computes that score itself.",
+  "ttft_ms": 3186,
+  "type": "result",
+  "duration_ms": 54315,
+  "uuid": "533d3451-8ae6-49c4-afca-8602f897bb84",
+  "ttft_stream_ms": 2072,
+  "time_to_request_ms": 60,
+  "first_content_frame_ms": 2072,
+  "queued_turn_count": 0,
+  "result_index": 0
+}

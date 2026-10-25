@@ -1,0 +1,99 @@
+{
+  "duration_api_ms": 55763,
+  "stop_reason": "end_turn",
+  "session_id": "e7eebe45-e972-445a-975c-5979c0ef6aaf",
+  "total_cost_usd": 0.2801341,
+  "usage": {
+    "input_tokens": 16,
+    "cache_creation_input_tokens": 44191,
+    "cache_read_input_tokens": 319781,
+    "output_tokens": 7136,
+    "output_tokens_details": {
+      "thinking_tokens": 1766
+    },
+    "server_tool_use": {
+      "web_search_requests": 0,
+      "web_fetch_requests": 0
+    },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 44191,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 1025,
+        "cache_read_input_tokens": 54358,
+        "cache_creation_input_tokens": 358,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 358
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "modelUsage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 16,
+      "outputTokens": 7136,
+      "cacheReadInputTokens": 319781,
+      "cacheCreationInputTokens": 44191,
+      "webSearchRequests": 0,
+      "costUSD": 0.2801341,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 1766,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "permission_denials": [],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": {
+      "background": 0,
+      "foreground": 0,
+      "unset": 0
+    },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": {
+      "parent": 0,
+      "user": 0,
+      "system": 0
+    },
+    "refused": {
+      "depth_limit": 0,
+      "concurrency_limit": 0,
+      "budget": 0
+    },
+    "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 9,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "Los tests de SL-008 están escritos y commiteados (`0470aa5`, `red(SL-008): …`), y 8 de los 11 fallan por la razón esperada. Solo añadí `tests/list-order.test.ts`, sin código de producción. `tsc --noEmit` pasa.\n\n**Qué cubren los tests** (cada uno lleva el nombre de su AC):\n- **AC-1:** agrego A, B, C por la API y espero C, B, A. Agrego una D y espero que quede arriba. Siembro filas con `created_at` distinto y espero que el orden siga el `created_at` y no el orden de guardado.\n- **AC-2:** creo 30 tareas seguidas por la API, y siembro 4 con el mismo `created_at`. En ambos casos, la guardada al final debe salir primera, en 5 peticiones seguidas.\n- **AC-3:** la API responde `200 {tasks: []}`. `index.html` debe tener un elemento `id=\"empty-state\"` con texto, fuera de `#task-list`. `app.js` debe referirse a `empty-state` y comprobar la longitud de la lista.\n- **AC-4:** con 1000 tareas, hago 20 GET seguidos y exijo p95 < 100 ms y cuerpo < 400000 bytes. También exijo que la lista salga ordenada.\n\n**Resultado de la ejecución:**\n- Los 8 fallos son de comportamiento ausente. Hoy `listTasks` ordena por `ORDER BY id` y la página no tiene estado vacío. No hay errores de sintaxis ni de importación.\n- Los 3 que pasan ya se cumplen con el código actual: `GET /api/tasks` vacío devuelve 200, el estado vacío está fuera de la lista y el p95 con 1000 tareas queda bajo 100 ms. Son guardas contra regresiones y no fallan en rojo.\n\n**Qué no pude verificar:**\n- **Comportamiento visual del estado vacío:** que se vea con la lista vacía y se oculte con tareas no se puede comprobar. Los tests solo revisan el HTML y el JS de forma estática, porque no hay DOM ni tests e2e (son non-goal). El nombre `empty-state` lo elegí yo, así que conviene revisarlo al aprobar.\n- **Valor del test de AC-4:** al pasar ya hoy, no demuestra nada sobre la implementación futura. Solo protege el presupuesto.\n- **Sembrado directo:** los tests de `created_at` idéntico y de AC-4 escriben en el SQLite con `node:sqlite` desde el test, con el servidor parado y reiniciado después. La prueba de arquitectura solo escanea `src/` y `public/`, así que no choca con ella.\n\nLos tests están commiteados. Léelos y, si estás de acuerdo, aprueba con `ppc approve-red --by <tu nombre>` (en Claude Code, con el prefijo `!`). No lo ejecuté yo.",
+  "ttft_ms": 3058,
+  "type": "result",
+  "duration_ms": 59820,
+  "uuid": "8c41e2e0-afba-4267-9330-d43cd84bbb39",
+  "ttft_stream_ms": 2650,
+  "time_to_request_ms": 59,
+  "first_content_frame_ms": 2650,
+  "queued_turn_count": 0,
+  "result_index": 0
+}

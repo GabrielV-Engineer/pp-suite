@@ -1,0 +1,114 @@
+{
+  "duration_api_ms": 57841,
+  "stop_reason": "end_turn",
+  "session_id": "d919f82f-7e47-4b35-94da-9cf27e6d8333",
+  "total_cost_usd": 0.3072997,
+  "usage": {
+    "input_tokens": 20,
+    "cache_creation_input_tokens": 43172,
+    "cache_read_input_tokens": 411817,
+    "output_tokens": 9339,
+    "output_tokens_details": {
+      "thinking_tokens": 511
+    },
+    "server_tool_use": {
+      "web_search_requests": 0,
+      "web_fetch_requests": 0
+    },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 43172,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 590,
+        "cache_read_input_tokens": 53347,
+        "cache_creation_input_tokens": 350,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 350
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "modelUsage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 20,
+      "outputTokens": 9339,
+      "cacheReadInputTokens": 411817,
+      "cacheCreationInputTokens": 43172,
+      "webSearchRequests": 0,
+      "costUSD": 0.3072997,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 511,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "permission_denials": [
+    {
+      "tool_name": "Bash",
+      "tool_use_id": "toolu_017tKSGu7fQbiRs1hLKahWoY",
+      "tool_input": {
+        "command": "python3 - <<'EOF'\np='src/tasks.ts'\ns=open(p).read()\ns=s.replace('''export function listTasks''','''export const MAX_TITLE_LENGTH = 500;\n\n// Returns the reason a title is not acceptable, or null when it is valid.\n// Length counts characters (code points), like the length() CHECK in the schema.\nexport function validateTitle(title: unknown): string | null {\n  if (typeof title !== \"string\") return \"Title must be a string.\";\n  const trimmed = title.trim();\n  if (trimmed.length === 0) return \"A title is required.\";\n  if ([...trimmed].length > MAX_TITLE_LENGTH) {\n    return `The title is too long (maximum ${MAX_TITLE_LENGTH} characters).`;\n  }\n  return null;\n}\n\nexport function listTasks''',1)\nopen(p,'w').write(s)\np='src/app.ts'\ns=open(p).read()\ns=s.replace('import { createTask, listTasks }','import { createTask, listTasks, validateTitle }')\ns=s.replace('''    const { title } = await c.req.json();\n    return''','''    let body: unknown;\n    try {\n      body = await c.req.json();\n    } catch {\n      return c.json(\n        { error: { code: \"invalid_json\", message: \"The request body is not valid JSON.\" } },\n        400,\n      );\n    }\n    const title = (body as { title?: unknown } | null)?.title;\n    const problem = validateTitle(title);\n    if (problem !== null) {\n      return c.json({ error: { code: \"validation_failed\", message: problem } }, 400);\n    }\n    return''')\ns=s.replace('createTask(db, title)','createTask(db, title as string)')\nopen(p,'w').write(s)\n\np='public/index.html'\ns=open(p).read()\ns=s.replace('''        <button type=\"submit\">Add task</button>\n''','''        <button type=\"submit\">Add task</button>\n        <p id=\"form-message\" role=\"alert\"></p>\n''')\nopen(p,'w').write(s)\n\np='public/app.js'\ns=open(p).read()\ns=s.replace('const list =','const message = document.getElementById(\"form-message\");\\nconst list =')\ns=s.replace('''  await fetch(\"/api/tasks\", {''','''  const response = await fetch(\"/api/tasks\", {''')\ns=s.replace('''  titleInput.value = \"\";\n  await showTasks();''','''  if (!response.ok) {\n    const { error } = await response.json();\n    message.textContent = error.message;\n    return;\n  }\n  message.textContent = \"\";\n  titleInput.value = \"\";\n  await showTasks();''')\nopen(p,'w').write(s)\nEOF\ncat >> tests/tasks.test.ts <<'EOF'\n\ndescribe(\"SL-004 reject empty and over-long titles\", () => {\n  let server: Running;\n\n  before(async () => {\n    server = await startServer();\n  });\n  after(async () => {\n    await server?.stop();\n  });\n\n  async function assertRejected(response: Response, code: string, message: string): Promise<void> {\n    assert.equal(response.status, 400);\n    assert.deepEqual(await response.json(), { error: { code, message } });\n  }\n\n  it(\"AC-1: an empty title answers 400 'A title is required.' and stores nothing\", async () => {\n    await assertRejected(await createTask(server, \"\"), \"validation_failed\", \"A title is required.\");\n    assert.deepEqual(await listTasks(server), []);\n  });\n\n  it(\"AC-1: a title of only spaces and line breaks is rejected the same way\", async () => {\n    await assertRejected(\n      await createTask(server, \"  \\n\\t  \"),\n      \"validation_failed\",\n      \"A title is required.\",\n    );\n    assert.deepEqual(await listTasks(server), []);\n  });\n\n  it(\"AC-2: a 501-character title is rejected with the too-long message and stores nothing\", async () => {\n    await assertRejected(\n      await createTask(server, \"a\".repeat(501)),\n      \"validation_failed\",\n      \"The title is too long (maximum 500 characters).\",\n    );\n    assert.deepEqual(await listTasks(server), []);\n  });\n\n  it(\"AC-2: the length is measured after trimming\", async () => {\n    const response = await createTask(server, `  ${\"a\".repeat(500)}  `);\n    assert.equal(response.status, 201);\n    const { task } = (await response.json()) as { task: Task };\n    assert.equal(task.title, \"a\".repeat(500));\n  });\n\n  it(\"AC-2: 500 characters are counted as characters, not UTF-16 units\", async () => {\n    const response = await createTask(server, \"😀\".repeat(500));\n    assert.equal(response.status, 201);\n    await assertRejected(\n      await createTask(server, \"😀\".repeat(501)),\n      \"validation_failed\",\n      \"The title is too long (maximum 500 characters).\",\n    );\n  });\n\n  it(\"a missing or non-string title is rejected with 'Title must be a string.'\", async () => {\n    for (const body of [\"{}\", \"null\", '{\"title\":42}', '{\"title\":null}', \"[]\"]) {\n      const response = await fetch(`${server.baseUrl}/api/tasks`, {\n        method: \"POST\",\n        headers: { \"content-type\": \"application/json\" },\n        body,\n      });\n      await assertRejected(response, \"validation_failed\", \"Title must be a string.\");\n    }\n  });\n\n  it(\"a body that is not JSON is rejected with invalid_json\", async () => {\n    const response = await fetch(`${server.baseUrl}/api/tasks`, {\n      method: \"POST\",\n      headers: { \"content-type\": \"application/json\" },\n      body: \"{nope\",\n    });\n    await assertRejected(response, \"invalid_json\", \"The request body is not valid JSON.\");\n  });\n\n  it(\"AC-1: after a rejection, a corrected title is added normally\", async () => {\n    const before = (await listTasks(server)).length;\n    assert.equal((await createTask(server, \"\")).status, 400);\n    assert.equal((await createTask(server, \"Buy milk\")).status, 201);\n    assert.equal((await listTasks(server)).length, before + 1);\n  });\n\n  describe(\"the page\", () => {\n    let html: string;\n    let script: string;\n\n    before(async () => {\n      html = await (await fetch(`${server.baseUrl}/`)).text();\n      script = await (await fetch(`${server.baseUrl}/app.js`)).text();\n    });\n\n    it(\"AC-1: has an alert element with id form-message for the reason\", () => {\n      assert.match(html, /<[a-z]+(?=[^>]*id=[\"']form-message[\"'])(?=[^>]*role=[\"']alert[\"'])/);\n    });\n\n    it(\"AC-1: the script shows the server's error message and keeps the typed title on failure\", () => {\n      assert.match(script, /form-message/);\n      assert.match(script, /response\\.ok/);\n      assert.match(script, /error\\.message/);\n      assert.doesNotMatch(script, /innerHTML/);\n    });\n  });\n});\nEOF\nnpm test 2>&1 | tail -30; npm run typecheck 2>&1 | tail"
+      }
+    },
+    {
+      "tool_name": "Bash",
+      "tool_use_id": "toolu_01PEB7WWPxoZ8d16eJdWswJ8",
+      "tool_input": {
+        "command": "cat >> tests/tasks.test.ts <<'EOF'\n\ndescribe(\"SL-004 reject empty and over-long titles\", () => {\n  let server: Running;\n\n  before(async () => {\n    server = await startServer();\n  });\n  after(async () => {\n    await server?.stop();\n  });\n\n  async function assertRejected(response: Response, code: string, message: string): Promise<void> {\n    assert.equal(response.status, 400);\n    assert.deepEqual(await response.json(), { error: { code, message } });\n  }\n\n  async function postRaw(body: string): Promise<Response> {\n    return fetch(`${server.baseUrl}/api/tasks`, {\n      method: \"POST\",\n      headers: { \"content-type\": \"application/json\" },\n      body,\n    });\n  }\n\n  it(\"AC-1: an empty title answers 400 'A title is required.' and stores nothing\", async () => {\n    await assertRejected(await createTask(server, \"\"), \"validation_failed\", \"A title is required.\");\n    assert.deepEqual(await listTasks(server), []);\n  });\n\n  it(\"AC-1: a title of only spaces and line breaks is rejected the same way\", async () => {\n    await assertRejected(\n      await createTask(server, \"  \\n\\t  \"),\n      \"validation_failed\",\n      \"A title is required.\",\n    );\n    assert.deepEqual(await listTasks(server), []);\n  });\n\n  it(\"AC-2: a 501-character title is rejected with the too-long message and stores nothing\", async () => {\n    await assertRejected(\n      await createTask(server, \"a\".repeat(501)),\n      \"validation_failed\",\n      \"The title is too long (maximum 500 characters).\",\n    );\n    assert.deepEqual(await listTasks(server), []);\n  });\n\n  it(\"AC-2: the length is measured after trimming\", async () => {\n    const response = await createTask(server, `  ${\"a\".repeat(500)}  `);\n    assert.equal(response.status, 201);\n    const { task } = (await response.json()) as { task: Task };\n    assert.equal(task.title, \"a\".repeat(500));\n  });\n\n  it(\"AC-2: characters are counted as characters, not UTF-16 units\", async () => {\n    assert.equal((await createTask(server, \"😀\".repeat(500))).status, 201);\n    await assertRejected(\n      await createTask(server, \"😀\".repeat(501)),\n      \"validation_failed\",\n      \"The title is too long (maximum 500 characters).\",\n    );\n  });\n\n  it(\"a missing or non-string title is rejected with 'Title must be a string.'\", async () => {\n    for (const body of [\"{}\", \"null\", '{\"title\":42}', '{\"title\":null}', \"[]\"]) {\n      await assertRejected(await postRaw(body), \"validation_failed\", \"Title must be a string.\");\n    }\n  });\n\n  it(\"a body that is not JSON is rejected with invalid_json\", async () => {\n    await assertRejected(await postRaw(\"{nope\"), \"invalid_json\", \"The request body is not valid JSON.\");\n  });\n\n  it(\"AC-1: after a rejection, a corrected title is added normally\", async () => {\n    const count = (await listTasks(server)).length;\n    assert.equal((await createTask(server, \"\")).status, 400);\n    assert.equal((await createTask(server, \"Buy milk\")).status, 201);\n    assert.equal((await listTasks(server)).length, count + 1);\n  });\n\n  describe(\"the page\", () => {\n    let html: string;\n    let script: string;\n\n    before(async () => {\n      html = await (await fetch(`${server.baseUrl}/`)).text();\n      script = await (await fetch(`${server.baseUrl}/app.js`)).text();\n    });\n\n    it(\"AC-1: has an alert element with id form-message for the reason\", () => {\n      assert.match(html, /<[a-z]+(?=[^>]*id=[\"']form-message[\"'])(?=[^>]*role=[\"']alert[\"'])/);\n    });\n\n    it(\"AC-1: the script shows the server's error message and leaves the title on failure\", () => {\n      assert.match(script, /form-message/);\n      assert.match(script, /response\\.ok/);\n      assert.match(script, /error\\.message/);\n      assert.doesNotMatch(script, /innerHTML/);\n    });\n  });\n});\nEOF\nnpm test 2>&1 | tail -30; npm run typecheck 2>&1 | tail"
+      }
+    }
+  ],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": {
+      "background": 0,
+      "foreground": 0,
+      "unset": 0
+    },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": {
+      "parent": 0,
+      "user": 0,
+      "system": 0
+    },
+    "refused": {
+      "depth_limit": 0,
+      "concurrency_limit": 0,
+      "budget": 0
+    },
+    "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 17,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "SL-004 is implemented and committed as `1d74fbe`. `npm test` passes all 26 tests and `npm run typecheck` is clean.\n\n- **API:** `POST /api/tasks` now answers 400 and stores nothing for a rejected title. The messages follow the contract in `specs/001-create-list-tasks/contracts/tasks-api.md`:\n  - Empty or whitespace-only: \"A title is required.\"\n  - Over 500 characters after trimming: \"The title is too long (maximum 500 characters).\"\n  - Missing or non-string `title`: \"Title must be a string.\"\n  - A malformed JSON body gets an `invalid_json` error.\n- **Length rule:** The 500 limit counts characters, not UTF-16 units, so emoji count as one. This matches the database check.\n- **Files changed:** The validation is in `src/tasks.ts` and `src/app.ts`. The database layer is untouched, as the slice requires.\n- **Page:** I added `<p id=\"form-message\" role=\"alert\">` to `public/index.html`. In `public/app.js`, a failed request now shows the server's message there and keeps what the owner typed. A successful one clears both.\n- **Tests:** The new `tests/validation.test.ts` covers AC-1 and AC-2, the 500/501 boundary, trimming and the emoji count. It also covers the bad-body cases, adding a corrected title after a rejection, and the page markup and script.\n\nI did not edit the debt files, which are generated. DEBT-BE-004 (request body shape) and DEBT-FE-001 (failed requests ignored) both name SL-004 as their trigger, and this slice covers both. Their status is still \"proposed\", so you or `ppc generate` will need to update them. I also left the slice file's `status: planned` alone.",
+  "ttft_ms": 2685,
+  "type": "result",
+  "duration_ms": 69396,
+  "uuid": "7bc49790-e8e2-4b4e-b564-ca7e1fe32c44",
+  "ttft_stream_ms": 2282,
+  "time_to_request_ms": 61,
+  "first_content_frame_ms": 2282,
+  "queued_turn_count": 0,
+  "result_index": 0
+}
