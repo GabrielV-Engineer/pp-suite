@@ -104,21 +104,31 @@ its result looks bad.
 Question (see [measurement-review](measurement-review.md)): **does the per-slice specification matter** for a
 person who would otherwise type one sentence, and does it protect against an over-ambitious request?
 
-- **Conditions** (all one session, cap 3 USD, same tools and same prompt tail as B1): **B1** again, run now so it is
-  compared at the same time and so that its run-to-run variation is visible; **B0a**, a clear one-sentence request;
-  **B0b**, an ambitious request of the kind a person without senior judgment might write ("production-ready",
-  "scales", "recover if I delete by mistake", "paging and search"). The six requests are in `tools/eval/plan.mjs`.
+- **Conditions** (all one session, cap 3 USD, same tools and same prompt tail as B1): **B0a**, a clear one-sentence
+  request; **B0b**, an ambitious request of the kind a person without senior judgment might write
+  ("production-ready", "scales", "recover if I delete by mistake", "paging and search"). The six requests are in
+  `tools/eval/plan.mjs`. The comparison is the **15 B1 runs of the first experiment**, taken as they are.
 - **B0 projects have no `.sddpp/` and no `specs/`**, or the agent would find the slice files by exploring. They keep
   `.architect/` (architecture and blueprint, with their non-goals): the neutral acceptance tests rely on the API
   facts stated there. So this isolates the slice-level specification, not the design documents.
-- **Runs:** 5 repetitions x 3 slices (SL-004, SL-006, SL-008) x 3 conditions = 45, shuffled with a fixed seed.
+- **Runs:** 3 repetitions x 3 slices (SL-004, SL-006, SL-008) x 2 conditions = **18 runs**, shuffled with a fixed seed.
 - **Measures:** pass of the neutral acceptance test (the criteria are not shown to B0, so a miss means a detail was
-  not guessed); production lines added; out-of-scope markers; mutation score of `src/`; cost and time.
-- **Decision rule.** A request-only style **matters** when, pooled over the 15 runs, it either passes the acceptance
-  test at least **20 points** less often than B1, or builds at least **1.5 times** B1's median production lines, or
-  has a median of at least **one more** out-of-scope marker, **and** the same direction holds in at least two
-  slices. The verdict is "the slice spec matters" if either style matters; "no evidence that the slice spec matters"
-  if neither does; "inconclusive" if data is missing. Applied by `tools/eval/analyze.mjs --spec`.
+  not guessed); production lines added; out-of-scope markers; cost and time. **Mutation testing is not run**: the
+  decision rule does not use it.
+- **Decision rule.** A request-only style **matters** when, pooled (9 runs against B1's 15), it either passes the
+  acceptance test at least **20 points** less often than B1, or builds at least **1.5 times** B1's median production
+  lines, or has a median of at least **one more** out-of-scope marker, **and** the same direction holds in at least
+  two slices. The verdict is "the slice spec matters" if either style matters; "no evidence that the slice spec
+  matters" if neither does; "inconclusive" if data is missing. Applied by `tools/eval/analyze.mjs --spec --b1-from`.
+- **Reduced on 2026-10-25 at the owner's request ("the minimum that is sufficient"), before any result of this
+  experiment was read.** It was planned as 45 runs (5 repetitions, B1 run again at the same time to see its
+  run-to-run variation). It was stopped after one run (SL-004-B0b-1), which is kept because it belongs to the reduced
+  plan. The thresholds were not changed. The cost of reusing B1: it was run earlier the same day, so a drift of the
+  model between the two would go unseen. B1's own runs were near-identical to each other (for example SL-006 scored
+  the same in all five), which makes this a small risk, not zero.
+- **Why 18 is enough for this question.** The rule asks whether a large effect exists (20 points, 1.5 times the code,
+  a whole marker) in a majority of slices. With three runs per slice a failure rate of one in three is visible in
+  every slice. A smaller effect than that would not change what the project does, so it is not looked for.
 - **What it cannot show:** whether the spec matters for a person who also lacks the design documents; whether it
   matters over many dependent slices; anything about the person's own attention. Same model, same project.
 - **Discard rule:** as in the first experiment (only account or network failures; the run is redone).

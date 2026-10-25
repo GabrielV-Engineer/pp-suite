@@ -29,6 +29,8 @@ const reps = Number(opt('reps', '5'));
 const experiment = opt('experiment', 'enforcement'); // 'enforcement' (B1, B2, T) or 'spec' (B0a, B0b, B1)
 const seed = Number(opt('seed', '20261024'));
 const only = opt('only');
+const keep = opt('conditions') ? opt('conditions').split(',') : null; // run only these conditions of the plan
+const skipMutation = args.includes('--skip-mutation');
 const max = Number(opt('max', '0')) || Infinity;
 if (!demo || !base || !opt('work') || !opt('out')) {
   console.error('usage: run.mjs --demo <dir> --base <commit> --work <dir> --out <dir> [--slices ..] [--reps n] [--seed n] [--only id] [--max n]');
@@ -162,7 +164,7 @@ function execute(entry, templates) {
     return { infrastructure: true, kinds };
   }
 
-  const measured = sh(dir, 'node', [join(HERE, 'measure.mjs'), dir, measureBase, '--slice', slice, '--session', sessions.join(',')], { timeout: 20 * 60 * 1000 });
+  const measured = sh(dir, 'node', [join(HERE, 'measure.mjs'), dir, measureBase, '--slice', slice, '--session', sessions.join(','), ...(skipMutation ? ['--skip-mutation'] : [])], { timeout: 20 * 60 * 1000 });
   if (measured.status !== 0) outcome.measure_error = String(measured.stderr).slice(-1500);
   else writeFileSync(join(results, 'measure.json'), measured.stdout);
   sh(dir, 'git', ['bundle', 'create', join(results, 'run.bundle'), 'HEAD', '--not', measureBase]);
@@ -178,6 +180,7 @@ const templates = prepareTemplates();
 let ran = 0;
 for (const entry of buildPlan({ slices, reps, seed, conditions: experiment === 'spec' ? SPEC_CONDITIONS : CONDITIONS })) {
   if (only && entry.id !== only) continue;
+  if (keep && !keep.includes(entry.condition)) continue;
   if (existsSync(join(out, entry.id, 'done.json'))) continue;
   if (ran >= max) break;
   let r;

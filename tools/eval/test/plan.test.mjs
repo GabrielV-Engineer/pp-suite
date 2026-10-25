@@ -35,6 +35,12 @@ test('buildPlan: ids name the run', () => {
   assert.match(buildPlan({ slices: ['SL-004'], reps: 1, seed: 1 })[0].id, /^SL-004-(B1|B2|T)-1$/);
 });
 
+test('buildPlan: fewer repetitions give exactly the first rounds of the longer plan, so finished runs keep their ids', () => {
+  const long = buildPlan({ slices: SLICES, conditions: SPEC_CONDITIONS, reps: 5, seed: 20261025 });
+  const short = buildPlan({ slices: SLICES, conditions: SPEC_CONDITIONS, reps: 3, seed: 20261025 });
+  assert.deepEqual(short, long.slice(0, short.length));
+});
+
 // ── prompts ──────────────────────────────────────────────────────
 const SLICE_FILE = '.sddpp/slices/SL-004-reject-invalid-titles.md';
 

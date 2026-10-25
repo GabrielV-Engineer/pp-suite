@@ -1,0 +1,135 @@
+{
+  "duration_api_ms": 112818,
+  "stop_reason": "end_turn",
+  "session_id": "0a8e62e3-d393-4a70-b3d2-4894fce13e39",
+  "total_cost_usd": 0.5091568000000001,
+  "usage": {
+    "input_tokens": 46,
+    "cache_creation_input_tokens": 54134,
+    "cache_read_input_tokens": 1187888,
+    "output_tokens": 17374,
+    "output_tokens_details": {
+      "thinking_tokens": 2805
+    },
+    "server_tool_use": {
+      "web_search_requests": 0,
+      "web_fetch_requests": 0
+    },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 54134,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 1030,
+        "cache_read_input_tokens": 64293,
+        "cache_creation_input_tokens": 366,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 366
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "modelUsage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 46,
+      "outputTokens": 17374,
+      "cacheReadInputTokens": 1187888,
+      "cacheCreationInputTokens": 54134,
+      "webSearchRequests": 0,
+      "costUSD": 0.5091568000000001,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 2805,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "permission_denials": [
+    {
+      "tool_name": "Bash",
+      "tool_use_id": "toolu_01PNL4tKvs1ByyGYooZpbdwy",
+      "tool_input": {
+        "command": "python3 - <<'EOF'\np='src/tasks.ts'\ns=open(p).read()\ns=s.replace('''export function createTask(db: Database, title: string): Task {\n  const now = new Date().toISOString();''','''export const TITLE_MAX_LENGTH = 500;\n\n/** A bad request value; `message` is safe to show to the owner. */\nexport class ValidationError extends Error {}\n\nconst CONTROL_CHARACTERS = /[\\\\p{Cc}\\\\u2028\\\\u2029]/u;\nconst INVISIBLE_ONLY = /^[\\\\s\\\\p{Cf}]*$/u;\n\n/**\n * Returns the title trimmed, or throws a ValidationError. Length counts characters (code points),\n * the same way the `length()` CHECK in the migration does.\n */\nexport function parseTitle(value: unknown): string {\n  if (value === undefined || value === null) throw new ValidationError(\"title is required\");\n  if (typeof value !== \"string\") throw new ValidationError(\"title must be a string\");\n  if (!value.isWellFormed()) throw new ValidationError(\"title must be valid Unicode text\");\n  if (CONTROL_CHARACTERS.test(value)) {\n    throw new ValidationError(\"title must not contain control characters or line breaks\");\n  }\n  const title = value.trim();\n  if (INVISIBLE_ONLY.test(title)) throw new ValidationError(\"title must not be empty\");\n  if ([...title].length > TITLE_MAX_LENGTH) {\n    throw new ValidationError(`title must be at most ${TITLE_MAX_LENGTH} characters`);\n  }\n  return title;\n}\n\nexport function createTask(db: Database, title: string): Task {\n  const now = new Date().toISOString();''')\ns=s.replace(\"    title.trim(),\\n\",\"    title,\\n\")\nopen(p,'w').write(s)\n\np='src/app.ts'\ns=open(p).read()\ns=s.replace('''import { Hono } from \"hono\";\n''','''import { Hono } from \"hono\";\nimport { bodyLimit } from \"hono/body-limit\";\n''')\ns=s.replace('import { createTask, listTasks } from \"./tasks.ts\";','import { createTask, listTasks, parseTitle, ValidationError } from \"./tasks.ts\";')\ns=s.replace('''const PUBLIC_DIR''','''// A 500-character title is at most 2000 bytes of UTF-8; the rest is room for JSON syntax.\nconst MAX_BODY_BYTES = 16 * 1024;\n\nconst PUBLIC_DIR''')\ns=s.replace('''  const app = new Hono();\n''','''  const app = new Hono();\n\n  const fail = (c: Context, status: 400 | 413 | 500, code: string, message: string) =>\n    c.json({ error: { code, message } }, status);\n\n  app.onError((error, c) => {\n    console.error(error);\n    return fail(c, 500, \"internal_error\", \"Something went wrong on the server\");\n  });\n''')\ns=s.replace('import { Hono } from \"hono\";','import { Hono, type Context } from \"hono\";')\ns=s.replace('''  app.post(\"/api/tasks\", async (c) => {\n    const { title } = await c.req.json();\n    return c.json({ task: createTask(db, title) }, 201);\n  });''','''  app.post(\n    \"/api/tasks\",\n    bodyLimit({\n      maxSize: MAX_BODY_BYTES,\n      onError: (c) => fail(c, 413, \"payload_too_large\", `Request body must be at most ${MAX_BODY_BYTES} bytes`),\n    }),\n    async (c) => {\n      let body: unknown;\n      try {\n        body = await c.req.json();\n      } catch {\n        return fail(c, 400, \"invalid_json\", \"Request body must be valid JSON\");\n      }\n      if (typeof body !== \"object\" || body === null || Array.isArray(body)) {\n        return fail(c, 400, \"validation_failed\", 'Request body must be a JSON object like {\"title\": \"...\"}');\n      }\n      try {\n        const title = parseTitle((body as Record<string, unknown>).title);\n        return c.json({ task: createTask(db, title) }, 201);\n      } catch (error) {\n        if (error instanceof ValidationError) return fail(c, 400, \"validation_failed\", error.message);\n        throw error;\n      }\n    },\n  );''')\nopen(p,'w').write(s)\n\np='public/index.html'\ns=open(p).read()\ns=s.replace('name=\"title\" />','name=\"title\" required />\\n        <p id=\"task-error\" role=\"alert\" hidden></p>')\nopen(p,'w').write(s)\n\np='public/app.js'\ns=open(p).read()\ns=s.replace('const list =','const errorMessage = document.getElementById(\"task-error\");\\nconst list =')\ns=s.replace('''  await fetch(\"/api/tasks\", {\n    method: \"POST\",\n    headers: { \"content-type\": \"application/json\" },\n    body: JSON.stringify({ title: titleInput.value }),\n  });\n  titleInput.value = \"\";\n  await showTasks();''','''  let response;\n  try {\n    response = await fetch(\"/api/tasks\", {\n      method: \"POST\",\n      headers: { \"content-type\": \"application/json\" },\n      body: JSON.stringify({ title: titleInput.value }),\n    });\n  } catch {\n    showError(\"Could not reach the server\");\n    return;\n  }\n  if (!response.ok) {\n    const body = await response.json().catch(() => null);\n    showError(body?.error?.message ?? \"The task could not be saved\");\n    return;\n  }\n  showError(\"\");\n  titleInput.value = \"\";\n  await showTasks();''')\ns=s.replace('form.addEventListener','''function showError(message) {\n  errorMessage.textContent = message;\n  errorMessage.hidden = message === \"\";\n}\n\nform.addEventListener''')\nopen(p,'w').write(s)\nEOF\ngrep -n \"trim\\|title\" tests/skeleton.test.ts | head"
+      }
+    },
+    {
+      "tool_name": "Bash",
+      "tool_use_id": "toolu_01GiWDyMU1kk5QmwGG71dzDM",
+      "tool_input": {
+        "command": "perl -CSD -i -pe 's/^const CONTROL_CHARACTERS = .*$/const CONTROL_CHARACTERS = \\/[\\\\p{Cc}\\\\u2028\\\\u2029]\\/u;/' src/tasks.ts && sed -n 19p src/tasks.ts | od -c | head -5; grep -nP \"[\\x{2028}\\x{2029}\\x{200b}\\x{feff}\\x{2060}\\x{00a0}]\" -r src tests public | cut -c1-80"
+      }
+    },
+    {
+      "tool_name": "Bash",
+      "tool_use_id": "toolu_012m54ncZCmHY7pqs7fctYSQ",
+      "tool_input": {
+        "command": "perl -CSD -i -pe 's/^const CONTROL_CHARACTERS = .*$/const CONTROL_CHARACTERS = \\/[\\\\p{Cc}\\\\u2028\\\\u2029]\\/u;/' src/tasks.ts"
+      }
+    },
+    {
+      "tool_name": "Bash",
+      "tool_use_id": "toolu_01DfiPn4xU8UCzaZEssHHKPx",
+      "tool_input": {
+        "command": "sed -i 's/^const CONTROL_CHARACTERS = .*$/const CONTROL_CHARACTERS = \\/[\\\\p{Cc}\\\\p{Zl}\\\\p{Zp}]\\/u;/' src/tasks.ts && sed -n 19p src/tasks.ts"
+      }
+    },
+    {
+      "tool_name": "Bash",
+      "tool_use_id": "toolu_01BB1s7z7soXuuaQcUT5vUdH",
+      "tool_input": {
+        "command": "git status --short && awk 'NR<80' tests/validation.test.ts > /tmp/claude-1000/head.txt; wc -l /tmp/claude-1000/head.txt"
+      }
+    }
+  ],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": {
+      "background": 0,
+      "foreground": 0,
+      "unset": 0
+    },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": {
+      "parent": 0,
+      "user": 0,
+      "system": 0
+    },
+    "refused": {
+      "depth_limit": 0,
+      "concurrency_limit": 0,
+      "budget": 0
+    },
+    "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 29,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "Crear una tarea ahora valida el título y responde con errores JSON claros ante entradas inválidas. `npm test` pasa (58 de 58) y `npm run typecheck` no da errores. Todo está en el commit `80246f3`.\n\n## Qué cambió\n- **Validación del título** (`src/tasks.ts`, `parseTitle`):\n  - El título debe ser texto: se rechazan `undefined`, `null`, números, booleanos, arrays y objetos.\n  - Se rechazan los caracteres de control (NUL, saltos de línea, tabuladores, ESC, C1) y los separadores de línea y párrafo de Unicode.\n  - Se rechazan los surrogates sueltos, que no son Unicode válido.\n  - Se rechazan los títulos vacíos o que solo tienen espacios o caracteres invisibles (espacio de ancho cero, BOM, espacio duro).\n  - El máximo de 500 caracteres se cuenta por code points, igual que el `length()` del `CHECK` de SQLite. Así un emoji cuenta como 1.\n  - El título se recorta antes de contar y de guardar.\n- **Endpoint `POST /api/tasks`** (`src/app.ts`), con el formato de error de `architecture.md`:\n  - Un JSON mal formado devuelve `400 invalid_json`.\n  - Un cuerpo que no es un objeto (`null`, array, string, número) o un título inválido devuelve `400 validation_failed`.\n  - Un cuerpo de más de 16 KB devuelve `413 payload_too_large`.\n  - Cualquier fallo inesperado devuelve `500 internal_error` sin detalles internos.\n- **Página** (`public/app.js`, `public/index.html`): muestra el mensaje de error del servidor o \"Could not reach the server\". Si falla, conserva lo que el usuario escribió; antes vaciaba el campo aunque el guardado fallara.\n- **Pruebas** (`tests/validation.test.ts`): 42 casos nuevos contra un servidor real, que comprueban también que no se guarda nada en cada rechazo.\n\n## A revisar\n- **`tsconfig.json`**: subí `target` de `ES2023` a `ES2024`, porque `String.prototype.isWellFormed` no estaba en la librería de tipos. Node 24 lo soporta, así que no cambia el comportamiento.\n- **`payload_too_large`**: este código y el `500 internal_error` no figuran en `architecture.md`, que solo lista `invalid_json`, `validation_failed` y `not_found`. No actualicé el documento; dime si quieres que lo haga.\n- **Límite de 16 KB**: lo elegí yo, con margen sobre los 2000 bytes que ocupa un título de 500 caracteres. Puedes cambiarlo en `MAX_BODY_BYTES`.\n- **Alcance**: solo toqué la creación de tareas. `PATCH` y `DELETE` no existen todavía en el código, así que no los validé.",
+  "ttft_ms": 2252,
+  "type": "result",
+  "duration_ms": 142334,
+  "uuid": "d4c3c550-417d-4930-af97-1f390b3a5bcc",
+  "ttft_stream_ms": 1327,
+  "time_to_request_ms": 69,
+  "first_content_frame_ms": 1328,
+  "queued_turn_count": 0,
+  "result_index": 0
+}

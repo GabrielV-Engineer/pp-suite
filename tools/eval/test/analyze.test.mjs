@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { beats, evaluate, evaluateSpec, flatten, median, noLoss, report, reportSpec } from '../analyze.mjs';
+import { beats, evaluate, evaluateSpec, flatten, median, mergeBaseline, noLoss, report, reportSpec } from '../analyze.mjs';
 
 // ── one run → one row ────────────────────────────────────────────
 const measure = (over = {}) => ({
@@ -226,4 +226,10 @@ test('reportSpec: states the verdict and compares the three conditions on the me
   assert.match(text, /Verdict by the rules fixed in advance: the slice spec matters/);
   for (const c of ['B0a', 'B0b', 'B1']) assert.ok(text.includes(`| ${c} |`), c);
   assert.match(text, /Passes the neutral acceptance test/);
+});
+
+test('mergeBaseline: takes B0 rows from the new results and B1 rows only from the earlier experiment', () => {
+  const fresh = [specRow('SL-004', 'B0a', 1, { id: 'new-a' }), specRow('SL-004', 'B1', 1, { id: 'new-b1-unused' })];
+  const earlier = [specRow('SL-004', 'B1', 1, { id: 'old-b1' }), specRow('SL-004', 'B2', 1, { id: 'old-b2' }), specRow('SL-004', 'T', 1, { id: 'old-t' })];
+  assert.deepEqual(mergeBaseline(fresh, earlier).map((r) => r.id), ['new-a', 'old-b1']);
 });

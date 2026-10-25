@@ -166,6 +166,11 @@ export function report(rows) {
   return out.join('\n') + '\n';
 }
 
+/** Rows of the request-only conditions from the new results, plus B1 from an earlier experiment as the comparison. */
+export function mergeBaseline(fresh, earlier) {
+  return [...fresh.filter((r) => r.condition !== 'B1'), ...earlier.filter((r) => r.condition === 'B1')];
+}
+
 /** Report of the second experiment (does the per-slice specification matter?). */
 export function reportSpec(rows) {
   const v = evaluateSpec(rows);
@@ -190,6 +195,8 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1
     console.error('usage: analyze.mjs <results dir>');
     process.exit(2);
   }
-  const rows = loadRows(resolve(process.argv[2]));
+  let rows = loadRows(resolve(process.argv[2]));
+  const from = process.argv.indexOf('--b1-from');
+  if (from !== -1) rows = mergeBaseline(rows, loadRows(resolve(process.argv[from + 1])));
   process.stdout.write(process.argv.includes('--spec') ? reportSpec(rows) : report(rows));
 }
