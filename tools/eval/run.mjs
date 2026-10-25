@@ -9,7 +9,7 @@
 //
 // The side effects are not unit tested; the plan, the prompts and the classification of results are
 // (test/plan.test.mjs). What a run does is checked by smoke-running it and reading its outputs.
-import { cpSync, existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -140,6 +140,10 @@ function execute(entry, templates) {
   } else if (step('all', CAPS.all) === 'infrastructure') infrastructure = true;
 
   if (infrastructure) {
+    // Keep what the failed session said, so that "infrastructure" can be checked and not just believed.
+    const failures = join(out, '_infrastructure-failures');
+    mkdirSync(failures, { recursive: true });
+    for (const file of readdirSync(results)) if (file.startsWith('session-')) writeFileSync(join(failures, `${id}-${Date.now()}-${file}`), readFileSync(join(results, file)));
     rmSync(dir, { recursive: true, force: true });
     rmSync(results, { recursive: true, force: true });
     return { infrastructure: true, kinds };
@@ -163,10 +167,16 @@ for (const entry of buildPlan({ slices, reps, seed })) {
   if (only && entry.id !== only) continue;
   if (existsSync(join(out, entry.id, 'done.json'))) continue;
   if (ran >= max) break;
-  log(`start ${entry.id}`);
-  const r = execute(entry, templates);
+  let r;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    log(`start ${entry.id}${attempt > 1 ? ` (attempt ${attempt})` : ''}`);
+    r = execute(entry, templates);
+    if (!r.infrastructure) break;
+    log(`${entry.id}: infrastructure failure (${r.kinds.join(', ')}); the run was discarded${attempt < 3 ? ', trying again in 2 minutes' : ''}`);
+    if (attempt < 3) spawnSync('sleep', ['120']);
+  }
   if (r.infrastructure) {
-    log(`STOP: ${entry.id} hit an infrastructure failure (${r.kinds.join(', ')}); it was discarded. Run again to resume.`);
+    log(`STOP: ${entry.id} failed three times on infrastructure; see _infrastructure-failures/. Run again to resume.`);
     process.exit(3);
   }
   ran++;
