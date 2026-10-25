@@ -114,4 +114,20 @@ export function mutationFor(dir, base, runner = strykerRunner) {
   return { score: total.score, by_file, survivors: total.survivors.length, files };
 }
 
+/** Adds up the sessions of one run (T has three). A count the transcript could not give stays null, not zero. */
+export function combineSessions(sessions) {
+  const sum = (key) => sessions.reduce((n, s) => n + s[key], 0);
+  const counted = (key) => (sessions.every((s) => typeof s[key] === 'number') ? sum(key) : null);
+  const round = (n) => Math.round(n * 1000) / 1000;
+  return {
+    sessions: sessions.length,
+    usd: round(sum('usd')),
+    minutes: round(sum('minutes')),
+    turns: sum('turns'),
+    any_error: sessions.some((s) => s.is_error),
+    test_edit_calls: counted('test_edit_calls'),
+    guard_blocks: counted('guard_blocks'),
+  };
+}
+
 export const readJson = (path) => JSON.parse(readFileSync(path, 'utf8'));

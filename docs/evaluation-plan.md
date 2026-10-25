@@ -50,6 +50,34 @@ its result looks bad.
   better prompt, and should be dropped or simplified.
 - Anything in between is reported as inconclusive, with the numbers.
 
+## Protocol, fixed on 2026-10-24 before the first run
+
+- **Project and base:** `todo-app-m1` at commit `e4b45d6` (SL-001 and SL-002 done, Stryker installed).
+- **Slices:** SL-004 (reject invalid titles), SL-006 (delete a task), SL-008 (newest first, empty state, performance).
+  Chosen because each depends only on SL-002, and they differ in shape: validation, a new route through all three
+  layers, and ordering with a performance target.
+- **Runs:** 5 repetitions x 3 slices x 3 conditions = 45. Order: round by round, conditions shuffled with a fixed
+  seed (`tools/eval/plan.mjs`), so stopping early leaves complete rounds.
+- **Each run** is a fresh copy of the project with real `claude -p` sessions, the same tools for every condition,
+  no git remote. B1 and B2 are one session (cap 3 USD). T is three sessions: red (1.5), green (2), audit (1.5).
+  The prompts are in `tools/eval/plan.mjs`.
+- **B1 and B2 do not get the framework files** (`.claude/`, `.specify/`), so no hook or skill can reach them.
+  They do get the same slice file, blueprint and architecture as T.
+- **The human gate is simulated in T.** Approval of the slice and of the red tests is recorded by the harness under
+  the name "experiment-harness (automated, not a human)". It approves every red commit that exists, so the
+  catch of a weak test by a person, which is a claimed benefit of T, **is not measured here**.
+- **What is discarded:** only a run whose session failed because of the account or the network (a usage limit looks
+  like a success with an error flag). It is deleted and repeated. A run that runs out of its cap, fails its own
+  tests, fails the acceptance test or does not close its slice is **kept and reported**.
+- **Measures per run:** neutral acceptance test (pass or fail), the run's own tests, mutation score of the
+  production files it wrote (H1, with its own tests), out-of-scope markers from `tools/eval/slices/` (H2), test
+  edits after the first test commit and edit calls to test files (H3), lines to read (H4), cost, time and turns (H5).
+- **"Beats" means:** the median of T is better than the median of the baseline on that measure in the pooled 15
+  runs **and** in at least 2 of the 3 slices. With 5 runs per cell no significance test is claimed; medians,
+  ranges and every individual run are published in `docs/experiment-results/`.
+- **Reading the mutation score:** it is compared as measured, and also among only the runs that pass the
+  acceptance test, so that a condition is not rewarded for writing less.
+
 ## Known weaknesses of this design
 
 - **Small tasks.** A slice of about 150 lines may hide effects that appear in long projects, which is where

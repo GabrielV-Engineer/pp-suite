@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 // Measures one run of one condition against docs/evaluation-plan.md. The computing lives in lib.mjs (tested).
-//   node measure.mjs <project dir> <base commit> --slice SL-004 [--session <claude -p result.json>] [--skip-mutation]
+//   node measure.mjs <project dir> <base commit> --slice SL-004 [--session <result.json>[,<result.json>...]] [--skip-mutation]
 // The project must already contain Stryker (see docs/mutation-testing.md) unless --skip-mutation is given.
 import { cpSync, existsSync, readFileSync, readdirSync, rmSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { addedProductionText, analyzeTranscript, commitStats, countMarkers, diffTotals, mutationFor, parseNodeTest, readJson } from './lib.mjs';
+import { addedProductionText, analyzeTranscript, combineSessions, commitStats, countMarkers, diffTotals, mutationFor, parseNodeTest, readJson } from './lib.mjs';
 
 const HERE = fileURLToPath(new URL('.', import.meta.url));
 const args = process.argv.slice(2);
@@ -41,14 +41,17 @@ const testCases = testFiles.reduce((n, f) => n + (readFileSync(join(dir, 'tests'
 
 let session = null;
 if (opt('--session')) {
-  const result = readJson(opt('--session'));
-  session = { usd: result.total_cost_usd, minutes: +(result.duration_ms / 60000).toFixed(1), turns: result.num_turns, is_error: result.is_error };
   const projects = join(homedir(), '.claude', 'projects');
-  const transcript = readdirSync(projects, { withFileTypes: true })
-    .filter((d) => d.isDirectory())
-    .map((d) => join(projects, d.name, `${result.session_id}.jsonl`))
-    .find(existsSync);
-  if (transcript) Object.assign(session, analyzeTranscript(readFileSync(transcript, 'utf8').split('\n')));
+  const one = (path) => {
+    const result = readJson(path);
+    const stats = { usd: result.total_cost_usd, minutes: +(result.duration_ms / 60000).toFixed(3), turns: result.num_turns, is_error: result.is_error };
+    const transcript = existsSync(projects)
+      ? readdirSync(projects, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => join(projects, d.name, `${result.session_id}.jsonl`)).find(existsSync)
+      : undefined;
+    if (transcript) Object.assign(stats, analyzeTranscript(readFileSync(transcript, 'utf8').split('\n')));
+    return stats;
+  };
+  session = combineSessions(opt('--session').split(',').map(one));
 }
 
 console.log(JSON.stringify({
