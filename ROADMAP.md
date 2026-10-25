@@ -21,6 +21,7 @@ Status key: **done** has tests in CI · **spiked** tried once by hand, not autom
 | Guard registered into Claude Code through Spec Kit and honored | spiked — [findings](docs/spike-findings.md) |
 | `sddpp-slices` preset: template override and command wrap | spiked |
 | Spec Kit's `lean` preset adopted below ours; measured once: 3 files and 358 lines against 8 and 555, same slices, 24% cheaper | done, n = 1: [slices-in-sdd](docs/slices-in-sdd.md) |
+| Budget and mutation exceptions are recorded by a human with `ppc finish --budget-reason` / `--mutation-reason`, which the guard refuses to an agent | done, each part broken on purpose |
 | **Mutation testing**: `ppc mutation`, an optional gate in `ppc finish` (`budgets.min_mutation_score`), rule `M01`, and the guard blocking `mutation_override_reason`. First measurement on the demo: [mutation testing](docs/mutation-testing.md) | done (tests; each part broken on purpose); measured once on the demo |
 | `ppc approve-debt`: a human decides on debt the AI proposed (open, accepted with a reason, or dropped) | done, each part broken on purpose to confirm a test fails |
 | Rule `W05`: every quality attribute is referenced by a live slice. It flags QA-003 in the demo, which no planned slice covers | done (warning, not an error) |
@@ -33,7 +34,6 @@ Status key: **done** has tests in CI · **spiked** tried once by hand, not autom
 
 | Item | Why |
 |---|---|
-| Human-only budget exception | `ppc approve-debt` and the decision-field guard exist; the budget and mutation exceptions are still written by hand by a person (findings 5, 6) |
 | `check-git`: detect commits of a slice that its audit leaves out, for anything other than tests | `C06` closes this for test files only; an omitted production commit still goes unnoticed |
 | Session-start check that the guard script is present | The dispatcher fails open when the script is missing |
 | Approval gates as a Spec Kit workflow, and the agent prompts (`sddpp-cycle`, drafted; exercised in M1) | The `ppc` side of the loop exists and is tested; the agent side is new |

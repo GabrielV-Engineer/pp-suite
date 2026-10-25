@@ -397,6 +397,23 @@ test('CLI: the whole cycle through the commands', (t) => {
   assert.match(ppc(dir, 'status', dir).stdout, /no slice is in progress/);
 });
 
+test('CLI: a human records a budget exception with --budget-reason, and without it the slice is refused', (t) => {
+  const r = repo(t);
+  r.write({ '.architect/blueprint.yaml': read(r.dir, '.architect/blueprint.yaml').replace(/max_slice_production_lines: \d+/, 'max_slice_production_lines: 20') });
+  assert.equal(ppc(r.dir, 'start', 'SL-001', r.dir).status, 0);
+  const red = r.commit('red', RED);
+  assert.equal(ppc(r.dir, 'approve-red', '--by', 'reviewer', r.dir).status, 0);
+  const green = r.commit('green', { 'src/health.js': lines(25) });
+  const input = join(r.dir, '../over-budget.json');
+  writeFileSync(input, JSON.stringify({ commits: [{ sha: red, kind: 'red' }, { sha: green, kind: 'green' }], tests_added: 1 }));
+  const refused = ppc(r.dir, 'finish', 'SL-001', '--audit', input, r.dir);
+  assert.equal(refused.status, 1);
+  assert.match(refused.stderr, /B01/);
+  const accepted = ppc(r.dir, 'finish', 'SL-001', '--audit', input, '--budget-reason', 'Generated migration inflates the diff.', r.dir);
+  assert.equal(accepted.status, 0, accepted.stderr);
+  assert.equal(slice(r.dir, 'SL-001').audit.budget_override_reason, 'Generated migration inflates the diff.');
+});
+
 test('CLI: approve-debt opens, accepts or drops a proposed entry', (t) => {
   const run = (dir, ...args) => spawnSync('node', [CLI, ...args, dir], { encoding: 'utf8' });
   const a = repo(t);

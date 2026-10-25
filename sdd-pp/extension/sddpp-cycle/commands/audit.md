@@ -20,7 +20,7 @@ $ARGUMENTS
   the surviving mutants and the options: reopen the tests with the human, or a recorded exception.
 - For every surviving mutant you leave, propose a debt entry of kind `test` instead of hiding it.
 - If `ppc finish` refuses because the slice exceeded the production-code budget (`B01`), do **not** write
-  `budget_override_reason` yourself. An exception to the budget is the human's decision. Stop and report
+  `budget_override_reason` yourself and never pass `--budget-reason` (the guard blocks it). An exception to the budget is the human's decision. Stop and report
   the measured size, what it is made of, and the options (record an exception, or split the slice).
 - Say what you verified and what you did not. Run the project's tests and type check before finishing; if
   a command is refused, write that in the deviations instead of implying it passed.

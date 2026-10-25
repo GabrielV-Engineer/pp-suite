@@ -107,6 +107,15 @@ class GuardTest(unittest.TestCase):
                     self.assertEqual(code, 2)
                     self.assertIn("human", message)
 
+    def test_the_agent_cannot_record_an_exception_through_ppc_finish_either(self):
+        root = self.project({"slice": "SL-002", "phase": "green"})
+        for cmd in ('ppc finish SL-002 --audit a.json --budget-reason "too big but fine"',
+                    "node tools/ppc/bin/ppc.mjs finish SL-002 --audit a.json --mutation-reason 'survivors are equivalent'"):
+            with self.subTest(cmd=cmd):
+                code, message = guard.decide(payload("Bash", command=cmd), root)
+                self.assertEqual(code, 2)
+                self.assertIn("human", message)
+
     def test_every_other_ppc_command_is_allowed(self):
         root = self.project({"slice": "SL-002", "phase": "red"})
         for cmd in ("ppc start SL-002", "ppc status", "ppc validate --strict", "ppc finish SL-002 --audit a.json",

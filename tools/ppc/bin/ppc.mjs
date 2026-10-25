@@ -23,14 +23,15 @@ const USAGE = `ppc — pp-suite contract tool
     ppc approve-debt <DEBT-ID> --by <name> [--accept <reason> | --drop] [dir]
                                          HUMAN ONLY: decide on proposed debt (default: it becomes open)
     ppc refactor [dir]                   green -> refactor
-    ppc finish <slice> --audit <file.json> [dir]
-                                         close the slice; the diff size is measured from git
+    ppc finish <slice> --audit <file.json> [--budget-reason <text>] [--mutation-reason <text>] [dir]
+                                         close the slice; the diff size is measured from git.
+                                         The reason flags record an exception: HUMAN ONLY
     ppc mutation (--files a,b | --slice <id>) [dir]
                                          run mutation testing and print the score and the surviving mutants
     ppc status [dir]                     what is in progress
 `;
 
-const VALUE_OPTIONS = new Set(['--by', '--audit', '--files', '--slice', '--accept']);
+const VALUE_OPTIONS = new Set(['--by', '--audit', '--files', '--slice', '--accept', '--budget-reason', '--mutation-reason']);
 const [command, ...rest] = process.argv.slice(2);
 const positionals = [];
 const flags = new Set();
@@ -122,6 +123,9 @@ switch (command) {
       } catch (e) {
         throw new LifecycleError(`cannot read the audit file: ${e.message}`);
       }
+      // A human records an exception on the command line; an agent is not allowed to (the guard blocks these flags).
+      if (options.get('budget-reason')) input.budget_override_reason = options.get('budget-reason');
+      if (options.get('mutation-reason')) input.mutation_override_reason = options.get('mutation-reason');
       return finish(dirAt(1), positionals[0], input);
     });
     break;
