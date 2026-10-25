@@ -117,9 +117,9 @@ function experiment({ tMutation, bMutation, tOos, bOos, tH3 = 0, bH3 = 1, tUsd =
   for (const slice of ['SL-004', 'SL-006', 'SL-008']) {
     for (let rep = 1; rep <= 3; rep++) {
       const base = { slice, rep, accepted: true };
-      out.push({ ...base, condition: 'T', mutation: tMutation, oos: tOos, h3: tH3, usd: tUsd });
-      out.push({ ...base, condition: 'B1', mutation: bMutation, oos: bOos, h3: bH3, usd: bUsd });
-      out.push({ ...base, condition: 'B2', mutation: bMutation, oos: bOos, h3: bH3, usd: bUsd });
+      out.push({ ...base, condition: 'T', mutation_src: tMutation, oos: tOos, h3: tH3, usd: tUsd });
+      out.push({ ...base, condition: 'B1', mutation_src: bMutation, oos: bOos, h3: bH3, usd: bUsd });
+      out.push({ ...base, condition: 'B2', mutation_src: bMutation, oos: bOos, h3: bH3, usd: bUsd });
     }
   }
   return out;

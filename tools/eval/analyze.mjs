@@ -65,9 +65,9 @@ export function noLoss(rows, baseline, metric, direction) {
   return slicesOf(rows).every((slice) => !worse(median(valuesOf(rows, 'T', metric, slice)), median(valuesOf(rows, baseline, metric, slice)), direction));
 }
 
-/** The decision rules of docs/evaluation-plan.md. H1 is the overall mutation score; H2 the out-of-scope markers; H3 test edits. */
+/** The decision rules of docs/evaluation-plan.md. H1 is the mutation score of the files under src/ (the only ones every condition can be scored on); H2 the out-of-scope markers; H3 test edits. */
 export function evaluate(rows) {
-  const h1 = { B1: beats(rows, 'B1', 'mutation', 'higher'), B2: beats(rows, 'B2', 'mutation', 'higher') };
+  const h1 = { B1: beats(rows, 'B1', 'mutation_src', 'higher'), B2: beats(rows, 'B2', 'mutation_src', 'higher') };
   const h2 = { B1: beats(rows, 'B1', 'oos', 'lower'), B2: beats(rows, 'B2', 'oos', 'lower') };
   const h3 = { B1: noLoss(rows, 'B1', 'h3', 'lower'), B2: noLoss(rows, 'B2', 'h3', 'lower') };
   const t = median(valuesOf(rows, 'T', 'usd'));
@@ -105,10 +105,10 @@ export function report(rows) {
   out.push(`**Verdict by the rules fixed in advance: ${v.verdict}.** Runs counted: ${rows.length}.\n`);
   const line = (label, r) => `| ${label} | ${r.beats ? 'yes' : 'no'} | ${fmt(r.pooled.t)} vs ${fmt(r.pooled.b)} | ${r.slices_won.join(', ') || 'none'} |`;
   out.push('| T beats… | Beats? | Pooled median (T vs baseline) | Slices won |', '| --- | --- | --- | --- |');
-  out.push(line('B1 on mutation score (H1)', v.h1.B1), line('B2 on mutation score (H1)', v.h1.B2));
+  out.push(line('B1 on mutation score of src/ (H1)', v.h1.B1), line('B2 on mutation score of src/ (H1)', v.h1.B2));
   out.push(line('B1 on out-of-scope markers (H2, fewer)', v.h2.B1), line('B2 on out-of-scope markers (H2, fewer)', v.h2.B2));
   out.push('', `Never worse on test edits (H3): B1 ${v.h3.B1 ? 'yes' : 'no'}, B2 ${v.h3.B2 ? 'yes' : 'no'}. Cost of T over B1 (median): ${v.cost_ratio === null ? 'n/a' : `${v.cost_ratio.toFixed(2)}x`} (limit: under 3x).\n`);
-  const metrics = [['mutation', 'Mutation score'], ['mutation_src', 'Mutation score, src/ only'], ['oos', 'Out-of-scope markers'], ['h3', 'Commits editing tests after the first'], ['review', 'Lines to read'], ['usd', 'Cost (USD)'], ['minutes', 'Minutes']];
+  const metrics = [['mutation_src', 'Mutation score, src/ (H1)'], ['mutation', 'Mutation score, all files measured'], ['oos', 'Out-of-scope markers'], ['h3', 'Commits editing tests after the first'], ['review', 'Lines to read'], ['usd', 'Cost (USD)'], ['minutes', 'Minutes']];
   for (const slice of [...slicesOf(rows), undefined]) {
     out.push(`## ${slice ?? 'All slices pooled'}\n`);
     out.push('| Measure | B1 median [range] | B2 median [range] | T median [range] |', '| --- | --- | --- | --- |');

@@ -102,10 +102,15 @@ export function analyzeTranscript(lines) {
   return { test_edit_calls: testEditCalls, guard_blocks: guardBlocks };
 }
 
-/** H1: the mutation score of the production files a condition wrote since `base`, overall and per file. */
+/**
+ * H1: the mutation score of the files under src/ that a condition wrote since `base`, overall and per file.
+ * Only src/ is mutated: Stryker instruments a file before its first run, and a test that reads public/app.js
+ * as text (a regex over its source) then fails, so whether a file could be scored would depend on how the
+ * condition happened to write its tests.
+ */
 export function mutationFor(dir, base, runner = strykerRunner) {
   const shas = git(dir, 'rev-list', '--reverse', `${base}..HEAD`).split('\n').filter(Boolean);
-  const files = sliceProductionFiles(dir, shas.map((sha) => ({ sha })));
+  const files = sliceProductionFiles(dir, shas.map((sha) => ({ sha }))).filter((f) => f.startsWith('src/'));
   if (files.length === 0) return { score: null, by_file: {}, survivors: 0, files };
   const report = runner(dir, files);
   const by_file = {};

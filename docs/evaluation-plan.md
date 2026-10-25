@@ -81,6 +81,24 @@ its result looks bad.
 - **Reading the mutation score:** it is compared as measured, and also among only the runs that pass the
   acceptance test, so that a condition is not rewarded for writing less.
 
+### Measurement change, 2026-10-25, after 10 runs and before any comparison between conditions was computed
+
+- **What happened.** In 4 of the first 10 runs (all three conditions among them) the mutation tool refused to start:
+  "there were failed tests in the initial test run". The project's own tests passed. The cause is that Stryker
+  instruments each file it will mutate *before* that first run, and a test that reads `public/app.js` as text (a
+  regex over its source) fails on the instrumented copy. Whether a run could be scored at all therefore depended on
+  how its tests happened to check the page script, not on how well they tested.
+- **Change.** H1 is now the mutation score of the files under `src/` only. The page script was never testable by
+  mutation in this project (no test drives a browser) and the score on it was 0% in every run where it was measured.
+  The earlier "src/ view" is now the primary one, the all-files score is kept in the data where it exists, and the
+  verdict does not use it.
+- **Why this is not tuned to the result.** Before the change, the only scores I had seen were those of the first run
+  (T on SL-004). No median or comparison between conditions had been computed. The 4 failed measurements are
+  repeated from the git bundles each run saved, and runs measured earlier already stored per-file counts, so their
+  `src/` score is computed from those.
+- **Also on 2026-10-25:** the driver stopped once on a transient failure of the account or network at the start of
+  run SL-004-T-2. By the protocol that run was discarded and is redone.
+
 ## Known weaknesses of this design
 
 - **Small tasks.** A slice of about 150 lines may hide effects that appear in long projects, which is where

@@ -137,6 +137,23 @@ test('mutationFor: mutates the production files changed since the base and repor
   assert.deepEqual(m.counts, { 'src/b.ts': { detected: 2, judged: 2 }, 'src/c.ts': { detected: 1, judged: 2 } });
 });
 
+test('mutationFor: only src/ is mutated, so that every condition is measured on the same kind of file', (t) => {
+  // Stryker instruments a file before its first run, and a test that reads public/app.js as text (a regex over
+  // its source) then fails; whether a condition wrote such a test would decide whether it could be scored.
+  const { dir, commit, base } = repo(t);
+  commit('work', { 'src/b.ts': 'x\n', 'public/app.js': 'y\n', 'scripts/tool.js': 'z\n' });
+  const seen = [];
+  mutationFor(dir, base, (root, files) => (seen.push(files), { files: { 'src/b.ts': { mutants: [killed] } } }));
+  assert.deepEqual(seen, [['src/b.ts']]);
+});
+
+test('mutationFor: a run that wrote nothing under src/ has no score and the tool is not run', (t) => {
+  const { dir, commit, base } = repo(t);
+  commit('frontend only', { 'public/app.js': 'y\n' });
+  const m = mutationFor(dir, base, () => assert.fail('must not run'));
+  assert.equal(m.score, null);
+});
+
 test('mutationFor: nothing written means no score', (t) => {
   const { dir, base } = repo(t);
   const m = mutationFor(dir, base, () => assert.fail('must not run'));
