@@ -109,9 +109,14 @@ export function mutationFor(dir, base, runner = strykerRunner) {
   if (files.length === 0) return { score: null, by_file: {}, survivors: 0, files };
   const report = runner(dir, files);
   const by_file = {};
-  for (const [file, content] of Object.entries(report.files ?? {})) by_file[file] = summarize({ files: { [file]: content } }).score;
+  const counts = {};
+  for (const [file, content] of Object.entries(report.files ?? {})) {
+    const part = summarize({ files: { [file]: content } });
+    by_file[file] = part.score;
+    counts[file] = { detected: part.killed + part.timeout, judged: part.killed + part.timeout + part.survived + part.no_coverage };
+  }
   const total = summarize(report);
-  return { score: total.score, by_file, survivors: total.survivors.length, files };
+  return { score: total.score, by_file, counts, survivors: total.survivors.length, files };
 }
 
 /** Adds up the sessions of one run (T has three). A count the transcript could not give stays null, not zero. */

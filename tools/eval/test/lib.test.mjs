@@ -133,6 +133,8 @@ test('mutationFor: mutates the production files changed since the base and repor
   assert.equal(m.score, 0.75);
   assert.deepEqual(m.by_file, { 'src/b.ts': 1, 'src/c.ts': 0.5 });
   assert.equal(m.survivors, 1);
+  // counts, so that a score over only some of the files can be computed later without guessing
+  assert.deepEqual(m.counts, { 'src/b.ts': { detected: 2, judged: 2 }, 'src/c.ts': { detected: 1, judged: 2 } });
 });
 
 test('mutationFor: nothing written means no score', (t) => {
