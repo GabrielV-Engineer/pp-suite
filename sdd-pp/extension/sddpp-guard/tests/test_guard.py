@@ -99,7 +99,7 @@ class GuardTest(unittest.TestCase):
         for state in (None, {"slice": "SL-002", "phase": "red"}, {"slice": "SL-002", "phase": "green"}):
             root = self.project(state)
             for cmd in ("ppc approve-red --by me", "node tools/ppc/bin/ppc.mjs approve-red --by me",
-                        "cd proj && ppc  approve-red", "npx ppc approve-slice SL-003"):
+                        "cd proj && ppc  approve-red", "npx ppc approve-slice SL-003", "ppc approve-debt DEBT-BE-004 --by me"):
                 with self.subTest(state=state, cmd=cmd):
                     code, message = guard.decide(payload("Bash", command=cmd), root)
                     self.assertEqual(code, 2)

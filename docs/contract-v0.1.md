@@ -74,7 +74,7 @@ Status flow: `planned` → `ready` → `in_progress` → `done` (or `dropped`).
 One YAML register per component; an entry lives only in its owner's file, and `also_affects` links the
 others. Status flow: `proposed` → `open` → `scheduled` → `paid` (or `accepted` / `dropped`).
 
-- Anything beyond `proposed` needs `approved_by`: the AI proposes, a human decides.
+- Anything beyond `proposed` needs `approved_by`: the AI proposes, a human decides (`ppc approve-debt`).
 - `accepted` needs `accepted_reason`; `scheduled` and `paid` need `paid_by` (a refactor slice that lists
   the debt in `pays`).
 - `origin` says where it came from: a `slice`, a `decision` (ADR), the `blueprint`, or an `audit`.

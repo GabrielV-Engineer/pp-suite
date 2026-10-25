@@ -31,6 +31,7 @@ Each command either changes the project or refuses and leaves it untouched.
 | `ppc approve-slice <slice> --by <name>` | **a human** | `planned` → `ready`. The only way a slice becomes ready to start |
 | `ppc start <slice>` | anyone | `ready` → in progress, red phase. Refuses a slice that is not approved, has unfinished dependencies, or when another slice is in progress |
 | `ppc approve-red --by <name>` | **a human** | Approves the committed red tests and enters green. Refuses if code is uncommitted |
+| `ppc approve-debt <DEBT-ID> --by <name> [--accept <reason> \| --drop]` | **a human** | Decides on a debt entry the AI proposed: `open` (default), `accepted` (with a reason) or `dropped` |
 | `ppc refactor` | anyone | green → refactor (tests stay locked) |
 | `ppc finish <slice> --audit <file>` | anyone | Closes the slice. The sizes (production and test lines) are **measured from git**, then the result is validated and checked against git; if anything is off, nothing changes |
 | `ppc mutation (--files a,b \| --slice <id>)` | anyone | Mutation-tests those files (or a finished slice's files) and prints the score and the mutants the tests missed. Changes nothing |

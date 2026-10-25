@@ -27,7 +27,7 @@ Status key: **done** has tests in CI · **spiked** tried once by hand, not autom
 
 | Item | Why |
 |---|---|
-| Human-only budget exception and `ppc approve-debt` | Both are fields an agent could write; today the agent chose not to (findings 5, 6) |
+| Human-only budget exception | `ppc approve-debt` and the decision-field guard exist; the budget and mutation exceptions are still written by hand by a person (findings 5, 6) |
 | Rule: every quality attribute is referenced by a slice | QA-003 had no slice and nothing noticed (finding 7) |
 | `check-git` extension: detect commits of a slice that its audit leaves out | The audit lists commits by hand; omissions go unnoticed today |
 | Session-start check that the guard script is present | The dispatcher fails open when the script is missing |

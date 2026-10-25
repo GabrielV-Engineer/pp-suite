@@ -7,7 +7,7 @@ import { loadProject } from '../src/load.mjs';
 import { validateModel } from '../src/validate.mjs';
 import { checkGit } from '../src/gitcheck.mjs';
 import { generate, checkGenerated } from '../src/generate.mjs';
-import { start, approveSlice, approveRed, toRefactor, finish, mutate, status, initialPhase, LifecycleError } from '../src/lifecycle.mjs';
+import { start, approveSlice, approveRed, approveDebt, toRefactor, finish, mutate, status, initialPhase, LifecycleError } from '../src/lifecycle.mjs';
 import { CLI, lines, repo } from './helpers.mjs';
 
 const read = (dir, rel) => readFileSync(join(dir, rel), 'utf8');
@@ -104,6 +104,48 @@ test('approve-slice does not start anything, and the approved slice can then be 
   approveSlice(dir, 'SL-002', 'reviewer');
   assert.deepEqual(active(dir), { slice: 'SL-001', phase: 'red' });
   fails(() => start(dir, 'SL-002'), /in progress|unfinished/); // still gated by one-at-a-time and dependencies
+});
+
+// ── approve-debt ─────────────────────────────────────────────────
+const debtEntry = (dir, id) => loadProject(dir).debt.flatMap((d) => d.data.entries).find((e) => e.id === id);
+
+test('approve-debt: a proposed entry becomes open, with the approver recorded', (t) => {
+  const { dir } = repo(t);
+  assert.deepEqual(approveDebt(dir, 'DEBT-BE-001', { by: 'reviewer' }), { debt: 'DEBT-BE-001', status: 'open' });
+  assert.equal(debtEntry(dir, 'DEBT-BE-001').status, 'open');
+  assert.equal(debtEntry(dir, 'DEBT-BE-001').approved_by, 'reviewer');
+  assertConsistent(dir);
+});
+
+test('approve-debt: accepting records the reason, dropping records only the approver', (t) => {
+  const a = repo(t);
+  approveDebt(a.dir, 'DEBT-BE-001', { by: 'reviewer', accept: 'The list never passes a hundred tasks.' });
+  assert.equal(debtEntry(a.dir, 'DEBT-BE-001').status, 'accepted');
+  assert.equal(debtEntry(a.dir, 'DEBT-BE-001').accepted_reason, 'The list never passes a hundred tasks.');
+  assertConsistent(a.dir);
+
+  const d = repo(t);
+  approveDebt(d.dir, 'DEBT-BE-001', { by: 'reviewer', drop: true });
+  assert.equal(debtEntry(d.dir, 'DEBT-BE-001').status, 'dropped');
+  assert.equal(debtEntry(d.dir, 'DEBT-BE-001').approved_by, 'reviewer');
+  assertConsistent(d.dir);
+});
+
+test('approve-debt: refuses without a name, for unknown or already decided entries, and for conflicting options', (t) => {
+  const { dir } = repo(t);
+  fails(() => approveDebt(dir, 'DEBT-BE-001', {}), /--by/);
+  fails(() => approveDebt(dir, 'DEBT-BE-999', { by: 'r' }), /unknown debt/);
+  fails(() => approveDebt(dir, 'DEBT-FE-001', { by: 'r' }), /only a proposed/);
+  fails(() => approveDebt(dir, 'DEBT-BE-001', { by: 'r', accept: 'because we said so', drop: true }), /not both/);
+  fails(() => approveDebt(dir, 'DEBT-BE-001', { by: 'r', accept: 'short' }), /reason/);
+  assert.equal(debtEntry(dir, 'DEBT-BE-001').status, 'proposed'); // nothing changed
+});
+
+test('approve-debt keeps the register readable: other entries and comments are untouched', (t) => {
+  const { dir } = repo(t);
+  const before = read(dir, '.sddpp/debt/frontend.yaml');
+  approveDebt(dir, 'DEBT-BE-001', { by: 'reviewer' });
+  assert.equal(read(dir, '.sddpp/debt/frontend.yaml'), before);
 });
 
 // ── approve-red ──────────────────────────────────────────────────
@@ -317,6 +359,20 @@ test('CLI: the whole cycle through the commands', (t) => {
   assert.equal(ppc(dir, 'validate', dir, '--strict').status, 0);
   assert.equal(ppc(dir, 'check-git', dir).status, 0);
   assert.match(ppc(dir, 'status', dir).stdout, /no slice is in progress/);
+});
+
+test('CLI: approve-debt opens, accepts or drops a proposed entry', (t) => {
+  const run = (dir, ...args) => spawnSync('node', [CLI, ...args, dir], { encoding: 'utf8' });
+  const a = repo(t);
+  assert.equal(run(a.dir, 'approve-debt', 'DEBT-BE-001', '--by', 'reviewer').status, 0);
+  assert.equal(debtEntry(a.dir, 'DEBT-BE-001').status, 'open');
+  const b = repo(t);
+  assert.equal(run(b.dir, 'approve-debt', 'DEBT-BE-001', '--by', 'reviewer', '--drop').status, 0);
+  assert.equal(debtEntry(b.dir, 'DEBT-BE-001').status, 'dropped');
+  const c = repo(t);
+  assert.equal(run(c.dir, 'approve-debt', 'DEBT-BE-001', '--by', 'reviewer', '--accept', 'Lists stay small forever.').status, 0);
+  assert.equal(debtEntry(c.dir, 'DEBT-BE-001').accepted_reason, 'Lists stay small forever.');
+  assert.equal(run(c.dir, 'approve-debt', 'DEBT-BE-001', '--by', 'reviewer').status, 1);
 });
 
 test('CLI: approve-slice records the approver', (t) => {
