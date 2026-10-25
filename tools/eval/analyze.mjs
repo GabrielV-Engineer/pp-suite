@@ -31,6 +31,7 @@ export function flatten(done, measure) {
     h3: m.test_edit_commits_after_first ?? null,
     test_edit_calls: m.session?.test_edit_calls ?? null,
     // a reviewer reads the tests under T, and the whole diff under the baselines
+    prod_lines: load?.production_lines ?? null,
     review: load ? (done.condition === 'T' ? load.test_lines : load.production_lines + load.test_lines) : null,
     test_cases: m.test_cases ?? null,
     largest_commit: m.largest_commit_lines ?? null,
@@ -63,6 +64,45 @@ export function beats(rows, baseline, metric, direction) {
 /** T may tie, but is not worse than the baseline in any slice. */
 export function noLoss(rows, baseline, metric, direction) {
   return slicesOf(rows).every((slice) => !worse(median(valuesOf(rows, 'T', metric, slice)), median(valuesOf(rows, baseline, metric, slice)), direction));
+}
+
+const rate = (rows, condition, slice) => {
+  const own = rows.filter((r) => r.condition === condition && (slice === undefined || r.slice === slice));
+  return own.length ? (own.filter((r) => r.accepted).length / own.length) * 100 : null;
+};
+
+/**
+ * Second experiment: does the per-slice specification matter? Each request-only style (B0a, B0b) is compared with
+ * B1 (the same prompt tail, with the slice file). The style "matters" when, pooled, it either passes the
+ * acceptance test at least 20 points less often, or builds at least 1.5 times the production lines, or has a
+ * median of at least one more out-of-scope marker; and the same direction holds in at least two slices.
+ */
+export function evaluateSpec(rows) {
+  const slices = slicesOf(rows);
+  const styles = {};
+  for (const style of ['B0a', 'B0b']) {
+    const known = rows.some((r) => r.condition === style) && rows.some((r) => r.condition === 'B1');
+    if (!known) {
+      styles[style] = { known: false, matters: false };
+      continue;
+    }
+    const gap = rate(rows, 'B1') - rate(rows, style);
+    const lines = { b1: median(valuesOf(rows, 'B1', 'prod_lines')), x: median(valuesOf(rows, style, 'prod_lines')) };
+    const oos = { b1: median(valuesOf(rows, 'B1', 'oos')), x: median(valuesOf(rows, style, 'oos')) };
+    const correctness = gap >= 20;
+    const bigger = lines.b1 > 0 && lines.x !== null && lines.x >= 1.5 * lines.b1;
+    const wider = oos.x !== null && oos.b1 !== null && oos.x - oos.b1 >= 1;
+    const worseSlices = slices.filter((slice) => {
+      const r = { b1: rate(rows, 'B1', slice), x: rate(rows, style, slice) };
+      const l = { b1: median(valuesOf(rows, 'B1', 'prod_lines', slice)), x: median(valuesOf(rows, style, 'prod_lines', slice)) };
+      const o = { b1: median(valuesOf(rows, 'B1', 'oos', slice)), x: median(valuesOf(rows, style, 'oos', slice)) };
+      return (correctness && r.x < r.b1) || (bigger && l.x > l.b1) || (wider && o.x > o.b1);
+    });
+    styles[style] = { known: true, correctness_gap: gap, lines, oos, matters: (correctness || bigger || wider) && worseSlices.length >= 2, slices_worse: worseSlices };
+  }
+  const all = Object.values(styles);
+  const verdict = all.some((s) => s.matters) ? 'the slice spec matters' : all.every((s) => s.known) ? 'no evidence that the slice spec matters' : 'inconclusive';
+  return { verdict, styles };
 }
 
 /** The decision rules of docs/evaluation-plan.md. H1 is the mutation score of the files under src/ (the only ones every condition can be scored on); H2 the out-of-scope markers; H3 test edits. */
@@ -126,10 +166,30 @@ export function report(rows) {
   return out.join('\n') + '\n';
 }
 
+/** Report of the second experiment (does the per-slice specification matter?). */
+export function reportSpec(rows) {
+  const v = evaluateSpec(rows);
+  const out = ['# Second experiment: does the slice specification matter?\n', `**Verdict by the rules fixed in advance: ${v.verdict}.** Runs counted: ${rows.length}.\n`];
+  out.push('| Request-only style | Acceptance gap vs B1 (points) | Production lines (median, B0 vs B1) | Markers (median, B0 vs B1) | Matters? | Slices worse |', '| --- | --- | --- | --- | --- | --- |');
+  for (const [style, r] of Object.entries(v.styles)) {
+    out.push(r.known ? `| ${style} | ${fmt(r.correctness_gap, 1)} | ${fmt(r.lines.x)} vs ${fmt(r.lines.b1)} | ${fmt(r.oos.x)} vs ${fmt(r.oos.b1)} | ${r.matters ? 'yes' : 'no'} | ${r.slices_worse.join(', ') || 'none'} |` : `| ${style} | no data | | | | |`);
+  }
+  out.push('', '| Condition | Runs | Passes the neutral acceptance test | Production lines | Markers | Mutation score, src/ | Cost (USD) | Minutes |', '| --- | --- | --- | --- | --- | --- | --- | --- |');
+  for (const c of ['B0a', 'B0b', 'B1']) {
+    const own = rows.filter((r) => r.condition === c);
+    const cell = (key) => `${fmt(median(own.map((r) => r[key])))} [${range(own.map((r) => r[key]))}]`;
+    out.push(`| ${c} | ${own.length} | ${own.filter((r) => r.accepted).length}/${own.length} | ${cell('prod_lines')} | ${cell('oos')} | ${cell('mutation_src')} | ${cell('usd')} | ${cell('minutes')} |`);
+  }
+  out.push('', '## Every run\n', '| Run | Accepted | Own tests | Production lines | Markers | Mutation src/ | USD |', '| --- | --- | --- | --- | --- | --- | --- |');
+  for (const r of rows) out.push(`| ${r.id} | ${r.accepted ? 'yes' : 'no'} | ${r.own_ok ? 'yes' : 'no'} | ${fmt(r.prod_lines)} | ${fmt(r.oos)} | ${fmt(r.mutation_src)} | ${fmt(r.usd)} |`);
+  return out.join('\n') + '\n';
+}
+
 if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
   if (!process.argv[2]) {
     console.error('usage: analyze.mjs <results dir>');
     process.exit(2);
   }
-  process.stdout.write(report(loadRows(resolve(process.argv[2]))));
+  const rows = loadRows(resolve(process.argv[2]));
+  process.stdout.write(process.argv.includes('--spec') ? reportSpec(rows) : report(rows));
 }

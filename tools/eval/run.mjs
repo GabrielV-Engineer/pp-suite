@@ -13,7 +13,7 @@ import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, write
 import { spawnSync } from 'node:child_process';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { buildPlan, classifySession, promptFor } from './plan.mjs';
+import { buildPlan, classifySession, promptFor, CONDITIONS, SPEC_CONDITIONS } from './plan.mjs';
 
 const HERE = fileURLToPath(new URL('.', import.meta.url));
 const PPC = resolve(HERE, '../ppc/bin/ppc.mjs');
@@ -26,6 +26,7 @@ const work = resolve(opt('work'));
 const out = resolve(opt('out'));
 const slices = opt('slices', 'SL-004,SL-006,SL-008').split(',');
 const reps = Number(opt('reps', '5'));
+const experiment = opt('experiment', 'enforcement'); // 'enforcement' (B1, B2, T) or 'spec' (B0a, B0b, B1)
 const seed = Number(opt('seed', '20261024'));
 const only = opt('only');
 const max = Number(opt('max', '0')) || Infinity;
@@ -67,7 +68,17 @@ function prepareTemplates() {
     rmSync(join(b, '.specify'), { recursive: true, force: true });
     must(sh(b, 'git', ['-c', 'user.email=harness@experiment.invalid', '-c', 'user.name=Harness', 'commit', '-aqm', 'setup: plain project, no framework files']), 'commit setup');
   }
-  return { t, b, baseB: must(sh(b, 'git', ['rev-parse', 'HEAD']), 'rev-parse') };
+  const b0 = join(work, 'template-b0');
+  if (!existsSync(b0)) {
+    // Request-only: no slice files and no feature spec anywhere in the repository, or a request-only agent would
+    // find them by exploring. The design documents stay: the acceptance tests rely on the API facts in them.
+    cpSync(b, b0, { recursive: true, verbatimSymlinks: true });
+    rmSync(join(b0, '.sddpp'), { recursive: true, force: true });
+    rmSync(join(b0, 'specs'), { recursive: true, force: true });
+    must(sh(b0, 'git', ['-c', 'user.email=harness@experiment.invalid', '-c', 'user.name=Harness', 'commit', '-aqm', 'setup: request-only project, no slice files or specs']), 'commit b0 setup');
+  }
+  const head = (dir) => must(sh(dir, 'git', ['rev-parse', 'HEAD']), 'rev-parse');
+  return { t, b, b0, baseB: head(b), baseB0: head(b0) };
 }
 
 // ── one session ─────────────────────────────────────────────────────────────────────────────
@@ -98,11 +109,13 @@ function execute(entry, templates) {
   rmSync(results, { recursive: true, force: true });
   mkdirSync(results, { recursive: true });
   mkdirSync(join(work, 'runs'), { recursive: true });
-  cpSync(condition === 'T' ? templates.t : templates.b, dir, { recursive: true });
+  const isB0 = condition.startsWith('B0');
+  cpSync(condition === 'T' ? templates.t : isB0 ? templates.b0 : templates.b, dir, { recursive: true, verbatimSymlinks: true });
   sh(dir, 'git', ['config', 'user.email', 'agent@experiment.invalid']);
   sh(dir, 'git', ['config', 'user.name', 'Experiment Agent']);
-  const sliceFile = `.sddpp/slices/${readdirSync(join(dir, '.sddpp/slices')).find((f) => f.startsWith(`${slice}-`))}`;
-  const measureBase = condition === 'T' ? base : templates.baseB;
+  const sliceDir = join(dir, '.sddpp/slices');
+  const sliceFile = existsSync(sliceDir) ? `.sddpp/slices/${readdirSync(sliceDir).find((f) => f.startsWith(`${slice}-`))}` : '';
+  const measureBase = condition === 'T' ? base : isB0 ? templates.baseB0 : templates.baseB;
   const sessions = [];
   const kinds = [];
   const outcome = { closed: null, stopped_early: null };
@@ -163,7 +176,7 @@ mkdirSync(work, { recursive: true });
 mkdirSync(out, { recursive: true });
 const templates = prepareTemplates();
 let ran = 0;
-for (const entry of buildPlan({ slices, reps, seed })) {
+for (const entry of buildPlan({ slices, reps, seed, conditions: experiment === 'spec' ? SPEC_CONDITIONS : CONDITIONS })) {
   if (only && entry.id !== only) continue;
   if (existsSync(join(out, entry.id, 'done.json'))) continue;
   if (ran >= max) break;

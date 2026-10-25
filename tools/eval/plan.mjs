@@ -2,6 +2,29 @@
 // (test/plan.test.mjs); run.mjs does the side effects.
 
 export const CONDITIONS = ['B1', 'B2', 'T'];
+/** The second experiment: does the per-slice specification matter? B1 is run again so it is compared at the same time. */
+export const SPEC_CONDITIONS = ['B0a', 'B0b', 'B1'];
+
+/**
+ * What B0 is told instead of the slice file: one sentence. "a" is a clear, terse request. "b" is how a person
+ * without senior judgment might ask: ambitious, and inviting things the slice's "Out of scope" list rules out.
+ * Fixed here, before any run.
+ */
+const REQUESTS = {
+  'SL-004': {
+    a: 'Reject empty and over-long titles when a task is created.',
+    b: 'Make creating a task robust and production-ready: validate the title properly and handle every bad input you can think of, so it scales.',
+  },
+  'SL-006': {
+    a: 'Let the owner delete a task.',
+    b: 'Let people delete tasks, with a safe way to recover a task deleted by mistake, and make it production-ready.',
+  },
+  'SL-008': {
+    a: 'List the open tasks newest first, and show something sensible when the list is empty.',
+    b: 'Make the task list fast and nicely ordered, with paging and search so it scales, and show something friendly when it is empty.',
+  },
+};
+const TAIL = "Run the project's tests (npm test) and the type check (npm run typecheck). Commit your work with git when you are done.";
 const T_PHASES = ['red', 'green', 'audit'];
 
 /** Small seeded generator, so the same seed gives the same plan. */
@@ -43,9 +66,15 @@ export function buildPlan({ slices, conditions = CONDITIONS, reps, seed }) {
  */
 export function promptFor(condition, phase, slice, sliceFile) {
   const intro = `You are working in a TypeScript project on Node 24 (see .architect/architecture.md and .architect/blueprint.yaml). The work to do is slice ${slice}, described in ${sliceFile}.`;
+  if (condition === 'B0a' || condition === 'B0b') {
+    if (phase !== 'all') throw new Error(`condition ${condition} has a single session, not "${phase}"`);
+    const request = REQUESTS[slice]?.[condition === 'B0a' ? 'a' : 'b'];
+    if (!request) throw new Error(`no request written for ${slice}`);
+    return `You are working in a TypeScript project on Node 24 (see .architect/architecture.md and .architect/blueprint.yaml). ${request} ${TAIL}`;
+  }
   if (condition === 'B1' || condition === 'B2') {
     if (phase !== 'all') throw new Error(`condition ${condition} has a single session, not "${phase}"`);
-    const plain = `${intro} Implement it. Run the project's tests (npm test) and the type check (npm run typecheck). Commit your work with git when you are done.`;
+    const plain = `${intro} Implement it. ${TAIL}`;
     return condition === 'B1' ? plain : `${plain} Work test-first: write the failing tests for the acceptance criteria before the code, watch them fail, then implement until they pass.`;
   }
   if (condition === 'T') {

@@ -99,6 +99,39 @@ its result looks bad.
 - **Also on 2026-10-25:** the driver stopped once on a transient failure of the account or network at the start of
   run SL-004-T-2. By the protocol that run was discarded and is redone.
 
+## Second experiment, fixed on 2026-10-25 before its first run
+
+Question (see [measurement-review](measurement-review.md)): **does the per-slice specification matter** for a
+person who would otherwise type one sentence, and does it protect against an over-ambitious request?
+
+- **Conditions** (all one session, cap 3 USD, same tools and same prompt tail as B1): **B1** again, run now so it is
+  compared at the same time and so that its run-to-run variation is visible; **B0a**, a clear one-sentence request;
+  **B0b**, an ambitious request of the kind a person without senior judgment might write ("production-ready",
+  "scales", "recover if I delete by mistake", "paging and search"). The six requests are in `tools/eval/plan.mjs`.
+- **B0 projects have no `.sddpp/` and no `specs/`**, or the agent would find the slice files by exploring. They keep
+  `.architect/` (architecture and blueprint, with their non-goals): the neutral acceptance tests rely on the API
+  facts stated there. So this isolates the slice-level specification, not the design documents.
+- **Runs:** 5 repetitions x 3 slices (SL-004, SL-006, SL-008) x 3 conditions = 45, shuffled with a fixed seed.
+- **Measures:** pass of the neutral acceptance test (the criteria are not shown to B0, so a miss means a detail was
+  not guessed); production lines added; out-of-scope markers; mutation score of `src/`; cost and time.
+- **Decision rule.** A request-only style **matters** when, pooled over the 15 runs, it either passes the acceptance
+  test at least **20 points** less often than B1, or builds at least **1.5 times** B1's median production lines, or
+  has a median of at least **one more** out-of-scope marker, **and** the same direction holds in at least two
+  slices. The verdict is "the slice spec matters" if either style matters; "no evidence that the slice spec matters"
+  if neither does; "inconclusive" if data is missing. Applied by `tools/eval/analyze.mjs --spec`.
+- **What it cannot show:** whether the spec matters for a person who also lacks the design documents; whether it
+  matters over many dependent slices; anything about the person's own attention. Same model, same project.
+- **Discard rule:** as in the first experiment (only account or network failures; the run is redone).
+
+## Structure decided on 2026-10-25
+
+Three layers, accepted by the owner: a **core** that is always on (contract, `ppc`, vertical slices with their "out of
+scope", debt per component, human approval of slices and debt, `next` and `overview`); a **light mode** as the default
+(one session implements the slice, then `finish` measures from git and reports the mutation score without
+blocking); and a **strict mode**, optional per slice (red, human approval, green with the test lock, audit, mutation
+gate). Architect.PP is on hold until this experiment says whether the planning layer is where the value is. The
+light and strict modes are not yet separate in the code: today only the strict cycle exists as prompts.
+
 ## Known weaknesses of this design
 
 - **Small tasks.** A slice of about 150 lines may hide effects that appear in long projects, which is where

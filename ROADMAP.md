@@ -32,6 +32,11 @@ Status key: **done** has tests in CI · **spiked** tried once by hand, not autom
 | **Adversarial pass over the test lock**: the guard recognises writes anywhere in a command and through interpreters, locks the `test` script, and only objects to *new* decisions; `check-git` adds `C06` (a test changed after the approved red commit, even by a commit the audit omits) and `C07` (test script changed) | done, each part broken on purpose to confirm a test fails: [lock-adversarial](docs/lock-adversarial.md) |
 | **M1:** one slice end to end with real agents (design tool run, red, review, green, audit, close). The reviewer was a stand-in | done, with limits: [report](docs/m1-report.md) |
 
+## Decided 2026-10-25
+
+Three layers (core always on, light mode by default, strict mode optional per slice), `ppc brief` dropped,
+Architect.PP on hold until the second experiment ([evaluation plan](docs/evaluation-plan.md)). Details in the plan.
+
 ## Next
 
 | Item | Why |

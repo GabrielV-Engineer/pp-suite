@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { beats, evaluate, flatten, median, noLoss, report } from '../analyze.mjs';
+import { beats, evaluate, evaluateSpec, flatten, median, noLoss, report, reportSpec } from '../analyze.mjs';
 
 // ── one run → one row ────────────────────────────────────────────
 const measure = (over = {}) => ({
@@ -158,4 +158,72 @@ test('report: states the verdict, every slice, and every run', () => {
 
 test('report: an empty experiment does not crash and does not claim a result', () => {
   assert.match(report([]), /inconclusive/);
+});
+
+// ── does the slice specification matter? (second experiment) ─────
+const specRow = (slice, condition, rep, over = {}) => ({ slice, condition, rep, accepted: true, oos: 0, prod_lines: 30, ...over });
+const specRows = (make) => ['SL-004', 'SL-006', 'SL-008'].flatMap((slice) => ['B1', 'B0a', 'B0b'].flatMap((c) => [1, 2, 3, 4, 5].map((rep) => specRow(slice, c, rep, make(slice, c, rep)))));
+
+test('flatten: keeps the production lines a run added', () => {
+  assert.equal(flatten(done('B1'), measure()).prod_lines, 30);
+});
+
+test('evaluateSpec: no evidence that the spec matters when the request-only runs do as well', () => {
+  const v = evaluateSpec(specRows(() => ({})));
+  assert.equal(v.verdict, 'no evidence that the slice spec matters');
+});
+
+test('evaluateSpec: matters when request-only runs fail the acceptance test much more often, in at least two slices', () => {
+  const v = evaluateSpec(specRows((slice, c, rep) => (c === 'B0a' && slice !== 'SL-008' && rep <= 3 ? { accepted: false } : {})));
+  assert.equal(v.verdict, 'the slice spec matters');
+  assert.equal(v.styles.B0a.correctness_gap >= 20, true);
+});
+
+test('evaluateSpec: matters when request-only runs build much more code, or step outside scope', () => {
+  const bigger = evaluateSpec(specRows((slice, c) => (c === 'B0b' ? { prod_lines: 60 } : {})));
+  assert.equal(bigger.verdict, 'the slice spec matters');
+  const wider = evaluateSpec(specRows((slice, c) => (c === 'B0b' ? { oos: 2 } : {})));
+  assert.equal(wider.verdict, 'the slice spec matters');
+});
+
+test('evaluateSpec: a gap that exists in only one slice is not enough', () => {
+  const v = evaluateSpec(specRows((slice, c) => (c === 'B0a' && slice === 'SL-004' ? { accepted: false } : {})));
+  assert.equal(v.styles.B0a.matters, false);
+  assert.equal(v.verdict, 'no evidence that the slice spec matters');
+});
+
+test('evaluateSpec: a small difference below the stated thresholds does not count', () => {
+  const v = evaluateSpec(specRows((slice, c, rep) => (c === 'B0a' && rep === 5 && slice === 'SL-004' ? { accepted: false, prod_lines: 40 } : {})));
+  assert.equal(v.verdict, 'no evidence that the slice spec matters'); // one failure in 15 is about 7 points, and 40 lines is 1.33 times 30
+});
+
+test('evaluateSpec: without data for a style it says so, instead of claiming a result', () => {
+  const rows = specRows(() => ({})).filter((r) => r.condition === 'B1');
+  assert.equal(evaluateSpec(rows).verdict, 'inconclusive');
+});
+
+test('evaluateSpec: thresholds are exact: 13 points below, 1.2 times the code and half a marker more do not count', () => {
+  const fewer = evaluateSpec(specRows((slice, c, rep) => (c === 'B0a' && rep === 5 && slice !== 'SL-008' ? { accepted: false } : {})));
+  assert.equal(fewer.styles.B0a.matters, false); // 2 failures in 15 is 13.3 points
+  const slightlyBigger = evaluateSpec(specRows((slice, c) => (c === 'B0a' ? { prod_lines: 36 } : {})));
+  assert.equal(slightlyBigger.styles.B0a.matters, false); // 1.2 times
+  const halfAMarker = evaluateSpec(specRows((slice, c, rep) => (c === 'B0b' ? { oos: rep <= 2 ? 1 : 0 } : {})).filter((r) => !(r.condition === 'B0b' && r.rep === 5)));
+  assert.equal(halfAMarker.styles.B0b.oos.x, 0.5);
+  assert.equal(halfAMarker.styles.B0b.matters, false);
+});
+
+test('evaluateSpec: exactly 20 points, 1.5 times the code and one marker more do count', () => {
+  const twenty = evaluateSpec(specRows((slice, c, rep) => (c === 'B0a' && rep === 5 ? { accepted: false } : {})));
+  assert.equal(twenty.styles.B0a.matters, true); // 3 failures in 15, one per slice
+  const ratio = evaluateSpec(specRows((slice, c) => (c === 'B0a' ? { prod_lines: 45 } : {})));
+  assert.equal(ratio.styles.B0a.matters, true);
+  const marker = evaluateSpec(specRows((slice, c) => (c === 'B0a' ? { oos: 1 } : {})));
+  assert.equal(marker.styles.B0a.matters, true);
+});
+
+test('reportSpec: states the verdict and compares the three conditions on the measures of the second experiment', () => {
+  const text = reportSpec(specRows((slice, c) => (c === 'B0b' ? { prod_lines: 60 } : {})).map((r, i) => ({ ...r, id: `run-${i}`, usd: 0.3, mutation_src: 0.9 })));
+  assert.match(text, /Verdict by the rules fixed in advance: the slice spec matters/);
+  for (const c of ['B0a', 'B0b', 'B1']) assert.ok(text.includes(`| ${c} |`), c);
+  assert.match(text, /Passes the neutral acceptance test/);
 });
