@@ -40,11 +40,14 @@ export const RULES = {
   C03: 'A red commit touches production code.',
   C04: 'The audit production_lines or test_lines do not match what the commits changed.',
   C05: 'The red commit is not an ancestor of the green commit.',
+  C06: 'A test file changed between the approved red commit and the end of the slice, whether or not the audit lists the commit that changed it.',
+  C07: 'The test script in package.json changed between the approved red commit and the end of the slice.',
   A01: 'An ADR lacks a required section.',
   W01: 'A work slice does not state what it leaves out of scope.',
   W02: 'Evidence has expired and must be re-checked.',
   W03: 'An unfinished slice was planned against an older blueprint revision.',
   W04: 'A slice has many acceptance criteria and probably needs splitting.',
+  W05: 'A quality attribute is not referenced by any live slice, so nothing plans to deliver or verify it.',
   G01: 'A generated view is missing or stale.',
 };
 
@@ -181,6 +184,11 @@ export function validateModel(model, { now = new Date() } = {}) {
   // T06: every capability is covered by a live slice
   for (const cap of bp.capabilities) {
     if (!slices.some(({ data: s }) => s.capability === cap.id && s.status !== 'dropped')) error('T06', model.blueprint.file, `capability ${cap.id} has no slice`);
+  }
+
+  // W05: every quality attribute is delivered or verified by some live slice
+  for (const qa of bp.quality_attributes) {
+    if (!slices.some(({ data: s }) => s.status !== 'dropped' && (s.quality_attributes ?? []).includes(qa.id))) warn('W05', model.blueprint.file, `quality attribute ${qa.id} is not referenced by any slice`);
   }
 
   // ── ADRs and evidence: T08, A01, W02 ──────────────────────────

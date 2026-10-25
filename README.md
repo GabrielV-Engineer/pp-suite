@@ -28,6 +28,7 @@ few weeks. pp-suite attacks those with rules a tool can check, not only advice.
 
 No upstream code is copied. Why these bases and not others: [upstream-analysis](docs/upstream-analysis.md).
 How slices fit inside Spec Kit: [slices-in-sdd](docs/slices-in-sdd.md).
+How hard the test lock is to get around: [lock-adversarial](docs/lock-adversarial.md). Mutation testing: [mutation-testing](docs/mutation-testing.md). The refactor phase with a real agent: [refactor-exercise](docs/refactor-exercise.md).
 
 ## What is in this repo
 

@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { loadProject } from '../src/load.mjs';
 import { validateModel } from '../src/validate.mjs';
 import { checkGit } from '../src/gitcheck.mjs';
-import { generate, checkGenerated } from '../src/generate.mjs';
+import { generate, checkGenerated, writeGenerated } from '../src/generate.mjs';
 import { start, approveSlice, approveRed, approveDebt, toRefactor, finish, mutate, status, initialPhase, LifecycleError } from '../src/lifecycle.mjs';
 import { CLI, lines, repo } from './helpers.mjs';
 
@@ -217,6 +217,30 @@ test('finish: computes the diff from git, closes the slice and leaves a valid, v
   assert.deepEqual(checkGit(loadProject(dir), dir), []);
 });
 
+test('finish: a refactor slice marks the debt it pays as paid, and nothing else', (t) => {
+  const r = repo(t);
+  const file = '.sddpp/slices/SL-008-share-validation-rules.md';
+  const original = read(r.dir, file);
+  r.write({ [file]: original.replace('status: planned', 'status: ready\napproved_by: reviewer').replace('depends_on: [SL-004]', 'depends_on: []') });
+  writeGenerated(r.dir, generate(loadProject(r.dir)));
+  const debtBefore = read(r.dir, '.sddpp/debt/backend.yaml');
+  assert.equal(start(r.dir, 'SL-008').phase, 'refactor');
+  const sha = r.commit('refactor(SL-008): share the rules', { 'src/rules.js': lines(4) });
+  finish(r.dir, 'SL-008', { commits: [{ sha, kind: 'refactor' }], tests_added: 0 });
+  assert.equal(debtEntry(r.dir, 'DEBT-FE-001').status, 'paid');
+  assert.equal(debtEntry(r.dir, 'DEBT-FE-001').paid_by, 'SL-008');
+  assert.equal(read(r.dir, '.sddpp/debt/backend.yaml'), debtBefore); // other registers are untouched
+  assertConsistent(r.dir);
+  assert.deepEqual(checkGit(loadProject(r.dir), r.dir), []);
+});
+
+test('finish: a feature slice leaves the debt registers alone', (t) => {
+  const { dir, audit } = throughGreen(t);
+  const before = ['backend', 'frontend', 'database'].map((c) => read(dir, `.sddpp/debt/${c}.yaml`));
+  finish(dir, 'SL-001', audit);
+  assert.deepEqual(['backend', 'frontend', 'database'].map((c) => read(dir, `.sddpp/debt/${c}.yaml`)), before);
+});
+
 test('finish: the sizes are never taken from the caller', (t) => {
   const { dir, audit } = throughGreen(t);
   for (const field of ['diff_lines', 'production_lines', 'test_lines']) {
@@ -329,6 +353,18 @@ test('finish: refuses and rolls back when a green commit weakened the tests (the
   fails(() => finish(r.dir, 'SL-001', { commits: [{ sha: red, kind: 'red' }, { sha: green, kind: 'green' }], tests_added: 1 }), /C02/);
   assert.equal(read(r.dir, '.sddpp/slices/SL-001-deployable-skeleton.md'), before);
   assert.deepEqual(active(r.dir), { slice: 'SL-001', phase: 'green' });
+});
+
+test('finish: refuses when a test was changed after the red commit by a commit the audit does not list', (t) => {
+  const r = repo(t);
+  start(r.dir, 'SL-001');
+  const red = r.commit('red', RED);
+  approveRed(r.dir, 'reviewer');
+  const green = r.commit('green', GREEN);
+  r.commit('tidy up', { 'tests/health.test.js': lines(3) + 'weakened\n' }); // made after green, never listed
+  const before = read(r.dir, '.sddpp/slices/SL-001-deployable-skeleton.md');
+  fails(() => finish(r.dir, 'SL-001', { commits: [{ sha: red, kind: 'red' }, { sha: green, kind: 'green' }], tests_added: 1 }), /C06/);
+  assert.equal(read(r.dir, '.sddpp/slices/SL-001-deployable-skeleton.md'), before);
 });
 
 test('finish: a commit that does not exist rolls back', (t) => {

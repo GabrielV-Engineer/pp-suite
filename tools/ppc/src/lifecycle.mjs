@@ -131,6 +131,14 @@ export function approveSlice(root, id, by) {
   });
 }
 
+/** Edit one entry of a component's debt register in place, keeping the file's formatting. */
+function editDebtEntry(root, register, id, change) {
+  const abs = join(root, register.file);
+  const doc = parseDocument(readFileSync(abs, 'utf8'));
+  change(doc.get('entries').items.find((i) => i.get('id') === id));
+  writeFileSync(abs, doc.toString({ lineWidth: 0, flowCollectionPadding: false }));
+}
+
 /**
  * HUMAN ONLY: decide on a debt entry the AI proposed. Default: it becomes open (a real debt to pay);
  * `accept` records that it will be lived with, and why; `drop` discards it.
@@ -146,13 +154,11 @@ export function approveDebt(root, id, { by, accept, drop } = {}) {
     if (entry.status !== 'proposed') fail(`${id} is ${entry.status}; only a proposed entry can be decided`);
     const status = accept !== undefined ? 'accepted' : drop ? 'dropped' : 'open';
 
-    const abs = join(root, register.file);
-    const doc = parseDocument(readFileSync(abs, 'utf8'));
-    const item = doc.get('entries').items.find((i) => i.get('id') === id);
-    item.set('status', status);
-    item.set('approved_by', by.trim());
-    if (status === 'accepted') item.set('accepted_reason', accept.trim());
-    writeFileSync(abs, doc.toString({ lineWidth: 0, flowCollectionPadding: false }));
+    editDebtEntry(root, register, id, (item) => {
+      item.set('status', status);
+      item.set('approved_by', by.trim());
+      if (status === 'accepted') item.set('accepted_reason', accept.trim());
+    });
     refreshViews(root);
     return { debt: id, status };
   });
@@ -256,10 +262,18 @@ export function finish(root, id, input, { mutationRunner } = {}) {
         doc.set('audit', audit);
       });
     }
+    if (s.type === 'refactor') {
+      // The slice is done, so the debt it was scheduled to pay is paid (rule L05 forbids saying so earlier).
+      for (const id of s.pays ?? []) {
+        const register = model.debt.find((d) => d.data.entries.some((e) => e.id === id));
+        const entry = register?.data.entries.find((e) => e.id === id);
+        if (entry?.status === 'scheduled' && entry.paid_by === s.id) editDebtEntry(root, register, id, (item) => item.set('status', 'paid'));
+      }
+    }
     writeActive(root, null, null);
     refreshViews(root);
 
-    const problems = checkGit(loadProject(root), root);
+    const problems = checkGit(loadProject(root), root, { tips: new Map([[id, 'HEAD']]) });
     if (problems.length) fail(`the audit does not match git history:\n${describe(problems)}`);
     return { slice: id, production_lines, test_lines };
   });

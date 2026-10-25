@@ -21,6 +21,12 @@ Status key: **done** has tests in CI · **spiked** tried once by hand, not autom
 | Guard registered into Claude Code through Spec Kit and honored | spiked — [findings](docs/spike-findings.md) |
 | `sddpp-slices` preset: template override and command wrap | spiked |
 | Spec Kit's `lean` preset adopted below ours; measured once: 3 files and 358 lines against 8 and 555, same slices, 24% cheaper | done, n = 1: [slices-in-sdd](docs/slices-in-sdd.md) |
+| **Mutation testing**: `ppc mutation`, an optional gate in `ppc finish` (`budgets.min_mutation_score`), rule `M01`, and the guard blocking `mutation_override_reason`. First measurement on the demo: [mutation testing](docs/mutation-testing.md) | done (tests; each part broken on purpose); measured once on the demo |
+| `ppc approve-debt`: a human decides on debt the AI proposed (open, accepted with a reason, or dropped) | done, each part broken on purpose to confirm a test fails |
+| Rule `W05`: every quality attribute is referenced by a live slice. It flags QA-003 in the demo, which no planned slice covers | done (warning, not an error) |
+| Experiment instrument (`tools/eval`): tested measures, neutral acceptance tests for four slices, mutation score per run | done: [evaluation plan](docs/evaluation-plan.md) |
+| Refactor phase exercised with a real agent (a refactor slice paying one debt entry, with a tempting request to touch the tests); `ppc finish` now marks the debt paid | done once, in a throwaway copy: [refactor exercise](docs/refactor-exercise.md) |
+| **Adversarial pass over the test lock**: the guard recognises writes anywhere in a command and through interpreters, locks the `test` script, and only objects to *new* decisions; `check-git` adds `C06` (a test changed after the approved red commit, even by a commit the audit omits) and `C07` (test script changed) | done, each part broken on purpose to confirm a test fails: [lock-adversarial](docs/lock-adversarial.md) |
 | **M1:** one slice end to end with real agents (design tool run, red, review, green, audit, close). The reviewer was a stand-in | done, with limits: [report](docs/m1-report.md) |
 
 ## Next
@@ -28,12 +34,11 @@ Status key: **done** has tests in CI · **spiked** tried once by hand, not autom
 | Item | Why |
 |---|---|
 | Human-only budget exception | `ppc approve-debt` and the decision-field guard exist; the budget and mutation exceptions are still written by hand by a person (findings 5, 6) |
-| Rule: every quality attribute is referenced by a slice | QA-003 had no slice and nothing noticed (finding 7) |
-| `check-git` extension: detect commits of a slice that its audit leaves out | The audit lists commits by hand; omissions go unnoticed today |
+| `check-git`: detect commits of a slice that its audit leaves out, for anything other than tests | `C06` closes this for test files only; an omitted production commit still goes unnoticed |
 | Session-start check that the guard script is present | The dispatcher fails open when the script is missing |
 | Approval gates as a Spec Kit workflow, and the agent prompts (`sddpp-cycle`, drafted; exercised in M1) | The `ppc` side of the loop exists and is tested; the agent side is new |
 | Mutation gate in a real slice cycle: set `min_mutation_score` in a project and close a slice through it | The gate and `ppc mutation` exist and are tested (M1 finding 4); first measurement on the demo is in [mutation testing](docs/mutation-testing.md) |
-| **M2, remaining:** a refactor phase, a workflow with approval gates, and a harder test of the lock. SL-002, a slice with a dependency, is closed, and a person approved its red tests | Planning, red, green, audit and close of a second slice are done |
+| **M2, remaining:** a workflow with approval gates. SL-002, a slice with a dependency, is closed, and a person approved its red tests. The refactor phase and a harder test of the lock are done (see Foundation) | Planning, red, green, audit and close of a second slice, a refactor slice and an adversarial pass over the lock are done |
 | **Prove the benefit:** the experiment in the [evaluation plan](docs/evaluation-plan.md): a neutral acceptance test per slice, a measure of untested behavior, condition B2, at least 5 runs per condition | The [pilot](docs/pilot-sl002.md) proves nothing and found two measuring flaws. **No evidence yet that the methodology helps** |
 | Link a slice to its spec story in the contract, and check that acceptance criteria agree | The link exists only in a Markdown table; criteria are repeated in several files ([findings](docs/slices-in-sdd.md)) |
 

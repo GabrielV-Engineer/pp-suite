@@ -254,6 +254,21 @@ test('W03: unfinished slices planned against an older revision are flagged', () 
   assert.ok(has(run(m), 'W03', 'warning'));
 });
 
+test('W05: a quality attribute that no live slice references is a warning, and a dropped slice does not count', () => {
+  const m = base();
+  assert.ok(!has(run(m), 'W05'));
+  for (const { data: s } of m.slices) s.quality_attributes = (s.quality_attributes ?? []).filter((q) => q !== 'QA-004');
+  const found = run(m);
+  assert.ok(has(found, 'W05', 'warning'));
+  assert.ok(found.some((f) => f.rule === 'W05' && f.message.includes('QA-004')));
+
+  const dropped = base();
+  for (const { data: s } of dropped.slices) s.quality_attributes = (s.quality_attributes ?? []).filter((q) => q !== 'QA-004');
+  slice(dropped, 'SL-004').data.quality_attributes = ['QA-004'];
+  slice(dropped, 'SL-004').data.status = 'dropped';
+  assert.ok(has(run(dropped), 'W05'));
+});
+
 test('W04: a slice with many acceptance criteria probably needs splitting', () => {
   const m = base();
   slice(m, 'SL-002').data.acceptance = Array.from({ length: 6 }, (_, i) => ({ id: `AC-${i + 1}`, scenario: 'Given a state, when an action happens, then something is true.' }));

@@ -74,7 +74,9 @@ class GuardTest(unittest.TestCase):
     def test_green_blocks_obvious_shell_writes_to_tests(self):
         root = self.project({"slice": "SL-002", "phase": "green"})
         for cmd in ("sed -i s/3/4/ tests/math.test.js", "echo x > tests/math.test.js", "rm tests/math.test.js",
-                    "git checkout HEAD~1 -- tests/math.test.js", "tee tests/a.test.js"):
+                    "git checkout HEAD~1 -- tests/math.test.js", "tee tests/a.test.js",
+                    "mv tests/math.test.js src/math.js", "truncate -s 0 tests/math.test.js",
+                    "git restore tests/math.test.js", "cp src/a.js tests/math.test.js"):
             with self.subTest(cmd=cmd):
                 self.assertEqual(self.code(root, payload("Bash", command=cmd)), 2)
 
@@ -128,6 +130,37 @@ class GuardTest(unittest.TestCase):
                 self.assertEqual(code, 2)
                 self.assertIn("human", message)
 
+    def test_an_edit_that_leaves_an_existing_decision_untouched_is_allowed(self):
+        # Editing the status of a debt entry shows its approved_by line as context; that is not a new decision.
+        root = self.project(None)
+        register = root / ".sddpp" / "debt"
+        register.mkdir()
+        existing = "  - id: DEBT-BE-002\n    status: scheduled\n    approved_by: reviewer\n    paid_by: SL-009\n"
+        (register / "backend.yaml").write_text(existing)
+        context = "    status: scheduled\n    approved_by: reviewer\n"
+        for tool, args in (
+            ("Edit", {"file_path": ".sddpp/debt/backend.yaml", "old_string": context, "new_string": context.replace("scheduled", "paid")}),
+            ("MultiEdit", {"file_path": ".sddpp/debt/backend.yaml", "edits": [{"old_string": context, "new_string": context.replace("scheduled", "paid")}]}),
+            ("Write", {"file_path": ".sddpp/debt/backend.yaml", "content": existing.replace("scheduled", "paid")}),
+        ):
+            with self.subTest(tool=tool):
+                self.assertEqual(self.code(root, payload(tool, **args)), 0)
+
+    def test_an_edit_that_adds_or_changes_a_decision_is_still_blocked(self):
+        root = self.project(None)
+        register = root / ".sddpp" / "debt"
+        register.mkdir()
+        existing = "  - id: DEBT-BE-002\n    status: scheduled\n    approved_by: reviewer\n"
+        (register / "backend.yaml").write_text(existing)
+        for tool, args in (
+            ("Edit", {"file_path": ".sddpp/debt/backend.yaml", "old_string": "approved_by: reviewer", "new_string": "approved_by: me"}),
+            ("Edit", {"file_path": ".sddpp/debt/backend.yaml", "old_string": "status: scheduled", "new_string": "status: paid\n    decided_by: me"}),
+            ("Write", {"file_path": ".sddpp/debt/backend.yaml", "content": existing + "    accepted_reason: because I said so\n"}),
+            ("Write", {"file_path": ".sddpp/debt/new.yaml", "content": "approved_by: me\n"}),
+        ):
+            with self.subTest(tool=tool, args=args):
+                self.assertEqual(self.code(root, payload(tool, **args)), 2)
+
     def test_the_agent_cannot_write_approval_fields_with_the_shell_either(self):
         root = self.project(None)
         for cmd in ("sed -i 's/planned/ready\\napproved_by: me/' .sddpp/slices/SL-002-x.md",
@@ -174,14 +207,77 @@ class GuardTest(unittest.TestCase):
 
     # ── known limitations, pinned so that improving them is a deliberate change ──
     def test_known_limitation_shell_scripts_can_write_without_a_test_path_in_the_command(self):
+        # The path is assembled from pieces that look like nothing: only `ppc check-git` can catch this.
         root = self.project({"slice": "SL-002", "phase": "green"})
-        cmd = 'python3 -c "import pathlib; pathlib.Path(\'te\'+\'sts/math.test.js\').write_text(\'x\')"'
+        cmd = 'python3 -c "import pathlib; pathlib.Path(\'te\'+\'sts/ma\'+\'th.te\'+\'st.js\').write_text(\'x\')"'
         self.assertEqual(self.code(root, payload("Bash", command=cmd)), 0)
 
-    def test_known_limitation_writes_through_an_interpreter_are_not_recognised(self):
+    def test_known_limitation_interpreter_writes_to_a_path_the_command_builds_are_not_recognised(self):
         root = self.project({"slice": "SL-002", "phase": "green"})
-        cmd = 'node -e "require(\'fs\').writeFileSync(\'tests/math.test.js\',\'x\')"'
+        cmd = 'node -e "require(\'fs\').writeFileSync([\'te\',\'sts/ma\',\'th.te\',\'st.js\'].join(\'\'),\'x\')"'
         self.assertEqual(self.code(root, payload("Bash", command=cmd)), 0)
+
+    # ── adversarial: ways to weaken the proof that the old guard missed ──
+    def test_green_blocks_interpreter_and_utility_writes_that_name_a_test_path(self):
+        root = self.project({"slice": "SL-002", "phase": "green"})
+        for cmd in ('node -e "require(\'fs\').writeFileSync(\'tests/math.test.js\',\'x\')"',
+                    'node -e "fs.appendFileSync(\'tests/math.test.js\',\'x\')"',
+                    'node -e "fs.unlinkSync(\'tests/math.test.js\')"',
+                    'node -e "fs.renameSync(\'tests/math.test.js\',\'src/m.js\')"',
+                    'python3 -c "import pathlib; pathlib.Path(\'tests/math.test.js\').write_text(\'x\')"',
+                    'python3 -c "import shutil; shutil.copy(\'src/a.py\', \'tests/test_a.py\')"',
+                    "ln -sf /dev/null tests/math.test.js",
+                    "dd if=/dev/null of=tests/math.test.js",
+                    "install -m 644 src/a.js tests/math.test.js"):
+            with self.subTest(cmd=cmd):
+                self.assertEqual(self.code(root, payload("Bash", command=cmd)), 2)
+
+    def test_green_blocks_a_write_to_tests_even_when_more_commands_follow_it(self):
+        # The path used to be recognised only at the very end of the command line.
+        root = self.project({"slice": "SL-002", "phase": "green"})
+        for cmd in ("sed -i s/3/4/ tests/math.test.js && npm test",
+                    "echo x > tests/math.test.js; node --test",
+                    "rm tests/math.test.js || true",
+                    "cp src/a.js tests/a_spec.js && git add -A",
+                    "(cd app && rm test/helpers.js) && npm test",
+                    "sed -i 's/a/b/' \"tests/math.test.js\""):
+            with self.subTest(cmd=cmd):
+                self.assertEqual(self.code(root, payload("Bash", command=cmd)), 2)
+
+    def test_the_new_write_patterns_do_not_block_ordinary_commands(self):
+        root = self.project({"slice": "SL-002", "phase": "green"})
+        for cmd in ("npm install && node --test tests/", "npm install --save-dev tsx && npm test",
+                    "git commit -m 'green: rename helper'", "cat tests/math.test.js | wc -l",
+                    "ls -la tests/ && node --test tests/math.test.js"):
+            with self.subTest(cmd=cmd):
+                self.assertEqual(self.code(root, payload("Bash", command=cmd)), 0)
+
+    def test_the_test_script_is_part_of_the_proof_and_is_locked_with_the_tests(self):
+        # Changing what `npm test` runs makes tests pass without touching a test file.
+        for phase in ("green", "refactor"):
+            root = self.project({"slice": "SL-002", "phase": phase})
+            for tool, args in (
+                ("Edit", {"file_path": "package.json", "old_string": "node --test", "new_string": '"test": "true"'}),
+                ("Write", {"file_path": "package.json", "content": '{"scripts": {"test": "exit 0"}}'}),
+                ("MultiEdit", {"file_path": "./package.json", "edits": [{"old_string": "a", "new_string": '"test":"true"'}]}),
+                ("Bash", {"command": "npm pkg set scripts.test=true"}),
+                ("Bash", {"command": "sed -i 's/node --test/true/' package.json  # test script"}),
+            ):
+                with self.subTest(phase=phase, tool=tool, args=args):
+                    self.assertEqual(self.code(root, payload(tool, **args)), 2)
+
+    def test_the_test_script_lock_leaves_ordinary_package_edits_alone(self):
+        root = self.project({"slice": "SL-002", "phase": "green"})
+        for tool, args in (
+            ("Edit", {"file_path": "package.json", "old_string": '"hono": "^4.6.0"', "new_string": '"hono": "^4.7.0"'}),
+            ("Bash", {"command": "npm install hono"}),
+            ("Bash", {"command": "npm test"}),
+            ("Bash", {"command": "npm pkg get scripts.test"}),
+        ):
+            with self.subTest(tool=tool, args=args):
+                self.assertEqual(self.code(root, payload(tool, **args)), 0)
+        red = self.project({"slice": "SL-002", "phase": "red"})
+        self.assertEqual(self.code(red, payload("Edit", file_path="package.json", old_string="a", new_string='"test": "node --test"')), 0)
 
 
 if __name__ == "__main__":

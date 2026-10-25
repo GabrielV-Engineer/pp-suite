@@ -42,7 +42,7 @@ const repoCommit = (dir, files) => {
 };
 
 test('the new rules are part of the published catalog', () => {
-  for (const id of ['C01', 'C02', 'C03', 'C04', 'C05']) assert.ok(id in RULES, `${id} missing from RULES`);
+  for (const id of ['C01', 'C02', 'C03', 'C04', 'C05', 'C06', 'C07']) assert.ok(id in RULES, `${id} missing from RULES`);
 });
 
 test('a history that matches its audit has no findings', (t) => {
@@ -184,4 +184,75 @@ test('CLI: check-git refuses an invalid project', (t) => {
   const { dir } = finished(t);
   rmSync(join(dir, '.architect/glossary.md'));
   assert.equal(ppc('check-git', dir).status, 1);
+});
+
+// ── tests and their runner are locked from the approved red commit to the end of the slice ──
+/** red, then `between` (not listed in the audit), then green: the audit lists only red and green. */
+function withUnlistedCommit(t, between, { red = RED, green = GREEN } = {}) {
+  const r = repo(t);
+  const redSha = r.commit('red', red);
+  r.commit('something nobody listed', between);
+  const greenSha = r.commit('green', green);
+  const model = loadProject(r.dir);
+  const s = model.slices.find((x) => x.data.id === 'SL-001').data;
+  Object.assign(s, { status: 'done', red_approved_by: 'reviewer' });
+  s.audit = {
+    commits: [{ sha: redSha, kind: 'red' }, { sha: greenSha, kind: 'green' }],
+    production_lines: 5, test_lines: 3, tests_added: 1, mutation_score: null, decisions: [], debt_created: [], deviations: [],
+  };
+  return { ...r, model, redSha, greenSha };
+}
+
+test('C06: a commit between red and green that weakens a test is caught even though the audit does not list it', (t) => {
+  const { model, dir } = withUnlistedCommit(t, { 'tests/health.test.js': lines(3) + 'weakened\n' });
+  const found = checkGit(model, dir).filter((f) => f.rule === 'C06');
+  assert.equal(found.length, 1);
+  assert.match(found[0].message, /tests\/health\.test\.js/);
+});
+
+test('C06: deleting an approved test between red and green is caught as well', (t) => {
+  const r = repo(t);
+  const redSha = r.commit('red', RED);
+  r.git('rm', '-q', 'tests/health.test.js');
+  r.git('commit', '-q', '-m', 'quietly drop the test');
+  const greenSha = r.commit('green', GREEN);
+  const model = loadProject(r.dir);
+  const s = model.slices.find((x) => x.data.id === 'SL-001').data;
+  s.audit = { commits: [{ sha: redSha, kind: 'red' }, { sha: greenSha, kind: 'green' }], production_lines: 5, test_lines: 3, tests_added: 1, mutation_score: null, decisions: [], debt_created: [], deviations: [] };
+  assert.ok(rules(checkGit(model, r.dir)).includes('C06'));
+});
+
+test('C06: an unlisted commit that touches no test is fine, and so is later work on the same test file', (t) => {
+  const { model, dir } = withUnlistedCommit(t, { 'src/other.js': lines(2), '.sddpp/notes.md': 'x\n' });
+  assert.ok(!rules(checkGit(model, dir)).includes('C06'));
+  repoCommit(dir, { 'tests/health.test.js': lines(3) + 'a later slice adds a case\n' }); // after the slice ended
+  assert.ok(!rules(checkGit(model, dir)).includes('C06'));
+});
+
+const pkg = (testScript, extra = {}) => JSON.stringify({ name: 'x', scripts: { test: testScript }, ...extra }, null, 2) + '\n';
+
+test('C07: changing the test script between red and green is caught', (t) => {
+  const { model, dir } = withUnlistedCommit(t, { 'package.json': pkg('true') }, { red: { ...RED, 'package.json': pkg('node --test') } });
+  assert.ok(rules(checkGit(model, dir)).includes('C07'));
+});
+
+test('C07: other changes to package.json are fine, and a package.json born after red is not compared', (t) => {
+  const kept = withUnlistedCommit(t, { 'package.json': pkg('node --test', { dependencies: { hono: '^4' } }) }, { red: { ...RED, 'package.json': pkg('node --test') } });
+  assert.ok(!rules(checkGit(kept.model, kept.dir)).includes('C07'));
+  const born = withUnlistedCommit(t, { 'package.json': pkg('node --test') });
+  assert.ok(!rules(checkGit(born.model, born.dir)).includes('C07'));
+});
+
+test('C06: a reopened red phase may change tests; only what follows the last red commit is locked', (t) => {
+  const r = repo(t);
+  const red1 = r.commit('red', RED);
+  const red2 = r.commit('red again, after the human reopened the tests', { 'tests/health.test.js': lines(3) + 'a better case\n' });
+  const green = r.commit('green', GREEN);
+  const model = loadProject(r.dir);
+  const s = model.slices.find((x) => x.data.id === 'SL-001').data;
+  s.audit = {
+    commits: [{ sha: red1, kind: 'red' }, { sha: red2, kind: 'red' }, { sha: green, kind: 'green' }],
+    production_lines: 5, test_lines: 3 + 1, tests_added: 1, mutation_score: null, decisions: [], debt_created: [], deviations: [],
+  };
+  assert.ok(!rules(checkGit(model, r.dir)).includes('C06'));
 });

@@ -115,11 +115,14 @@ Errors fail validation; warnings fail only with `--strict`. `ppc rules` prints t
 | `C03` | error | A red commit touches production code. (`ppc check-git`) |
 | `C04` | error | The audit `production_lines` or `test_lines` do not match what the commits changed. (`ppc check-git`) |
 | `C05` | error | The red commit is not an ancestor of the green commit. (`ppc check-git`) |
+| `C06` | error | A test file changed between the approved red commit and the end of the slice, whether or not the audit lists the commit that changed it. (`ppc check-git`) |
+| `C07` | error | The test script in `package.json` changed between the approved red commit and the end of the slice. (`ppc check-git`) |
 | `A01` | error / warning | An ADR lacks a required section (error when accepted, warning otherwise). |
 | `W01` | warning | A work slice does not state what it leaves out of scope. |
 | `W02` | warning | Evidence has expired and must be re-checked. |
 | `W03` | warning | An unfinished slice was planned against an older blueprint revision. |
 | `W04` | warning | A slice has many acceptance criteria and probably needs splitting. |
+| `W05` | warning | A quality attribute is not referenced by any live slice, so nothing plans to deliver or verify it. |
 | `G01` | error | A generated view is missing or stale (`ppc generate` fixes it). |
 
 Cross-reference rules run only when `blueprint.yaml` itself is valid, since everything else points at it.

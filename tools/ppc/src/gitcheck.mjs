@@ -64,11 +64,33 @@ function isAncestor(root, older, newer) {
   }
 }
 
+/** Hand-written test files that differ between two commits. */
+function testPathsChanged(root, from, to) {
+  const raw = git(root, ['diff', '--name-only', '-z', '--no-renames', from, to]);
+  return raw.split('\0').filter(Boolean).filter((p) => !isBookkeeping(p) && !isGeneratedPath(p) && isTestPath(p));
+}
+
+/** The `test` script of package.json at a revision; undefined when there is no readable package.json. */
+function testScriptAt(root, rev) {
+  try {
+    return JSON.parse(git(root, ['show', `${rev}:package.json`])).scripts?.test ?? null;
+  } catch {
+    return undefined;
+  }
+}
+
+/** The listed commit that all the others lead up to, or null when they do not form a line. */
+function latestOf(root, fulls) {
+  return fulls.find((candidate) => fulls.every((other) => other === candidate || isAncestor(root, other, candidate))) ?? null;
+}
+
 /**
  * Checks every slice audit against the real git history. The audit is a claim; this makes it a fact.
  * Needs a schema-valid model (run validateModel first).
+ * `tips` maps a slice id to the revision its work ends at when that is not its last listed commit
+ * (`ppc finish` passes HEAD, so a commit made after the last listed one cannot slip through).
  */
-export function checkGit(model, root) {
+export function checkGit(model, root, { tips = new Map() } = {}) {
   const out = [];
   const add = (rule, file, message) => out.push({ rule, severity: 'error', file, message });
 
@@ -78,6 +100,9 @@ export function checkGit(model, root) {
     let tested = 0;
     let allFound = true;
     const first = {};
+    const found = [];
+    let lastRed = null;
+    const reported = new Set(); // paths C02 already flagged, so C06 does not repeat them
 
     for (const { sha, kind } of s.audit.commits) {
       const m = measure(root, sha);
@@ -87,12 +112,15 @@ export function checkGit(model, root) {
         continue;
       }
       first[kind] ??= m.full;
+      found.push(m.full);
+      if (kind === 'red') lastRed = m.full;
       production += m.production_lines;
       tested += m.test_lines;
       const tests = m.files.filter((f) => isTestPath(f.path)).map((f) => f.path);
       const productionFiles = m.files.filter((f) => !isTestPath(f.path)).map((f) => f.path);
 
       if (tests.length && TESTS_LOCKED_KINDS.includes(kind)) {
+        tests.forEach((p) => reported.add(p));
         add('C02', file, `${s.id}: ${sha} (${kind}) touches ${tests.join(', ')}; tests are locked after the red phase`);
       }
       if (kind === 'red' && productionFiles.length) add('C03', file, `${s.id}: ${sha} (red) touches production code: ${productionFiles.join(', ')}`);
@@ -100,6 +128,16 @@ export function checkGit(model, root) {
 
     if (allFound && production !== s.audit.production_lines) add('C04', file, `${s.id}: audit says ${s.audit.production_lines} production lines, git shows ${production}`);
     if (allFound && tested !== s.audit.test_lines) add('C04', file, `${s.id}: audit says ${s.audit.test_lines} test lines, git shows ${tested}`);
+    // From the approved red commit to the end of the slice, no test (and not what `npm test` runs) may change,
+    // whether or not the audit lists the commit that changed it.
+    const tip = tips.has(s.id) ? resolve(root, tips.get(s.id) === 'HEAD' ? git(root, ['rev-parse', 'HEAD']).trim() : tips.get(s.id)) : latestOf(root, found);
+    if (lastRed && tip && isAncestor(root, lastRed, tip)) {
+      const changed = testPathsChanged(root, lastRed, tip).filter((p) => !reported.has(p));
+      if (changed.length) add('C06', file, `${s.id}: ${changed.join(', ')} changed between the red commit ${lastRed.slice(0, 7)} and ${tip.slice(0, 7)}; the approved tests are locked`);
+      const before = testScriptAt(root, lastRed);
+      const after = testScriptAt(root, tip);
+      if (before && after !== undefined && before !== after) add('C07', file, `${s.id}: the test script in package.json changed from "${before}" to "${after ?? '(none)'}" after the red commit`);
+    }
     if (first.red && first.green && !isAncestor(root, first.red, first.green)) add('C05', file, `${s.id}: the red commit ${first.red.slice(0, 7)} is not an ancestor of the green commit ${first.green.slice(0, 7)}`);
   }
   return out;
