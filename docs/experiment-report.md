@@ -24,6 +24,17 @@ and did not fail less. In these runs it did not do worse either, except in cost.
 
 Total spent on the 45 runs: about 19.9 USD (B1 4.2, B2 4.6, T 11.1).
 
+## The baseline was not "no framework"
+
+B1 and B2 were told to implement a slice **described in the slice file** that SDD.PP's planning step wrote:
+behavior, Given/When/Then acceptance criteria, an "Out of scope" list, the components involved, and a link to the
+blueprint and architecture. That file is, in effect, the careful per-task prompt that a person without the
+framework would have to write by hand every time. So the experiment compared **the enforcement** (three
+sessions, the test lock, the audit) **against the planning artifacts alone**; it did not compare the framework
+against a bare request. Its result is "the enforcement added nothing measurable on top of good specifications".
+Whether the specifications themselves (and the vertical slicing that produces them) are what matters was not
+tested. That would need a condition B0 that gets only a one-sentence request.
+
 ## What this means, and what it does not
 
 **It means** that on thin slices that changed between 5 and 53 lines of production code, written for a strong model that is
