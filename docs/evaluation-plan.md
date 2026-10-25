@@ -75,6 +75,9 @@ its result looks bad.
 - **"Beats" means:** the median of T is better than the median of the baseline on that measure in the pooled 15
   runs **and** in at least 2 of the 3 slices. With 5 runs per cell no significance test is claimed; medians,
   ranges and every individual run are published in `docs/experiment-results/`.
+- **Second view of the mutation score, declared after the first run and before the other 44:** the score of the files
+  under `src/` only. In the first run `public/app.js` scored 0% (no test of any condition drives a browser), which
+  dominates the overall figure. The overall score stays the primary measure; the `src/` view is reported next to it.
 - **Reading the mutation score:** it is compared as measured, and also among only the runs that pass the
   acceptance test, so that a condition is not rewarded for writing less.
 

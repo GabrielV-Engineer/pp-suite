@@ -1,0 +1,107 @@
+{
+  "duration_api_ms": 36775,
+  "stop_reason": "end_turn",
+  "session_id": "59e829dc-ef83-4d97-818e-b28993d88d54",
+  "total_cost_usd": 0.20786149999999998,
+  "usage": {
+    "input_tokens": 18,
+    "cache_creation_input_tokens": 33031,
+    "cache_read_input_tokens": 335115,
+    "output_tokens": 4219,
+    "output_tokens_details": {
+      "thinking_tokens": 657
+    },
+    "server_tool_use": {
+      "web_search_requests": 0,
+      "web_fetch_requests": 0
+    },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 33031,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 721,
+        "cache_read_input_tokens": 44992,
+        "cache_creation_input_tokens": 347,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 347
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "modelUsage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 18,
+      "outputTokens": 4219,
+      "cacheReadInputTokens": 335115,
+      "cacheCreationInputTokens": 33031,
+      "webSearchRequests": 0,
+      "costUSD": 0.20786149999999998,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 657,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "permission_denials": [
+    {
+      "tool_name": "Bash",
+      "tool_use_id": "toolu_01VGYKKUwnukYZdWT4cCrLbV",
+      "tool_input": {
+        "command": "cat > .sddpp/audit-input.json <<'EOF'\n{\n  \"commits\": [\n    { \"sha\": \"0449adec195fd0030ba7c4e3d73537ffee6c8b39\", \"kind\": \"red\" },\n    { \"sha\": \"a50ee2a62a71d3024c554b3750928a181c039cba\", \"kind\": \"green\" }\n  ],\n  \"tests_added\": 11,\n  \"mutation_score\": null,\n  \"decisions\": [],\n  \"debt_created\": [],\n  \"deviations\": [\n    \"No new debt proposed. Two existing proposed entries whose trigger named this slice remain unpaid: DEBT-BE-004 (a body that is not JSON, or a non-string title, still throws in titleProblem/createTask and answers 500; the slice's acceptance criteria and tests cover only empty and over-long titles, so a malformed body was treated as out of scope) and DEBT-FE-001 (the page now reads the 4xx validation message, but a 500 or network failure still makes response.json() or fetch throw with no message, and the page script is only checked by string assertions on its source, not run in a browser). Their triggers have fired; a human should decide whether to pay them in a follow-up slice.\",\n    \"The 400 response shape { error: { code: 'validation_failed', message } } and the exact message texts were chosen in the red tests; no ADR or contract document records them. If the API error format is meant to be a project-wide convention, it needs an ADR.\",\n    \"The 500 character limit is counted in UTF-16 code units (String.length) after trim(), not in user-perceived characters; an emoji counts as 2. The slice does not say which, and no test pins it.\",\n    \"Mutation testing (Stryker) was not run, so mutation_score is null.\",\n    \"npm test (27 tests, all passing) and npm run typecheck (tsc --noEmit, no errors) were run before finishing. The page behavior was not exercised in a real browser; it is covered only by assertions on the HTML and script source.\"\n  ]\n}\nEOF\nppc finish SL-004 --audit .sddpp/audit-input.json"
+      }
+    }
+  ],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": {
+      "background": 0,
+      "foreground": 0,
+      "unset": 0
+    },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": {
+      "parent": 0,
+      "user": 0,
+      "system": 0
+    },
+    "refused": {
+      "depth_limit": 0,
+      "concurrency_limit": 0,
+      "budget": 0
+    },
+    "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 12,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "SL-004 está cerrada con `ppc finish` y el commit `chore(SL-004): close slice` (0daead3). `npm test` pasa (27 tests) y `npm run typecheck` sale sin errores. No ejecuté Stryker ni abrí la página en un navegador real.\n\n**Qué entregó el slice**\n- Un título vacío tras recortar, o de más de 500 caracteres, recibe un 400 con `validation_failed` y un mensaje. No se crea la tarea.\n- La página muestra ese mensaje en `#form-message`, y conserva lo que el dueño escribió.\n- `ppc` midió 27 líneas de producción y 135 de test, dentro del presupuesto.\n- Los commits registrados son `red` 0449ade y `green` a50ee2a, con 11 tests añadidos.\n\n**Deuda:** no propuse deuda nueva. Dos entradas que ya existían y que nombraban este slice como disparador siguen sin pagar, y su estado es decisión tuya:\n- **DEBT-BE-004:** un cuerpo que no es JSON, o un título que no es texto, sigue dando 500.\n- **DEBT-FE-001:** si el servidor falla con un 500 o hay un error de red, la página sigue sin mostrar mensaje.\n\n**Desviaciones registradas en la auditoría**\n- El formato del error 400 y los textos de los mensajes salieron de los tests red. Ningún ADR los recoge. Si el formato va a ser la convención de toda la API, hace falta uno.\n- El límite de 500 cuenta unidades UTF-16 después de `trim()`. Un emoji cuenta como 2 y ningún test fija esto.\n\n**Qué no pude verificar**\n- **Mutation testing:** `mutation_score` queda sin dato. `ppc` rechazó el campo en la entrada de auditoría porque lo calcula él mismo, así que lo quité. No corrí Stryker.\n- **Comportamiento de la página:** solo hay aserciones sobre el código fuente de `public/app.js` y `index.html`. Nadie la ejecutó en un navegador.",
+  "ttft_ms": 2025,
+  "type": "result",
+  "duration_ms": 51312,
+  "uuid": "77f8d2b7-5ace-4683-aaae-d5776158b2af",
+  "ttft_stream_ms": 1617,
+  "time_to_request_ms": 105,
+  "first_content_frame_ms": 1618,
+  "queued_turn_count": 0,
+  "result_index": 0
+}
