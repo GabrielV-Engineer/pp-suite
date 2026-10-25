@@ -4,7 +4,7 @@ preset:
   id: "sddpp-slices"
   name: "SDD.PP Slices"
   version: "0.1.0"
-  description: "Turns the Spec Kit task list into thin vertical slices, test-first, with a diff budget."
+  description: "Turns the Spec Kit task list into thin vertical slices, test-first, with a production-code budget."
   author: "GabrielV-Engineer"
   repository: "https://github.com/GabrielV-Engineer/pp-suite"
   license: "MIT"

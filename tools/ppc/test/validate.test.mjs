@@ -27,7 +27,8 @@ function finish(model, id, audit = {}) {
   s.red_approved_by = 'reviewer';
   s.audit = {
     commits: [{ sha: 'a1b2c3d', kind: 'red' }, { sha: 'b2c3d4e', kind: 'green' }],
-    diff_lines: 120,
+    production_lines: 120,
+    test_lines: 60,
     tests_added: 4,
     mutation_score: 0.9,
     decisions: [],
@@ -180,14 +181,30 @@ test('L05: debt cannot be paid by a slice that is not done', () => {
   assert.ok(has(run(m), 'L05', 'error'));
 });
 
-test('B01: exceeding the diff budget needs a recorded reason', () => {
+test('B01: exceeding the production-code budget needs a recorded reason', () => {
   const m = base();
-  finish(m, 'SL-001', { diff_lines: 500 });
+  finish(m, 'SL-001', { production_lines: 500 });
   assert.ok(has(run(m), 'B01', 'error'));
 
   const ok = base();
-  finish(ok, 'SL-001', { diff_lines: 500, budget_override_reason: 'Generated migration inflates the diff.' });
+  finish(ok, 'SL-001', { production_lines: 500, budget_override_reason: 'Generated migration inflates the diff.' });
   assert.ok(!has(run(ok), 'B01'));
+});
+
+test('B01: large tests do not consume the budget, only production code does', () => {
+  const m = base();
+  finish(m, 'SL-001', { production_lines: 100, test_lines: 900 });
+  assert.ok(!has(run(m), 'B01'));
+});
+
+test('SCHEMA: an audit must state both production_lines and test_lines', () => {
+  const m = base();
+  finish(m, 'SL-001');
+  delete slice(m, 'SL-001').data.audit.test_lines;
+  assert.ok(has(run(m), 'SCHEMA', 'error'));
+  finish(m, 'SL-001');
+  delete slice(m, 'SL-001').data.audit.production_lines;
+  assert.ok(has(run(m), 'SCHEMA', 'error'));
 });
 
 // ── documents and warnings ───────────────────────────────────────

@@ -11,7 +11,7 @@ description: "Generate dependency-ordered SDD.PP slices"
   `.architect/blueprint.yaml`.
 - Slice types are `skeleton`, `feature`, `refactor`, `spike` and `fix`. The first slice is the skeleton.
 - Every `feature`, `fix` and `skeleton` states what it leaves out under a `## Out of scope` heading.
-- A slice must fit the diff budget in `.architect/blueprint.yaml`; split it otherwise.
+- A slice's hand-written production code must fit the budget in `.architect/blueprint.yaml` (tests and lockfiles do not count); split it otherwise.
 - New slices start as `planned`. Never set `approved_by`, `red_approved_by` or any approval field:
   those are written only after a human approves.
 

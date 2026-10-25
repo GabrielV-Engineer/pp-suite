@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { isTestPath } from './testpaths.mjs';
+import { isGeneratedPath, isTestPath } from './testpaths.mjs';
 
 const SHA = /^[0-9a-f]{7,40}$/;
 /** Contract bookkeeping is neither code nor tests: it is never measured and never trips C02/C03. */
@@ -23,7 +23,7 @@ function resolve(root, sha) {
   }
 }
 
-/** Code files a commit changed, with changed-line counts. Renames count as delete plus add; binaries as 0. */
+/** Hand-written files a commit changed, with changed-line counts. Renames count as delete plus add; binaries as 0. */
 function changes(root, full) {
   const raw = git(root, ['diff-tree', '--no-commit-id', '--numstat', '-r', '--root', '--no-renames', '-z', full]);
   return raw
@@ -34,7 +34,7 @@ function changes(root, full) {
       const count = (n) => (n === '-' ? 0 : Number(n));
       return { path: path.join('\t'), lines: count(added) + count(deleted) };
     })
-    .filter((f) => !isBookkeeping(f.path));
+    .filter((f) => !isBookkeeping(f.path) && !isGeneratedPath(f.path));
 }
 
 /** What one commit changed, or null if it does not exist. */
@@ -42,7 +42,8 @@ export function measure(root, sha) {
   const full = resolve(root, sha);
   if (!full) return null;
   const files = changes(root, full);
-  return { full, files, lines: files.reduce((sum, f) => sum + f.lines, 0) };
+  const lines = (list) => list.reduce((sum, f) => sum + f.lines, 0);
+  return { full, files, production_lines: lines(files.filter((f) => !isTestPath(f.path))), test_lines: lines(files.filter((f) => isTestPath(f.path))) };
 }
 
 /**
@@ -73,7 +74,8 @@ export function checkGit(model, root) {
 
   for (const { file, data: s } of model.slices) {
     if (!s.audit) continue;
-    let total = 0;
+    let production = 0;
+    let tested = 0;
     let allFound = true;
     const first = {};
 
@@ -85,17 +87,19 @@ export function checkGit(model, root) {
         continue;
       }
       first[kind] ??= m.full;
-      total += m.lines;
+      production += m.production_lines;
+      tested += m.test_lines;
       const tests = m.files.filter((f) => isTestPath(f.path)).map((f) => f.path);
-      const production = m.files.filter((f) => !isTestPath(f.path)).map((f) => f.path);
+      const productionFiles = m.files.filter((f) => !isTestPath(f.path)).map((f) => f.path);
 
       if (tests.length && TESTS_LOCKED_KINDS.includes(kind)) {
         add('C02', file, `${s.id}: ${sha} (${kind}) touches ${tests.join(', ')}; tests are locked after the red phase`);
       }
-      if (kind === 'red' && production.length) add('C03', file, `${s.id}: ${sha} (red) touches production code: ${production.join(', ')}`);
+      if (kind === 'red' && productionFiles.length) add('C03', file, `${s.id}: ${sha} (red) touches production code: ${productionFiles.join(', ')}`);
     }
 
-    if (allFound && total !== s.audit.diff_lines) add('C04', file, `${s.id}: audit says ${s.audit.diff_lines} changed lines, git shows ${total}`);
+    if (allFound && production !== s.audit.production_lines) add('C04', file, `${s.id}: audit says ${s.audit.production_lines} production lines, git shows ${production}`);
+    if (allFound && tested !== s.audit.test_lines) add('C04', file, `${s.id}: audit says ${s.audit.test_lines} test lines, git shows ${tested}`);
     if (first.red && first.green && !isAncestor(root, first.red, first.green)) add('C05', file, `${s.id}: the red commit ${first.red.slice(0, 7)} is not an ancestor of the green commit ${first.green.slice(0, 7)}`);
   }
   return out;

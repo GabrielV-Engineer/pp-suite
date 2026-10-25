@@ -63,8 +63,8 @@ Status flow: `planned` → `ready` → `in_progress` → `done` (or `dropped`).
 - `ready` and later need `approved_by`: a human approved the slice to start (`ppc approve-slice`).
 - `in_progress` needs a `phase`: `red` (tests only), `green` (production code only), `refactor`.
 - From `green` on, work slices need `red_approved_by`: a human approved the RED tests first.
-- `done` needs an **audit** (commits, diff size, tests added, mutation score, decisions, debt created,
-  deviations). A spike instead records its `outcome`.
+- `done` needs an **audit** (commits, production lines, test lines, tests added, mutation score, decisions,
+  debt created, deviations). A spike instead records its `outcome`.
 - Only one slice may be in progress at a time, and `.sddpp/active.json` must match it.
 - Transitions are made with `ppc approve-slice`, `start`, `approve-red`, `refactor` and `finish` (see
   [how-it-works](how-it-works.md)); each one changes the project or, if the result would be invalid, nothing.
@@ -108,11 +108,11 @@ Errors fail validation; warnings fail only with `--strict`. `ppc rules` prints t
 | `L03` | error | `active.json` is missing or does not match the slice in progress. |
 | `L04` | error | More than one slice is in progress. |
 | `L05` | error | A debt entry is marked paid but its paying slice is not done. |
-| `B01` | error | A slice exceeded the diff budget without a recorded reason. |
+| `B01` | error | A slice exceeded the production-code budget without a recorded reason. |
 | `C01` | error | An audit commit does not exist in the git history. (`ppc check-git`) |
 | `C02` | error | A green, refactor or structural commit touches a test file. (`ppc check-git`) |
 | `C03` | error | A red commit touches production code. (`ppc check-git`) |
-| `C04` | error | The audit `diff_lines` does not match what the commits changed. (`ppc check-git`) |
+| `C04` | error | The audit `production_lines` or `test_lines` do not match what the commits changed. (`ppc check-git`) |
 | `C05` | error | The red commit is not an ancestor of the green commit. (`ppc check-git`) |
 | `A01` | error / warning | An ADR lacks a required section (error when accepted, warning otherwise). |
 | `W01` | warning | A work slice does not state what it leaves out of scope. |
@@ -132,9 +132,11 @@ of the repository the project lives in, for every slice that has an audit:
 - a `green`, `refactor` or `structural` commit changes no test file (`C02`): tests are locked after the red
   phase, refactoring included. If a test has to change, the red phase reopens;
 - a `red` commit changes no production code (`C03`);
-- `diff_lines` equals the lines added plus deleted across the listed commits; renames count as a
-  delete plus an add and binary files as zero (`C04`). Files under `.sddpp/` and `.architect/` are
-  contract bookkeeping, not code: they are neither measured nor checked;
+- `production_lines` and `test_lines` equal the lines added plus deleted, in hand-written production code and
+  in test files, across the listed commits; renames count as a delete plus an add and binary files as zero
+  (`C04`). Contract bookkeeping (`.sddpp/`, `.architect/`) and generated lockfiles are neither measured nor
+  checked. **Only `production_lines` counts against the budget** (`max_slice_production_lines` in the
+  blueprint): a slice may carry large tests, but then `test_lines` tells the reviewer how much there is to read;
 - the first `red` commit is an ancestor of the first `green` commit (`C05`).
 
 What counts as a test file is defined once, by [`test-path-cases.json`](../contract/v0.1/test-path-cases.json);

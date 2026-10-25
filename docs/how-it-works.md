@@ -16,7 +16,7 @@ command names are provisional.
 |---|---|---|
 | **1. Design** (`/architect`) | Answer the interview, confirm the architecture | Proposes stack, data model, API, what is out of scope, risks |
 | **2. Hand-off** | Review `.architect/` | Extracts capabilities, components, decisions and rules; derives the project constitution |
-| **3. Slices** (per capability) | **Approve** the spec, the plan and the slice list | Writes them; splits the work into vertical slices that fit the diff budget |
+| **3. Slices** (per capability) | **Approve** the spec, the plan and the slice list | Writes them; splits the work into vertical slices that fit the production-code budget |
 | **4. Red** (per slice) | **Read and approve the tests.** This is the one thing to read carefully | A separate subagent writes failing tests only; one `red` commit |
 | **5. Green** | Nothing | The guard locks the tests; production code only, as little as it takes; one `green` commit |
 | **6. Close** | Review the audit pack; approve or reject proposed debt | Refactors in its own commit, runs mutation testing, records debt in the component's register, regenerates the WBS |
@@ -32,7 +32,7 @@ Each command either changes the project or refuses and leaves it untouched.
 | `ppc start <slice>` | anyone | `ready` → in progress, red phase. Refuses a slice that is not approved, has unfinished dependencies, or when another slice is in progress |
 | `ppc approve-red --by <name>` | **a human** | Approves the committed red tests and enters green. Refuses if code is uncommitted |
 | `ppc refactor` | anyone | green → refactor (tests stay locked) |
-| `ppc finish <slice> --audit <file>` | anyone | Closes the slice. The diff size is **measured from git**, then the result is validated and checked against git; if anything is off, nothing changes |
+| `ppc finish <slice> --audit <file>` | anyone | Closes the slice. The sizes (production and test lines) are **measured from git**, then the result is validated and checked against git; if anything is off, nothing changes |
 | `ppc status` | anyone | What is in progress |
 
 Approvals are human-only. The guard blocks the agent from running `ppc approve-*` and from writing any

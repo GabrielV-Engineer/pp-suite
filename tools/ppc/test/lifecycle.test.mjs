@@ -162,26 +162,30 @@ function throughGreen(t) {
 test('finish: computes the diff from git, closes the slice and leaves a valid, verified project', (t) => {
   const { dir, audit } = throughGreen(t);
   const result = finish(dir, 'SL-001', audit);
-  assert.equal(result.diff_lines, 8); // 3 (red) + 5 (green)
+  assert.equal(result.production_lines, 5); // the green commit
+  assert.equal(result.test_lines, 3); // the red commit
   const s = slice(dir, 'SL-001');
   assert.equal(s.status, 'done');
   assert.equal(s.phase, undefined);
-  assert.equal(s.audit.diff_lines, 8);
+  assert.equal(s.audit.production_lines, 5);
+  assert.equal(s.audit.test_lines, 3);
   assert.equal(s.audit.mutation_score, null);
   assert.deepEqual(active(dir), { slice: null, phase: null });
   assertConsistent(dir);
   assert.deepEqual(checkGit(loadProject(dir), dir), []);
 });
 
-test('finish: the diff size is never taken from the caller', (t) => {
+test('finish: the sizes are never taken from the caller', (t) => {
   const { dir, audit } = throughGreen(t);
-  fails(() => finish(dir, 'SL-001', { ...audit, diff_lines: 1 }), /computed from git/);
+  for (const field of ['diff_lines', 'production_lines', 'test_lines']) {
+    fails(() => finish(dir, 'SL-001', { ...audit, [field]: 1 }), /computed from git/);
+  }
 });
 
 test('finish ignores contract bookkeeping when it measures the diff', (t) => {
   const { dir, red, green, write } = throughGreen(t);
   write({ '.sddpp/notes.md': lines(40) });
-  assert.equal(finish(dir, 'SL-001', { commits: [{ sha: red, kind: 'red' }, { sha: green, kind: 'green' }], tests_added: 1 }).diff_lines, 8);
+  assert.equal(finish(dir, 'SL-001', { commits: [{ sha: red, kind: 'red' }, { sha: green, kind: 'green' }], tests_added: 1 }).production_lines, 5);
 });
 
 test('finish: rolls everything back when the result would be invalid', (t) => {

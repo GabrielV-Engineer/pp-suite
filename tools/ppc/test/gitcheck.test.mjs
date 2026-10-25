@@ -12,7 +12,7 @@ const RED = { 'tests/health.test.js': lines(3) }; // 3 changed lines
 const GREEN = { 'src/health.js': lines(5) }; // 5 changed lines
 
 /** SL-001 finished with an audit that points at real commits. Returns the model and the shas. */
-function finished(t, { red = RED, green = GREEN, diff_lines = 8, greenFirst = false } = {}) {
+function finished(t, { red = RED, green = GREEN, production_lines = 5, test_lines = 3, greenFirst = false } = {}) {
   const r = repo(t);
   let redSha, greenSha;
   if (greenFirst) {
@@ -27,7 +27,7 @@ function finished(t, { red = RED, green = GREEN, diff_lines = 8, greenFirst = fa
   Object.assign(s, { status: 'done', red_approved_by: 'reviewer' });
   s.audit = {
     commits: [{ sha: redSha, kind: 'red' }, { sha: greenSha, kind: 'green' }],
-    diff_lines, tests_added: 1, mutation_score: null, decisions: [], debt_created: [], deviations: [],
+    production_lines, test_lines, tests_added: 1, mutation_score: null, decisions: [], debt_created: [], deviations: [],
   };
   return { ...r, model, audit: s.audit, redSha, greenSha };
 }
@@ -61,23 +61,37 @@ test('C01: a commit that does not exist is reported', (t) => {
 });
 
 test('C02: a green commit that touches a test file is reported', (t) => {
-  const { model, dir } = finished(t, { green: { ...GREEN, 'tests/health.test.js': lines(3) + 'extra\n' }, diff_lines: 9 });
+  const { model, dir } = finished(t, { green: { ...GREEN, 'tests/health.test.js': lines(3) + 'extra\n' }, test_lines: 4 });
   const found = checkGit(model, dir);
   assert.deepEqual(rules(found), ['C02']);
   assert.match(found[0].message, /tests\/health\.test\.js/);
 });
 
 test('C03: a red commit that touches production code is reported', (t) => {
-  const { model, dir } = finished(t, { red: { ...RED, 'src/prod.js': lines(2) }, diff_lines: 10 });
+  const { model, dir } = finished(t, { red: { ...RED, 'src/prod.js': lines(2) }, production_lines: 7 });
   assert.deepEqual(rules(checkGit(model, dir)), ['C03']);
 });
 
-test('C04: a diff_lines that does not match the commits is reported', (t) => {
-  const { model, dir } = finished(t, { diff_lines: 99 });
+test('C04: a production_lines that does not match the commits is reported', (t) => {
+  const { model, dir } = finished(t, { production_lines: 99 });
   const found = checkGit(model, dir);
   assert.deepEqual(rules(found), ['C04']);
+  assert.match(found[0].message, /production/);
   assert.match(found[0].message, /99/);
-  assert.match(found[0].message, /\b8\b/);
+  assert.match(found[0].message, /\b5\b/);
+});
+
+test('C04: a test_lines that does not match the commits is reported', (t) => {
+  const { model, dir } = finished(t, { test_lines: 50 });
+  const found = checkGit(model, dir);
+  assert.deepEqual(rules(found), ['C04']);
+  assert.match(found[0].message, /test/);
+  assert.match(found[0].message, /\b50\b/);
+});
+
+test('generated files (lockfiles) count as neither production nor test lines', (t) => {
+  const { model, dir } = finished(t, { green: { ...GREEN, 'package-lock.json': lines(40), 'sub/yarn.lock': lines(10) } });
+  assert.deepEqual(checkGit(model, dir), []); // still 5 production and 3 test lines
 });
 
 test('C05: the red commit must come before the green commit in history', (t) => {
@@ -92,12 +106,12 @@ test('a refactor slice may not touch test files (C02) but may change production 
   const model = loadProject(r.dir);
   const s = model.slices.find((x) => x.data.id === 'SL-008').data;
   s.status = 'done';
-  const audit = (commits, diff_lines) => ({ commits, diff_lines, tests_added: 0, mutation_score: null, decisions: [], debt_created: [], deviations: [] });
+  const audit = (commits, production_lines, test_lines) => ({ commits, production_lines, test_lines, tests_added: 0, mutation_score: null, decisions: [], debt_created: [], deviations: [] });
 
-  s.audit = audit([{ sha: clean, kind: 'structural' }], 4);
+  s.audit = audit([{ sha: clean, kind: 'structural' }], 4, 0);
   assert.deepEqual(checkGit(model, r.dir), []);
 
-  s.audit = audit([{ sha: clean, kind: 'structural' }, { sha: touching, kind: 'structural' }], 7);
+  s.audit = audit([{ sha: clean, kind: 'structural' }, { sha: touching, kind: 'structural' }], 4, 3);
   assert.deepEqual(rules(checkGit(model, r.dir)), ['C02']);
 });
 
@@ -105,7 +119,7 @@ test('C02: a refactor-kind commit may not touch tests in any slice, since green 
   const { model, dir, audit } = finished(t);
   const touching = repoCommit(dir, { 'tests/health.test.js': lines(3) + 'weakened\n' });
   audit.commits.push({ sha: touching, kind: 'refactor' });
-  audit.diff_lines = 9;
+  audit.test_lines = 4;
   assert.deepEqual(rules(checkGit(model, dir)), ['C02']);
 });
 
@@ -121,7 +135,7 @@ test('binary files count as zero lines and renames count as delete plus add', (t
   const model = loadProject(r.dir);
   const s = model.slices.find((x) => x.data.id === 'SL-008').data;
   s.status = 'done';
-  s.audit = { commits: [{ sha: first, kind: 'structural' }, { sha: binary, kind: 'structural' }], diff_lines: 4, tests_added: 0, mutation_score: null, decisions: [], debt_created: [], deviations: [] };
+  s.audit = { commits: [{ sha: first, kind: 'structural' }, { sha: binary, kind: 'structural' }], production_lines: 4, test_lines: 0, tests_added: 0, mutation_score: null, decisions: [], debt_created: [], deviations: [] };
   assert.deepEqual(checkGit(model, r.dir), []);
 });
 
@@ -138,7 +152,8 @@ audit:
       kind: red
     - sha: ${greenSha}
       kind: green
-  diff_lines: ${diff}
+  production_lines: ${diff}
+  test_lines: 3
   tests_added: 1
   mutation_score: null
   decisions: []
@@ -152,7 +167,7 @@ test('CLI: check-git passes on a project with no audits and on a matching histor
   assert.equal(ppc('check-git', EXAMPLE).status, 0);
 
   const { dir, redSha, greenSha } = finished(t);
-  writeAudit(dir, { redSha, greenSha, diff: 8 });
+  writeAudit(dir, { redSha, greenSha, diff: 5 });
   const r = ppc('check-git', dir);
   assert.equal(r.status, 0, r.stdout + r.stderr);
 });

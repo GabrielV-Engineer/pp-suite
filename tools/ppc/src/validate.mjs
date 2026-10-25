@@ -33,11 +33,11 @@ export const RULES = {
   L03: 'active.json is missing or does not match the slice in progress.',
   L04: 'More than one slice is in progress.',
   L05: 'A debt entry is marked paid but its paying slice is not done.',
-  B01: 'A slice exceeded the diff budget without a recorded reason.',
+  B01: 'A slice exceeded the production-code budget without a recorded reason.',
   C01: 'An audit commit does not exist in the git history.',
   C02: 'A green, refactor or structural commit touches a test file.',
   C03: 'A red commit touches production code.',
-  C04: 'The audit diff_lines does not match what the commits changed.',
+  C04: 'The audit production_lines or test_lines do not match what the commits changed.',
   C05: 'The red commit is not an ancestor of the green commit.',
   A01: 'An ADR lacks a required section.',
   W01: 'A work slice does not state what it leaves out of scope.',
@@ -250,8 +250,8 @@ export function validateModel(model, { now = new Date() } = {}) {
       const green = audit.commits.findIndex((c) => c.kind === 'green');
       if (red === -1 || green === -1 || red > green) error('L02', file, `${s.id} audit needs a red commit before a green commit`);
     }
-    if (audit.diff_lines > bp.budgets.max_slice_diff_lines && !audit.budget_override_reason) {
-      error('B01', file, `${s.id} changed ${audit.diff_lines} lines, budget is ${bp.budgets.max_slice_diff_lines}, and no budget_override_reason is recorded`);
+    if (audit.production_lines > bp.budgets.max_slice_production_lines && !audit.budget_override_reason) {
+      error('B01', file, `${s.id} changed ${audit.production_lines} production lines, budget is ${bp.budgets.max_slice_production_lines}, and no budget_override_reason is recorded`);
     }
   }
 

@@ -41,7 +41,7 @@
     "audit": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["commits", "diff_lines", "tests_added", "mutation_score", "decisions", "debt_created", "deviations"],
+      "required": ["commits", "production_lines", "test_lines", "tests_added", "mutation_score", "decisions", "debt_created", "deviations"],
       "properties": {
         "commits": {
           "type": "array",
@@ -56,7 +56,8 @@
             }
           }
         },
-        "diff_lines": { "type": "integer", "minimum": 0 },
+        "production_lines": { "type": "integer", "minimum": 0, "description": "Lines changed in hand-written production code. This is what the budget counts." },
+        "test_lines": { "type": "integer", "minimum": 0, "description": "Lines changed in test files. Informational: it is what a reviewer reads." },
         "tests_added": { "type": "integer", "minimum": 0 },
         "mutation_score": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
         "decisions": { "type": "array", "items": { "type": "string", "pattern": "^ADR-\\d{4}$" } },

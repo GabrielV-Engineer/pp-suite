@@ -163,7 +163,7 @@ export function toRefactor(root) {
 }
 
 /**
- * Close a slice. The diff size is measured from git here, never taken from the caller, and the result
+ * Close a slice. The sizes are measured from git here, never taken from the caller, and the result
  * is validated and checked against git before it is kept: if it would be wrong, nothing changes.
  */
 export function finish(root, id, input) {
@@ -174,9 +174,12 @@ export function finish(root, id, input) {
     if (s.status !== 'in_progress') fail(`${id} is ${s.status}, not in_progress`);
     if (WORK_TYPES.includes(s.type) && s.phase === 'red') fail(`${id} is still in the red phase: its red tests were not approved`);
     requireCommitted(root);
-    if ('diff_lines' in (input ?? {})) fail('diff_lines is computed from git; remove it from the audit input');
+    for (const field of ['diff_lines', 'production_lines', 'test_lines']) {
+      if (field in (input ?? {})) fail(`${field} is computed from git; remove it from the audit input`);
+    }
 
-    let diff_lines = 0;
+    let production_lines = 0;
+    let test_lines = 0;
     if (s.type === 'spike') {
       if (typeof input?.outcome !== 'string') fail('a spike needs "outcome": what it learned');
       editFrontmatter(root, entry.file, (doc) => {
@@ -189,11 +192,13 @@ export function finish(root, id, input) {
       for (const c of input.commits) {
         const m = measure(root, String(c.sha));
         if (!m) fail(`commit ${c.sha} was not found in git history`);
-        diff_lines += m.lines;
+        production_lines += m.production_lines;
+        test_lines += m.test_lines;
       }
       const audit = {
         commits: input.commits,
-        diff_lines,
+        production_lines,
+        test_lines,
         tests_added: input.tests_added,
         mutation_score: input.mutation_score ?? null,
         decisions: input.decisions ?? [],
@@ -212,7 +217,7 @@ export function finish(root, id, input) {
 
     const problems = checkGit(loadProject(root), root);
     if (problems.length) fail(`the audit does not match git history:\n${describe(problems)}`);
-    return { slice: id, diff_lines };
+    return { slice: id, production_lines, test_lines };
   });
 }
 

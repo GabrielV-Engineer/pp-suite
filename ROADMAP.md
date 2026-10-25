@@ -10,7 +10,8 @@ Status key: **done** has tests in CI · **spiked** tried once by hand, not autom
 | `ppc validate`: parsing, schema, cross-reference, lifecycle, budget and generated-view rules, each with a test that makes it fire (`ppc rules` lists them all, `check-git` rules included) | done |
 | Shared definition of "test file" (`contract/v0.1/test-path-cases.json`), tested by both the guard and `ppc` | done |
 | `ppc generate`: WBS and one debt table per component, with a staleness check | done |
-| `ppc check-git`: audits are checked against real git history (commits exist, green/refactor leave tests untouched, red has no production code, diff size is true, red precedes green) | done, tested against real temporary repositories |
+| `ppc check-git`: audits are checked against real git history (commits exist, green/refactor leave tests untouched, red has no production code, the measured sizes are true, red precedes green) | done, tested against real temporary repositories |
+| **Budget counts production code only** (tests, lockfiles and bookkeeping excluded); audits record `production_lines` and `test_lines`. Chosen because the old rule failed twice: M1 429 lines against 200, SL-002 246, in both cases tests and a lockfile were the excess | done, each part broken on purpose to confirm a test fails |
 | Worked example (`examples/todo-app`), planning stage, validated in strict mode | done |
 | Test-lock guard with fail-closed state handling (`sdd-pp/extension/sddpp-guard`) | done (unit tests) |
 | Slice cycle commands in `ppc`: `start`, `approve-red`, `refactor`, `finish`, `status`; each is all-or-nothing and `finish` measures the diff from git | done, tested against real temporary repositories |
@@ -26,7 +27,6 @@ Status key: **done** has tests in CI · **spiked** tried once by hand, not autom
 
 | Item | Why |
 |---|---|
-| **Diff budget that fits reality:** count production code only, excluding generated files, with its own budget for tests | Twice now: M1 429 lines against 200 (tests 240, lockfile 75); SL-002 246 lines (tests 137, production 109, which fits) |
 | Human-only budget exception and `ppc approve-debt` | Both are fields an agent could write; today the agent chose not to (findings 5, 6) |
 | Rule: every quality attribute is referenced by a slice | QA-003 had no slice and nothing noticed (finding 7) |
 | `check-git` extension: detect commits of a slice that its audit leaves out | The audit lists commits by hand; omissions go unnoticed today |

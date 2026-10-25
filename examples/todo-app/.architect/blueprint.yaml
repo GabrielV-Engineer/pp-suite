@@ -83,4 +83,4 @@ components:
     justified_by: [QA-003, CON-002]
 
 budgets:
-  max_slice_diff_lines: 200
+  max_slice_production_lines: 200

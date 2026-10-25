@@ -90,9 +90,9 @@
     "budgets": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["max_slice_diff_lines"],
+      "required": ["max_slice_production_lines"],
       "properties": {
-        "max_slice_diff_lines": { "type": "integer", "minimum": 20, "maximum": 2000 }
+        "max_slice_production_lines": { "type": "integer", "minimum": 20, "maximum": 2000, "description": "Budget for hand-written production code per slice. Tests, lockfiles and contract bookkeeping do not count." }
       }
     }
   }

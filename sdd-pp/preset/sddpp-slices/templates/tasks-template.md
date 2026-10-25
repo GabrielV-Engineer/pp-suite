@@ -8,5 +8,5 @@
 | SL-001 | [Deployable end-to-end skeleton] | skeleton | — |
 | SL-002 | [One observable behavior] | feature | SL-001 |
 
-Rules: every slice is a vertical cut through the layers it needs, fits the diff budget in
+Rules: every slice is a vertical cut through the layers it needs, fits the production-code budget in
 `.architect/blueprint.yaml`, and states what it leaves out of scope.
