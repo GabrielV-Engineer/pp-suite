@@ -24,6 +24,7 @@ Status key: **done** has tests in CI · **spiked** tried once by hand, not autom
 | Budget and mutation exceptions are recorded by a human with `ppc finish --budget-reason` / `--mutation-reason`, which the guard refuses to an agent | done, each part broken on purpose |
 | **Mutation testing**: `ppc mutation`, an optional gate in `ppc finish` (`budgets.min_mutation_score`), rule `M01`, and the guard blocking `mutation_override_reason`. First measurement on the demo: [mutation testing](docs/mutation-testing.md) | done (tests; each part broken on purpose); measured once on the demo |
 | `ppc approve-debt`: a human decides on debt the AI proposed (open, accepted with a reason, or dropped) | done, each part broken on purpose to confirm a test fails |
+| Slice-to-story link in the contract (`spec: { file, story }`), checked by `T15`; applied to three slices of the demo | done, each part broken on purpose |
 | Rule `W05`: every quality attribute is referenced by a live slice. It flags QA-003 in the demo, which no planned slice covers | done (warning, not an error) |
 | Experiment instrument (`tools/eval`): tested measures, neutral acceptance tests for four slices, mutation score per run | done: [evaluation plan](docs/evaluation-plan.md) |
 | Refactor phase exercised with a real agent (a refactor slice paying one debt entry, with a tempting request to touch the tests); `ppc finish` now marks the debt paid | done once, in a throwaway copy: [refactor exercise](docs/refactor-exercise.md) |
@@ -40,7 +41,7 @@ Status key: **done** has tests in CI · **spiked** tried once by hand, not autom
 | Mutation gate in a real slice cycle: set `min_mutation_score` in a project and close a slice through it | The gate and `ppc mutation` exist and are tested (M1 finding 4); first measurement on the demo is in [mutation testing](docs/mutation-testing.md) |
 | **M2, remaining:** a workflow with approval gates. SL-002, a slice with a dependency, is closed, and a person approved its red tests. The refactor phase and a harder test of the lock are done (see Foundation) | Planning, red, green, audit and close of a second slice, a refactor slice and an adversarial pass over the lock are done |
 | **Prove the benefit:** the experiment in the [evaluation plan](docs/evaluation-plan.md): a neutral acceptance test per slice, a measure of untested behavior, condition B2, at least 5 runs per condition | The [pilot](docs/pilot-sl002.md) proves nothing and found two measuring flaws. **No evidence yet that the methodology helps** |
-| Link a slice to its spec story in the contract, and check that acceptance criteria agree | The link exists only in a Markdown table; criteria are repeated in several files ([findings](docs/slices-in-sdd.md)) |
+| Check that acceptance criteria agree across the spec, the slice and the quickstart | The slice-to-story link now exists (`spec`, rule `T15`); the criteria are still repeated in several files and their wording differs by formatting, so comparing them needs a structured form first |
 
 
 ## Later

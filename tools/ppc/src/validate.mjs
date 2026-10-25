@@ -28,6 +28,7 @@ export const RULES = {
   T12: 'An id is duplicated, or a file name does not match its id.',
   T13: 'A slice audit references unknown decisions or debt, or debt with the wrong origin.',
   T14: 'A slice was planned against a blueprint revision that does not exist yet.',
+  T15: 'A slice points at a spec file or a user story that does not exist.',
   L01: 'A slice has a phase while it is not in progress.',
   L02: 'The audit commits are not ordered red before green.',
   L03: 'active.json is missing or does not match the slice in progress.',
@@ -180,6 +181,15 @@ export function validateModel(model, { now = new Date() } = {}) {
     mark.set(id, 2);
   };
   for (const id of graph.keys()) visit(id, []);
+
+  // T15: the story a slice delivers is a heading of the spec file it points at
+  for (const { file, data: s } of slices) {
+    if (!s.spec) continue;
+    const text = model.specs?.[s.spec.file];
+    const escaped = s.spec.story.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    if (text == null) error('T15', file, `${s.id} points at spec file ${s.spec.file}, which cannot be read`);
+    else if (!new RegExp(`^#{1,6}\\s+${escaped}\\b`, 'im').test(text)) error('T15', file, `${s.id} points at "${s.spec.story}", which is not a heading in ${s.spec.file}`);
+  }
 
   // T06: every capability is covered by a live slice
   for (const cap of bp.capabilities) {

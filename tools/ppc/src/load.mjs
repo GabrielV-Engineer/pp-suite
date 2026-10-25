@@ -33,6 +33,7 @@ export function loadProject(root) {
     changeRequests: [],
     debt: [],
     active: null,
+    specs: {},
   };
   const fail = (file, message) => model.errors.push({ rule: 'PARSE', severity: 'error', file, message });
   const read = (file) => readFileSync(join(root, file), 'utf8');
@@ -68,6 +69,17 @@ export function loadProject(root) {
       model.debt.push({ file, data: parseYaml(read(file)) });
     } catch (e) {
       fail(file, `invalid YAML: ${e.message}`);
+    }
+  }
+
+  // Spec files that slices point at, read here so the validator stays free of file access. null = unreadable.
+  for (const { data } of model.slices) {
+    const file = data.spec?.file;
+    if (typeof file !== 'string' || file in model.specs || file.startsWith('/') || file.includes('..')) continue;
+    try {
+      model.specs[file] = read(file);
+    } catch {
+      model.specs[file] = null;
     }
   }
 

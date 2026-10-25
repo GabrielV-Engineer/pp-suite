@@ -28,6 +28,16 @@
         }
       }
     },
+    "spec": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["file", "story"],
+      "description": "Where the user story this slice delivers is written. The story must be a heading in that file (T15).",
+      "properties": {
+        "file": { "type": "string", "pattern": "^(?!/)(?!.*\\.\\.).+\\.md$", "description": "Relative path of a Markdown file inside the project." },
+        "story": { "type": "string", "minLength": 2, "description": "The start of the story's heading, for example \"User Story 1\"." }
+      }
+    },
     "pays": { "type": "array", "items": { "type": "string", "pattern": "^DEBT-[A-Z]{2,5}-\\d{3,}$" }, "uniqueItems": true },
     "approved_by": { "type": "string", "minLength": 1, "description": "Human who approved this slice to start." },
     "phase": { "enum": ["red", "green", "refactor"] },

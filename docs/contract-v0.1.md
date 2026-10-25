@@ -65,6 +65,8 @@ Status flow: `planned` → `ready` → `in_progress` → `done` (or `dropped`).
 - From `green` on, work slices need `red_approved_by`: a human approved the RED tests first.
 - `done` needs an **audit** (commits, production lines, test lines, tests added, mutation score, decisions,
   debt created, deviations). A spike instead records its `outcome`.
+- A slice may carry `spec: { file, story }`, the Markdown file and the heading of the user story it delivers
+  (`T15` checks that both exist). It is optional: it is the contract's link from a slice to its story.
 - Only one slice may be in progress at a time, and `.sddpp/active.json` must match it.
 - Transitions are made with `ppc approve-slice`, `start`, `approve-red`, `refactor` and `finish` (see
   [how-it-works](how-it-works.md)); each one changes the project or, if the result would be invalid, nothing.
@@ -103,6 +105,7 @@ Errors fail validation; warnings fail only with `--strict`. `ppc rules` prints t
 | `T12` | error | An id is duplicated, or a file name does not match its id. |
 | `T13` | error | A slice audit references unknown decisions or debt, or debt with the wrong origin. |
 | `T14` | error | A slice was planned against a blueprint revision that does not exist yet. |
+| `T15` | error | A slice points at a spec file or a user story that does not exist. |
 | `L01` | error | A slice has a phase while it is not in progress. |
 | `L02` | error | The audit commits are not ordered red before green. |
 | `L03` | error | `active.json` is missing or does not match the slice in progress. |
