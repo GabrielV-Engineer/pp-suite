@@ -136,7 +136,8 @@ function editDebtEntry(root, register, id, change) {
   const abs = join(root, register.file);
   const doc = parseDocument(readFileSync(abs, 'utf8'));
   change(doc.get('entries').items.find((i) => i.get('id') === id));
-  writeFileSync(abs, doc.toString({ lineWidth: 0, flowCollectionPadding: false }));
+  // Debt registers are written with `{ a: b }`; keep that spacing so untouched entries are not rewritten.
+  writeFileSync(abs, doc.toString({ lineWidth: 0 }));
 }
 
 /**

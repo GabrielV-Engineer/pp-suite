@@ -141,6 +141,15 @@ test('approve-debt: refuses without a name, for unknown or already decided entri
   assert.equal(debtEntry(dir, 'DEBT-BE-001').status, 'proposed'); // nothing changed
 });
 
+test('approve-debt keeps the register as its author wrote it, including the spacing inside { } maps', (t) => {
+  const { dir, write } = repo(t);
+  const text = read(dir, '.sddpp/debt/backend.yaml').replace('origin:\n      type: slice\n      ref: SL-002', 'origin: { type: slice, ref: SL-002 }');
+  assert.match(text, /origin: \{ type: slice, ref: SL-002 \}/);
+  write({ '.sddpp/debt/backend.yaml': text });
+  approveDebt(dir, 'DEBT-BE-001', { by: 'reviewer' });
+  assert.match(read(dir, '.sddpp/debt/backend.yaml'), /origin: \{ type: slice, ref: SL-002 \}/);
+});
+
 test('approve-debt keeps the register readable: other entries and comments are untouched', (t) => {
   const { dir } = repo(t);
   const before = read(dir, '.sddpp/debt/frontend.yaml');
