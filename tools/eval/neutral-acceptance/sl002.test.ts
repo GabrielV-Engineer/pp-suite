@@ -1,24 +1,8 @@
-// A neutral acceptance test for slice SL-002, written ONLY from the text of its acceptance criteria.
-// It must not encode any choice the criteria do not state: any 2xx answers to a create, a list returned
-// either as an array or as { tasks }, and "open" meaning no completion time. It is copied next to a
-// project's own tests (it imports that project's tests/helpers/server.ts) and run against each condition.
+// Neutral acceptance test for slice SL-002, written ONLY from the text of its acceptance criteria.
+// Any 2xx answers a create; the list is an array or { tasks }; "open" means no completion time.
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { newDbPath, startServer } from "./helpers/server.ts";
-
-const create = (base: string, title: string) =>
-  fetch(`${base}/api/tasks`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ title }),
-  });
-
-async function list(base: string): Promise<Array<{ title: string; completed_at?: string | null }>> {
-  const response = await fetch(`${base}/api/tasks`);
-  assert.equal(response.status, 200);
-  const body = await response.json();
-  return Array.isArray(body) ? body : body.tasks;
-}
+import { create, isOk, list, newDbPath, startServer } from "./support.ts";
 
 describe("SL-002, neutral acceptance (from the criteria text only)", () => {
   it("AC-1: on an empty list, creating 'Buy milk' makes the list show one open task titled 'Buy milk'", async () => {
@@ -26,7 +10,7 @@ describe("SL-002, neutral acceptance (from the criteria text only)", () => {
     try {
       assert.deepEqual(await list(server.baseUrl), []);
       const response = await create(server.baseUrl, "Buy milk");
-      assert.ok(response.status >= 200 && response.status < 300, `create answered ${response.status}`);
+      assert.ok(isOk(response.status), `create answered ${response.status}`);
       const tasks = await list(server.baseUrl);
       assert.equal(tasks.length, 1);
       assert.equal(tasks[0].title, "Buy milk");
@@ -40,9 +24,8 @@ describe("SL-002, neutral acceptance (from the criteria text only)", () => {
     const dbPath = newDbPath();
     let server = await startServer(dbPath);
     try {
-      const response = await create(server.baseUrl, "Buy milk");
-      assert.ok(response.status >= 200 && response.status < 300, `create answered ${response.status}`);
-      await server.stop(); // SIGKILL
+      assert.ok(isOk((await create(server.baseUrl, "Buy milk")).status));
+      await server.stop();
       server = await startServer(dbPath);
       const tasks = await list(server.baseUrl);
       assert.equal(tasks.length, 1);

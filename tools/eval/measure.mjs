@@ -1,96 +1,65 @@
 #!/usr/bin/env node
-// Pilot measuring script for docs/evaluation-plan.md. NOT yet covered by tests: it must get them before
-// the experiment proper starts. Usage:
-//   node measure.mjs <project dir> <base commit> [--accept <test file>] [--session <session result.json>]
-import { execFileSync, spawnSync } from 'node:child_process';
-import { existsSync, readFileSync, readdirSync, copyFileSync } from 'node:fs';
-import { join, basename } from 'node:path';
+// Measures one run of one condition against docs/evaluation-plan.md. The computing lives in lib.mjs (tested).
+//   node measure.mjs <project dir> <base commit> --slice SL-004 [--session <claude -p result.json>] [--skip-mutation]
+// The project must already contain Stryker (see docs/mutation-testing.md) unless --skip-mutation is given.
+import { cpSync, existsSync, readFileSync, readdirSync, rmSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
 import { homedir } from 'node:os';
-import { isTestPath } from '../ppc/src/testpaths.mjs';
+import { join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { addedProductionText, analyzeTranscript, commitStats, countMarkers, diffTotals, mutationFor, parseNodeTest, readJson } from './lib.mjs';
 
+const HERE = fileURLToPath(new URL('.', import.meta.url));
 const args = process.argv.slice(2);
-const dir = args[0];
-const base = args[1];
 const opt = (name) => (args.includes(name) ? args[args.indexOf(name) + 1] : undefined);
-const git = (...a) => execFileSync('git', a, { cwd: dir, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
-
-const BOOKKEEPING = /^(\.sddpp|\.architect|\.specify|\.claude|specs)\//;
-const files = git('ls-files').split('\n').filter(Boolean);
-const lines = (f) => (existsSync(join(dir, f)) ? readFileSync(join(dir, f), 'utf8').split('\n').length - 1 : 0);
-const production = files.filter((f) => /^(src|public)\//.test(f) && !isTestPath(f));
-const tests = files.filter((f) => isTestPath(f));
-const sum = (list) => list.reduce((n, f) => n + lines(f), 0);
-const productionText = production.map((f) => readFileSync(join(dir, f), 'utf8')).join('\n');
-
-// ── history since the base commit ───────────────────────────────────────────────
-const shas = git('rev-list', '--reverse', `${base}..HEAD`).split('\n').filter(Boolean);
-const touched = (sha) =>
-  git('diff-tree', '--no-commit-id', '--numstat', '-r', '--root', '--no-renames', sha)
-    .split('\n').filter(Boolean)
-    .map((l) => { const [a, d, ...p] = l.split('\t'); return { path: p.join('\t'), lines: (a === '-' ? 0 : +a) + (d === '-' ? 0 : +d) }; })
-    .filter((f) => !BOOKKEEPING.test(f.path) && basename(f.path) !== 'package-lock.json');
-const perCommit = shas.map((sha) => ({ sha, files: touched(sha) }));
-const firstTest = perCommit.findIndex((c) => c.files.some((f) => isTestPath(f.path)));
-const testEditCommitsAfterFirst = firstTest === -1 ? 0 : perCommit.slice(firstTest + 1).filter((c) => c.files.some((f) => isTestPath(f.path))).length;
-
-// ── out-of-scope markers for SL-002 (fixed before the runs; see docs/evaluation-plan.md) ──
-// SL-002 means: create a task (POST) and list tasks (GET), persisted. It does NOT mean: editing, deleting,
-// completing, validating title length (SL-004), or ordering rules (SL-008).
-const count = (re) => (productionText.match(re) ?? []).length;
-const scope = {
-  routes_beyond_create_and_list: count(/\.(patch|put|delete)\(\s*["'`]\/api\/tasks/gi),
-  title_length_limit: /\b500\b/.test(productionText) ? 1 : 0,
-  ordering_rules: count(/ORDER\s+BY/gi),
-  validation_error_paths: count(/validation_failed|invalid_json|400\b/g),
-};
-scope.total_markers = Object.values(scope).reduce((a, b) => a + b, 0);
-
-// ── do the project's own tests pass, and do the approved acceptance tests pass? ──────────────
-const run = (cwd, extra = []) => {
-  const r = spawnSync('node', ['--test', ...extra], { cwd, encoding: 'utf8', timeout: 180000 });
-  const grab = (k) => Number((r.stdout.match(new RegExp(`^ℹ ${k} (\\d+)`, 'm')) ?? [])[1] ?? NaN);
-  return { tests: grab('tests'), pass: grab('pass'), fail: grab('fail') };
-};
-const own = run(dir, ['tests/*.test.ts']);
-let acceptance = null;
-if (opt('--accept')) {
-  const target = join(dir, 'tests', '_acceptance.test.ts');
-  copyFileSync(opt('--accept'), target);
-  acceptance = run(dir, [target]);
+const [dirArg, base] = args;
+const sliceId = opt('--slice');
+if (!dirArg || !base || !sliceId) {
+  console.error('usage: measure.mjs <project dir> <base commit> --slice SL-NNN [--session result.json] [--skip-mutation]');
+  process.exit(2);
 }
+const dir = resolve(dirArg);
+const config = readJson(join(HERE, 'slices', `${sliceId}.json`));
 
-// ── session: cost, time, test edits, guard blocks ──────────────────────────────────────────
+const runTests = (cwd, files) => {
+  const run = spawnSync('node', ['--test', ...files], { cwd, encoding: 'utf8', timeout: 240000 });
+  return parseNodeTest(run.stdout ?? '');
+};
+
+// Own tests: whatever this condition wrote under tests/, run the way the project runs them.
+const own = runTests(dir, ['tests/*.test.ts']);
+
+// Neutral acceptance: copied in, run, removed. It reads nothing from the project's tests.
+const staging = join(dir, '.eval-acceptance');
+cpSync(join(HERE, 'neutral-acceptance'), staging, { recursive: true });
+const acceptance = runTests(dir, [join('.eval-acceptance', config.acceptance.split('/').pop())]);
+rmSync(staging, { recursive: true, force: true });
+
+const added = addedProductionText(dir, base);
+const testFiles = existsSync(join(dir, 'tests')) ? readdirSync(join(dir, 'tests')).filter((f) => /\.test\.[tj]s$/.test(f)) : [];
+const testCases = testFiles.reduce((n, f) => n + (readFileSync(join(dir, 'tests', f), 'utf8').match(/\b(it|test)\(/g) ?? []).length, 0);
+
 let session = null;
 if (opt('--session')) {
-  const r = JSON.parse(readFileSync(opt('--session'), 'utf8'));
-  session = { usd: r.total_cost_usd, minutes: +(r.duration_ms / 60000).toFixed(1), turns: r.num_turns, is_error: r.is_error };
-  const root = join(homedir(), '.claude', 'projects');
-  const file = readdirSync(root, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => join(root, d.name, `${r.session_id}.jsonl`)).find(existsSync);
-  if (file) {
-    let testEditCalls = 0, guardBlocks = 0;
-    for (const line of readFileSync(file, 'utf8').split('\n')) {
-      if (!line.trim()) continue;
-      let o; try { o = JSON.parse(line); } catch { continue; }
-      for (const c of o.message?.content ?? []) {
-        if (c.type === 'tool_use' && ['Edit', 'MultiEdit'].includes(c.name) && isTestPath(String(c.input?.file_path ?? ''))) testEditCalls++;
-        // A real block is an ERROR result carrying the guard's message; reading a file that merely contains the text is not one.
-        if (c.type === 'tool_result' && c.is_error && JSON.stringify(c.content ?? '').includes('SDD.PP guard:')) guardBlocks++;
-      }
-    }
-    session.test_edit_calls = testEditCalls;
-    session.guard_blocks = guardBlocks;
-  }
+  const result = readJson(opt('--session'));
+  session = { usd: result.total_cost_usd, minutes: +(result.duration_ms / 60000).toFixed(1), turns: result.num_turns, is_error: result.is_error };
+  const projects = join(homedir(), '.claude', 'projects');
+  const transcript = readdirSync(projects, { withFileTypes: true })
+    .filter((d) => d.isDirectory())
+    .map((d) => join(projects, d.name, `${result.session_id}.jsonl`))
+    .find(existsSync);
+  if (transcript) Object.assign(session, analyzeTranscript(readFileSync(transcript, 'utf8').split('\n')));
 }
 
 console.log(JSON.stringify({
-  commits: shas.length,
-  production_loc: sum(production),
-  test_loc: sum(tests),
-  test_cases: tests.reduce((n, f) => n + (readFileSync(join(dir, f), 'utf8').match(/\bit\(/g) ?? []).length, 0),
-  largest_commit_lines: Math.max(0, ...perCommit.map((c) => c.files.reduce((n, f) => n + f.lines, 0))),
-  test_edit_commits_after_first: testEditCommitsAfterFirst,
-  out_of_scope_markers: scope,
+  slice: sliceId,
+  head: spawnSync('git', ['rev-parse', 'HEAD'], { cwd: dir, encoding: 'utf8' }).stdout.trim(),
+  ...commitStats(dir, base),
+  review_load: diffTotals(dir, base),
+  test_cases: testCases,
+  out_of_scope: countMarkers(added, config.scope_markers),
   own_tests: own,
-  approved_acceptance_tests: acceptance,
+  acceptance,
+  mutation: args.includes('--skip-mutation') ? null : mutationFor(dir, base),
   session,
 }, null, 2));

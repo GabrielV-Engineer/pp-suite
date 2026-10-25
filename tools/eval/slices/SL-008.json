@@ -1,0 +1,12 @@
+{
+  "id": "SL-008",
+  "acceptance": "neutral-acceptance/sl008.test.ts",
+  "about": "Out-of-scope markers fixed before any run, from the slice's Out of scope list: no placement of completed tasks (SL-003), no paging, search or manual reordering, no new endpoint or field.",
+  "scope_markers": [
+    { "name": "completed_ordering", "pattern": "completed_at\\s+(IS|DESC|ASC)|ORDER BY[^;\"'`]*completed" },
+    { "name": "paging", "pattern": "\\bLIMIT\\b|\\bOFFSET\\b|\\bpage\\b|cursor" },
+    { "name": "search", "pattern": "\\bLIKE\\b|search|[?&]q=" },
+    { "name": "manual_reordering", "pattern": "position|reorder|sort_order|\\brank\\b" },
+    { "name": "new_endpoint", "pattern": "\\.(get|post|put|patch|delete)\\(\\s*[\"'`]/api/(?!tasks[\"'`/])" }
+  ]
+}

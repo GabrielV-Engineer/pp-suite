@@ -35,7 +35,7 @@ its result looks bad.
 
 | Part | Measure |
 |---|---|
-| H1 | Share of production lines executed by the test suite (coverage), and, once available, the mutation score |
+| H1 | Mutation score of the production files the run wrote, measured with the condition's own tests (see [mutation testing](mutation-testing.md)). Coverage cannot be used: the tests start the server as a child process |
 | H2 | Behaviors present in the code that no acceptance criterion names (routes, status codes, branches), counted from a fixed checklist written from the criteria |
 | H3 | Number of commits after the first test commit that change a test file |
 | H4 | Lines a reviewer must read: the tests in T, the whole diff in B1 and B2 |
@@ -68,5 +68,6 @@ its result looks bad.
 |---|---|
 | Design and decision rules | written (this file) |
 | Pilot: one slice, one run per condition, to check the measuring works | done: [pilot-sl002](pilot-sl002.md). It found a circular measure and a false positive, and proves nothing |
-| The experiment itself (5 or more runs per condition, more than one slice) | not started |
+| Instrument: `tools/eval` measures a run from git, test output and the session transcript (tested, 14 tests); neutral acceptance tests for SL-002, SL-004, SL-006 and SL-008, each self-contained; out-of-scope markers per slice fixed in `tools/eval/slices/`; mutation score (H1) | done. The acceptance tests were checked in both directions on the demo: they fail where the slice is not built and pass on a reference implementation |
+| The experiment itself (5 or more runs per condition, more than one slice) | not started: waiting for a decision on how many slices and runs to pay for |
 | Evidence that the methodology helps | **none yet** |

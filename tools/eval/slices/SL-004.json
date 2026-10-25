@@ -1,0 +1,11 @@
+{
+  "id": "SL-004",
+  "acceptance": "neutral-acceptance/sl004.test.ts",
+  "about": "Out-of-scope markers fixed before any run, from the slice's Out of scope list and its criteria: no duplicate-title rule, no normalization beyond trimming, no other routes, no unrelated features.",
+  "scope_markers": [
+    { "name": "duplicate_titles", "pattern": "duplicate|already exists|UNIQUE" },
+    { "name": "normalization", "pattern": "toLowerCase|toUpperCase|normalize\\(|\\.replace\\(\\s*/\\\\s" },
+    { "name": "extra_routes", "pattern": "\\.(patch|put|delete)\\(\\s*[\"'`]/api" },
+    { "name": "unrelated_features", "pattern": "rate.?limit|sanitiz|escapeHtml|completed_at\\s*=" }
+  ]
+}

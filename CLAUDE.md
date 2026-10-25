@@ -24,6 +24,7 @@ node tools/ppc/bin/ppc.mjs generate examples/todo-app   # after editing example 
 node tools/ppc/bin/ppc.mjs check-git <project>          # audits vs. real git history
 node tools/ppc/bin/ppc.mjs approve-slice|start|approve-red|refactor|finish|status   # the slice cycle
 python3 -m unittest discover -s sdd-pp/extension/sddpp-guard/tests
+node --test "tools/eval/test/*.test.mjs"              # the experiment's measuring library
 ```
 
 ## Layout

@@ -1,0 +1,11 @@
+{
+  "id": "SL-006",
+  "acceptance": "neutral-acceptance/sl006.test.ts",
+  "about": "Out-of-scope markers fixed before any run, from the slice's Out of scope list and the blueprint non-goals: no undo, trash or soft deletion, no bulk delete, no rename or completion routes.",
+  "scope_markers": [
+    { "name": "soft_delete_or_undo", "pattern": "deleted_at|is_deleted|trash|undo|soft.?delet" },
+    { "name": "bulk_delete", "pattern": "\\bids\\b|deleteAll|DELETE FROM tasks\\s*([;\"'`]|$)" },
+    { "name": "other_mutating_routes", "pattern": "\\.(patch|put)\\(\\s*[\"'`]/api" },
+    { "name": "extra_reads", "pattern": "\\.get\\(\\s*[\"'`]/api/tasks/:" }
+  ]
+}
