@@ -1,0 +1,15 @@
+{
+  "id": "SL-004-B0a-1",
+  "slice": "SL-004",
+  "condition": "B0a",
+  "rep": 1,
+  "base": "7c0a13db9cd8bf2c566caf537d405b8f9d923834",
+  "sessions": [
+    "all:ok"
+  ],
+  "outcome": {
+    "closed": null,
+    "stopped_early": null
+  },
+  "finished_at": "2026-10-25T20:48:42.838Z"
+}

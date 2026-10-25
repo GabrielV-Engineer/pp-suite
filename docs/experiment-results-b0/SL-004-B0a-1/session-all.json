@@ -1,0 +1,107 @@
+{
+  "duration_api_ms": 29886,
+  "stop_reason": "end_turn",
+  "session_id": "8a90296d-c41c-4bc2-9b4e-334cfc554037",
+  "total_cost_usd": 0.2092902,
+  "usage": {
+    "input_tokens": 16,
+    "cache_creation_input_tokens": 33264,
+    "cache_read_input_tokens": 282222,
+    "output_tokens": 4798,
+    "output_tokens_details": {
+      "thinking_tokens": 190
+    },
+    "server_tool_use": {
+      "web_search_requests": 0,
+      "web_fetch_requests": 0
+    },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 33264,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 404,
+        "cache_read_input_tokens": 43499,
+        "cache_creation_input_tokens": 290,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 290
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "modelUsage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 16,
+      "outputTokens": 4798,
+      "cacheReadInputTokens": 282222,
+      "cacheCreationInputTokens": 33264,
+      "webSearchRequests": 0,
+      "costUSD": 0.2092902,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 190,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "permission_denials": [
+    {
+      "tool_name": "Bash",
+      "tool_use_id": "toolu_018fSUazmJhiq7UdW2BwdaGJ",
+      "tool_input": {
+        "command": "python3 - <<'EOF'\np='src/tasks.ts'\ns=open(p).read()\ns=s.replace('''export function listTasks''','''export const MAX_TITLE_LENGTH = 500;\n\n/** Returns the trimmed title, or null when it is not a string of 1 to 500 characters once trimmed. */\nexport function validateTitle(title: unknown): string | null {\n  if (typeof title !== \"string\") return null;\n  const trimmed = title.trim();\n  return trimmed.length >= 1 && trimmed.length <= MAX_TITLE_LENGTH ? trimmed : null;\n}\n\nexport function listTasks''',1)\nopen(p,'w').write(s)\np='src/app.ts'\ns=open(p).read()\ns=s.replace('import { createTask, listTasks }','import { createTask, listTasks, MAX_TITLE_LENGTH, validateTitle }')\ns=s.replace('''    const { title } = await c.req.json();\n    return c.json({ task: createTask(db, title) }, 201);''','''    let body: unknown;\n    try {\n      body = await c.req.json();\n    } catch {\n      return c.json({ error: { code: \"invalid_json\", message: \"The request body is not valid JSON.\" } }, 400);\n    }\n    const title = validateTitle((body as { title?: unknown } | null)?.title);\n    if (title === null) {\n      return c.json(\n        {\n          error: {\n            code: \"validation_failed\",\n            message: `The title must be a string of 1 to ${MAX_TITLE_LENGTH} characters.`,\n          },\n        },\n        400,\n      );\n    }\n    return c.json({ task: createTask(db, title) }, 201);''')\nopen(p,'w').write(s)\np='tests/tasks.test.ts'\ns=open(p).read()\ni=s.index('  describe(\"AC-2: a created task survives')\nnew='''  describe(\"title validation: empty and over-long titles are rejected\", () => {\n    let server: Running;\n\n    before(async () => {\n      server = await startServer();\n    });\n    after(async () => {\n      await server?.stop();\n    });\n\n    async function assertRejected(response: Response, code: string): Promise<void> {\n      assert.equal(response.status, 400);\n      const body = (await response.json()) as { error: { code: string; message: string } };\n      assert.equal(body.error.code, code);\n      assert.equal(typeof body.error.message, \"string\");\n    }\n\n    for (const [name, title] of [\n      [\"empty\", \"\"],\n      [\"whitespace only\", \"   \\\\t\\\\n \"],\n      [\"501 characters\", \"a\".repeat(501)],\n      [\"501 characters after trimming\", `  ${\"a\".repeat(501)}  `],\n    ] as const) {\n      it(`rejects a ${name} title with 400 validation_failed`, async () => {\n        await assertRejected(await createTask(server, title), \"validation_failed\");\n      });\n    }\n\n    it(\"rejects a missing or non-string title with 400 validation_failed\", async () => {\n      for (const body of [\"{}\", '{\"title\":42}', '{\"title\":null}', \"null\", \"[]\"]) {\n        const response = await fetch(`${server.baseUrl}/api/tasks`, {\n          method: \"POST\",\n          headers: { \"content-type\": \"application/json\" },\n          body,\n        });\n        await assertRejected(response, \"validation_failed\");\n      }\n    });\n\n    it(\"rejects a body that is not JSON with 400 invalid_json\", async () => {\n      const response = await fetch(`${server.baseUrl}/api/tasks`, {\n        method: \"POST\",\n        headers: { \"content-type\": \"application/json\" },\n        body: \"{nope\",\n      });\n      await assertRejected(response, \"invalid_json\");\n    });\n\n    it(\"accepts titles of exactly 1 and 500 characters\", async () => {\n      assert.equal((await createTask(server, \"a\")).status, 201);\n      assert.equal((await createTask(server, \"b\".repeat(500))).status, 201);\n      assert.equal((await createTask(server, `  ${\"c\".repeat(500)}  `)).status, 201);\n    });\n\n    it(\"stores nothing when the title is rejected\", async () => {\n      const before = (await listTasks(server)).length;\n      await createTask(server, \"\");\n      await createTask(server, \"a\".repeat(501));\n      assert.equal((await listTasks(server)).length, before);\n    });\n  });\n\n'''\ns=s[:i]+new+s[i:]\nopen(p,'w').write(s)\nEOF\nnpm test 2>&1 | tail -25; npm run typecheck 2>&1 | tail"
+      }
+    }
+  ],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": {
+      "background": 0,
+      "foreground": 0,
+      "unset": 0
+    },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": {
+      "parent": 0,
+      "user": 0,
+      "system": 0
+    },
+    "refused": {
+      "depth_limit": 0,
+      "concurrency_limit": 0,
+      "budget": 0
+    },
+    "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 11,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "`POST /api/tasks` now rejects bad titles. `npm test` passes (24 of 24) and `npm run typecheck` is clean. I committed the work as `8431dcc`.\n\n- **Empty or over-long:** the title is trimmed first, then must be a string of 1 to 500 characters. Otherwise the API returns `400 {\"error\":{\"code\":\"validation_failed\",\"message\":…}}`. That also covers whitespace-only titles and a missing, `null` or non-string title.\n- **Malformed JSON:** a body that isn't valid JSON now returns `400 invalid_json`. You didn't ask for this, but the API spec in `architecture.md` lists that code, and before this change it was an unhandled error.\n\nThe check is in `src/tasks.ts` (`validateTitle`, `MAX_TITLE_LENGTH`) and the error responses are in `src/app.ts`.\n\nI added tests to `tests/tasks.test.ts`. They cover:\n- empty, whitespace-only, 501-character, and 501-character-after-trimming titles;\n- missing or non-string titles;\n- malformed JSON;\n- the boundary cases of exactly 1 and 500 characters;\n- that a rejected request stores nothing.",
+  "ttft_ms": 2500,
+  "type": "result",
+  "duration_ms": 38619,
+  "uuid": "7f89cccd-25a6-438c-9a0d-a2e6c7a2c5e8",
+  "ttft_stream_ms": 1502,
+  "time_to_request_ms": 127,
+  "first_content_frame_ms": 1502,
+  "queued_turn_count": 0,
+  "result_index": 0
+}

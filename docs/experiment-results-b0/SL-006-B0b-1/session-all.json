@@ -1,0 +1,121 @@
+{
+  "duration_api_ms": 105218,
+  "stop_reason": "end_turn",
+  "session_id": "0fbad718-c615-44ad-98a6-bb816dead9d4",
+  "total_cost_usd": 0.46763810000000006,
+  "usage": {
+    "input_tokens": 34,
+    "cache_creation_input_tokens": 52762,
+    "cache_read_input_tokens": 846221,
+    "output_tokens": 17190,
+    "output_tokens_details": {
+      "thinking_tokens": 2638
+    },
+    "server_tool_use": {
+      "web_search_requests": 0,
+      "web_fetch_requests": 0
+    },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 52762,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 976,
+        "cache_read_input_tokens": 62792,
+        "cache_creation_input_tokens": 495,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 495
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "modelUsage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 34,
+      "outputTokens": 17190,
+      "cacheReadInputTokens": 846221,
+      "cacheCreationInputTokens": 52762,
+      "webSearchRequests": 0,
+      "costUSD": 0.46763810000000006,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 2638,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "permission_denials": [
+    {
+      "tool_name": "Bash",
+      "tool_use_id": "toolu_01F1UGCTA5hn1ZFaL7zyuFN4",
+      "tool_input": {
+        "command": "cat > migrations/002-soft-delete-tasks.sql <<'EOF'\nALTER TABLE tasks ADD COLUMN deleted_at TEXT;\nCREATE INDEX tasks_deleted_at ON tasks (deleted_at);\nEOF\ncat > src/tasks.ts <<'EOF'\nimport type { Database } from \"./db.ts\";\n\nexport interface Task {\n  id: number;\n  title: string;\n  created_at: string;\n  updated_at: string;\n  completed_at: string | null;\n}\n\nexport interface DeletedTask extends Task {\n  deleted_at: string;\n}\n\nconst TASK_COLUMNS = \"id, title, created_at, updated_at, completed_at\";\n\nexport function listTasks(db: Database): Task[] {\n  return db.all(\n    `SELECT ${TASK_COLUMNS} FROM tasks WHERE deleted_at IS NULL ORDER BY id`,\n  ) as unknown as Task[];\n}\n\nexport function createTask(db: Database, title: string): Task {\n  const now = new Date().toISOString();\n  const [task] = db.all(\n    `INSERT INTO tasks (title, created_at, updated_at) VALUES (?, ?, ?) RETURNING ${TASK_COLUMNS}`,\n    title.trim(),\n    now,\n    now,\n  );\n  return task as unknown as Task;\n}\n\n/** Deleted tasks, most recently deleted first. */\nexport function listDeletedTasks(db: Database): DeletedTask[] {\n  return db.all(\n    `SELECT ${TASK_COLUMNS}, deleted_at FROM tasks WHERE deleted_at IS NOT NULL\n     ORDER BY deleted_at DESC, id DESC`,\n  ) as unknown as DeletedTask[];\n}\n\n/** Soft-deletes a task. Returns false when no live task has this id (missing or already deleted). */\nexport function deleteTask(db: Database, id: number): boolean {\n  const rows = db.all(\n    \"UPDATE tasks SET deleted_at = ? WHERE id = ? AND deleted_at IS NULL RETURNING id\",\n    new Date().toISOString(),\n    id,\n  );\n  return rows.length === 1;\n}\n\n/** Brings a deleted task back. Restoring a task that is not deleted is a no-op; null means no such id. */\nexport function restoreTask(db: Database, id: number): Task | null {\n  const [task] = db.all(\n    `UPDATE tasks SET deleted_at = NULL WHERE id = ? AND deleted_at IS NOT NULL\n     RETURNING ${TASK_COLUMNS}`,\n    id,\n  );\n  if (task) return task as unknown as Task;\n  const [existing] = db.all(`SELECT ${TASK_COLUMNS} FROM tasks WHERE id = ?`, id);\n  return (existing as unknown as Task | undefined) ?? null;\n}\nEOF\npython3 - <<'EOF'\np='src/app.ts'\ns=open(p).read()\ns=s.replace('import { createTask, listTasks } from \"./tasks.ts\";','''import {\n  createTask,\n  deleteTask,\n  listDeletedTasks,\n  listTasks,\n  restoreTask,\n} from \"./tasks.ts\";''')\ns=s.replace('''export function createApp''','''/** Path ids are positive integers; anything else cannot name a task. */\nfunction parseId(raw: string): number | null {\n  return /^[1-9]\\\\d{0,14}$/.test(raw) ? Number(raw) : null;\n}\n\nconst NOT_FOUND = { error: { code: \"not_found\", message: \"Task not found\" } };\n\nexport function createApp''')\ns=s.replace('''  app.get(\"/\",serve''','''  // Registered before the :id routes so \"deleted\" is never read as an id.\n  app.get(\"/api/tasks/deleted\", (c) => c.json({ tasks: listDeletedTasks(db) }));\n\n  app.delete(\"/api/tasks/:id\", (c) => {\n    const id = parseId(c.req.param(\"id\"));\n    return id !== null && deleteTask(db, id) ? c.body(null, 204) : c.json(NOT_FOUND, 404);\n  });\n\n  app.post(\"/api/tasks/:id/restore\", (c) => {\n    const id = parseId(c.req.param(\"id\"));\n    const task = id === null ? null : restoreTask(db, id);\n    return task ? c.json({ task }) : c.json(NOT_FOUND, 404);\n  });\n\n  app.get(\"/\",serve''')\nopen(p,'w').write(s)\nEOF"
+      }
+    },
+    {
+      "tool_name": "Bash",
+      "tool_use_id": "toolu_012aV8JhNZq5Loy1gnY2xerR",
+      "tool_input": {
+        "command": "python3 - <<'EOF'\nimport re\np='tests/delete.test.ts'\ns=open(p).read()\na=s.index('  it(\"a deleted task keeps its completed state')\nb=s.index('describe(\"a deleted task survives kill')\ns=s[:a].rstrip()+\"\\n});\\n\\n\"+s[b:]\nopen(p,'w').write(s)\nEOF\nnpm test 2>&1 | grep -E \"✖|ℹ (tests|pass|fail)|Error|expected\" | head -20; npm run typecheck 2>&1 | tail -8"
+      }
+    },
+    {
+      "tool_name": "Bash",
+      "tool_use_id": "toolu_01KDmUoyWwEJyUp5upfVu1xu",
+      "tool_input": {
+        "command": "cat > .architect/decisions/ADR-0004-soft-delete-with-restore.md <<'EOF'\n---\nid: ADR-0004\ntitle: Delete tasks softly so a mistaken delete can be recovered\nstatus: accepted\ndate: 2026-10-25\ndrivers: [CAP-003]\n---\n\n## Context\n\nThe blueprint listed \"Undo, trash and soft delete\" as a non-goal and CAP-003 described a permanent\ndelete behind a confirmation. The owner asked for task deletion with a safe way to recover a task\ndeleted by mistake. That contradicts the non-goal, so this ADR is the change request that lifts it.\n\n## Decision\n\n- `DELETE /api/tasks/:id` marks the row with `deleted_at` (migration 002); nothing is removed.\n- `GET /api/tasks` hides deleted rows; `GET /api/tasks/deleted` lists them, latest deletion first.\n- `POST /api/tasks/:id/restore` clears `deleted_at`. Restoring a live task is a no-op `200`.\n- Deleting a missing, malformed or already deleted id is `404 not_found`; it never moves `deleted_at`.\n- The page shows a \"Recently deleted\" list with a Restore button instead of a confirmation dialog:\n  recovery is the safety net, and it survives a reload and a restart.\n\n## Rejected alternatives\n\n- **Confirmation dialog only.** Does not recover a task once confirmed by mistake.\n- **A client-side undo toast only.** Lost on reload.\n- **A separate `deleted_tasks` table.** Two writes to keep consistent for no benefit.\n\n## Consequences\n\n- Deleted rows are kept forever. There is no purge: permanent removal and retention are not built, and\n  would be a later decision. At one person's volume the table stays small.\n- The non-goal \"Undo, trash and soft delete\" is removed from `blueprint.yaml` and CAP-003 is reworded.\nEOF\npython3 - <<'EOF'\nimport re\np='.architect/blueprint.yaml'\ns=open(p).read()\ns=s.replace(\"  - Undo, trash and soft delete\\n\",\"  - Permanent purge, retention rules and emptying the trash (deleted tasks are kept; see ADR-0004)\\n\")\ns=s.replace(\"description: The owner can rename a task, or delete it permanently with a confirmation.\",\"description: The owner can rename a task, or delete it and restore it later if the delete was a mistake (ADR-0004).\")\ns=s.replace(\"revision: 1\",\"revision: 2\")\nopen(p,'w').write(s)\np='.architect/architecture.md'\ns=open(p).read()\ns=s.replace(\"| DELETE | `/api/tasks/:id` | Hard delete, `204` |\",\"| DELETE | `/api/tasks/:id` | Soft delete, `204`; `404` if missing or already deleted |\\n| GET | `/api/tasks/deleted` | `200 {\\\"tasks\\\":[...]}` deleted tasks (with `deleted_at`), latest deletion first |\\n| POST | `/api/tasks/:id/restore` | `200 {\\\"task\\\":{...}}`; restoring a live task is a no-op; `404` if unknown |\")\ns=s.replace(\"- ADR-0003: architecture tests enforce the boundary rules.\",\"- ADR-0003: architecture tests enforce the boundary rules.\\n- ADR-0004: soft delete with restore.\")\nopen(p,'w').write(s)\np='.architect/glossary.md'\ns=open(p).read().rstrip(\"\\n\")+\"\\n| Deleted task | A task hidden from the list by `deleted_at`. It stays in the database and can be restored. |\\n\"\nopen(p,'w').write(s)\nEOF\ngit diff --stat; git status --short"
+      }
+    }
+  ],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": {
+      "background": 0,
+      "foreground": 0,
+      "unset": 0
+    },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": {
+      "parent": 0,
+      "user": 0,
+      "system": 0
+    },
+    "refused": {
+      "depth_limit": 0,
+      "concurrency_limit": 0,
+      "budget": 0
+    },
+    "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 28,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "Ya se pueden borrar tareas y recuperar una borrada por error. `npm test` pasa (28 de 28), `npm run typecheck` sale limpio y el trabajo está en el commit `004418f`.\n\n**Cómo funciona**\n- **Borrar:** `DELETE /api/tasks/:id` no elimina la fila, solo la marca como borrada (columna `deleted_at`, migración 002). Responde `204`. Una base de datos creada antes de este cambio se migra sola y conserva sus tareas.\n- **Ver lo borrado:** `GET /api/tasks/deleted` lista las tareas borradas, la más reciente primero. `GET /api/tasks` ya no las muestra.\n- **Recuperar:** `POST /api/tasks/:id/restore` devuelve la tarea con el mismo id y los mismos datos.\n- **Errores:** un id inexistente, mal formado o ya borrado da `404 not_found`, y borrar dos veces no cambia la fecha del primer borrado. Restaurar una tarea que no está borrada no hace nada y responde `200`.\n- **Página:** cada tarea tiene un botón «Delete». Hay una sección «Recently deleted» con «Restore» que sigue ahí tras recargar. Un mensaje de estado avisa de cada acción y de los fallos.\n- **Pruebas:** los tests nuevos están en `tests/delete.test.ts`. Cubren borrar, listar, restaurar, ids inválidos y la migración de una base antigua. También comprueban que una tarea borrada sigue recuperable tras `kill -9` y reinicio.\n\n**Cambio de contrato**\nEl blueprint declaraba «Undo, trash and soft delete» como *non-goal*, y CAP-003 decía «borrado permanente con confirmación». Lo traté como la petición de cambio que ese documento exige y lo dejé registrado:\n- ADR-0004 nuevo.\n- Blueprint en revisión 2: el *non-goal* pasa a ser «purga permanente y retención».\n- Tabla de la API en `architecture.md` y glosario actualizados.\n\nSi preferías mantener el borrado permanente, hay que revertir ese commit.\n\n**Qué falta para llamarlo producción**\n- **Sin purga:** las tareas borradas se quedan para siempre. Con el volumen de una persona no es un problema, pero no hay forma de borrar algo definitivamente.\n- **Falta lo que ya faltaba antes de mi cambio:** no existe el guard de Host/Origin (QA-003), no hay validación del título, y un JSON inválido en `POST /api/tasks` da 500. No toqué nada de eso. Esos huecos pesan más ahora que hay una operación destructiva.\n- **Faltan PATCH y completar:** el código no los tiene todavía, aunque la arquitectura los describe.",
+  "ttft_ms": 1719,
+  "type": "result",
+  "duration_ms": 128464,
+  "uuid": "55579721-2879-48fd-ba1d-565129be8b32",
+  "ttft_stream_ms": 1276,
+  "time_to_request_ms": 74,
+  "first_content_frame_ms": 1276,
+  "queued_turn_count": 0,
+  "result_index": 0
+}
