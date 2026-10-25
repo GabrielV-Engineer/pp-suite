@@ -32,8 +32,9 @@ Condition B2 (instructed TDD) was not run.
 | Neutral acceptance test (below) | 2 of 2 | 2 of 2 |
 
 T's cost is 2.6 times B1's, which is under the 3 times fixed in the plan. T's time does not include the
-person's review, and **T's slice is not closed**: its audit was refused by the diff budget (246 lines
-counted, of which 137 are tests and 109 production) and awaits a human decision.
+person's review. T's audit was first refused by the budget as it was then (246 lines counted, of which 137
+were tests and 109 production). After the budget was changed to count production code only, the slice
+closed with no exception: 109 production lines and 137 test lines, both checked against git.
 
 The 5 markers in B1 are 4 validation paths (invalid JSON, a title that is not text) that belong to another
 slice, plus an ordering rule. T had one ordering clause, which it reported itself.

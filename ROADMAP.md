@@ -33,7 +33,7 @@ Status key: **done** has tests in CI · **spiked** tried once by hand, not autom
 | Session-start check that the guard script is present | The dispatcher fails open when the script is missing |
 | Approval gates as a Spec Kit workflow, and the agent prompts (`sddpp-cycle`, drafted; exercised in M1) | The `ppc` side of the loop exists and is tested; the agent side is new |
 | Mutation-testing gate in the audit | M1: green added a 503 branch, a default port and a loopback bind that no test covers (finding 4) |
-| **M2, remaining:** close SL-002 (it awaits a decision on the diff budget), a refactor phase, a workflow with approval gates, and a harder test of the lock. A person has now approved the red tests of SL-002 | Planning, red, green and audit of a second slice with a dependency are done |
+| **M2, remaining:** a refactor phase, a workflow with approval gates, and a harder test of the lock. SL-002, a slice with a dependency, is closed, and a person approved its red tests | Planning, red, green, audit and close of a second slice are done |
 | **Prove the benefit:** the experiment in the [evaluation plan](docs/evaluation-plan.md): a neutral acceptance test per slice, a measure of untested behavior, condition B2, at least 5 runs per condition | The [pilot](docs/pilot-sl002.md) proves nothing and found two measuring flaws. **No evidence yet that the methodology helps** |
 | Link a slice to its spec story in the contract, and check that acceptance criteria agree | The link exists only in a Markdown table; criteria are repeated in several files ([findings](docs/slices-in-sdd.md)) |
 
