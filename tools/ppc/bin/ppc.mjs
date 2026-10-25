@@ -5,6 +5,8 @@ import { loadProject } from '../src/load.mjs';
 import { validateModel, RULES } from '../src/validate.mjs';
 import { generate, writeGenerated, checkGenerated } from '../src/generate.mjs';
 import { checkGit } from '../src/gitcheck.mjs';
+import { nextSteps, overview, renderNext } from '../src/next.mjs';
+import { execFileSync } from 'node:child_process';
 import { start, approveSlice, approveRed, approveDebt, toRefactor, finish, mutate, status, LifecycleError } from '../src/lifecycle.mjs';
 
 const USAGE = `ppc — pp-suite contract tool
@@ -29,6 +31,8 @@ const USAGE = `ppc — pp-suite contract tool
     ppc mutation (--files a,b | --slice <id>) [dir]
                                          run mutation testing and print the score and the surviving mutants
     ppc status [dir]                     what is in progress
+    ppc next [dir]                       whose turn it is and the exact command to run
+    ppc overview [dir]                   where the project stands: slices, capabilities, debt, contract
 `;
 
 const VALUE_OPTIONS = new Set(['--by', '--audit', '--files', '--slice', '--accept', '--budget-reason', '--mutation-reason']);
@@ -132,6 +136,28 @@ switch (command) {
   case 'mutation':
     transition(() => mutate(dirAt(0), { files: options.get('files')?.split(',').filter(Boolean), slice: options.get('slice') }));
     break;
+  case 'next':
+  case 'overview': {
+    const root = dirAt(0);
+    const model = loadProject(root);
+    const findings = validateModel(model);
+    if (!model.blueprint) {
+      report(findings);
+      process.exit(1);
+    }
+    if (command === 'overview') {
+      process.stdout.write(overview(model, findings));
+      break;
+    }
+    let subjects = [];
+    try {
+      subjects = execFileSync('git', ['log', '--format=%s'], { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).split('\n').filter(Boolean);
+    } catch {
+      // not a git repository: the phase alone decides, as if no commit had been made yet
+    }
+    process.stdout.write(renderNext(nextSteps(model, subjects, findings.filter((f) => f.severity === 'error'))));
+    break;
+  }
   case 'status':
     console.log(status(dirAt(0)).text);
     break;

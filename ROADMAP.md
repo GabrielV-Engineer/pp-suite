@@ -25,6 +25,7 @@ Status key: **done** has tests in CI · **spiked** tried once by hand, not autom
 | **Mutation testing**: `ppc mutation`, an optional gate in `ppc finish` (`budgets.min_mutation_score`), rule `M01`, and the guard blocking `mutation_override_reason`. First measurement on the demo: [mutation testing](docs/mutation-testing.md) | done (tests; each part broken on purpose); measured once on the demo |
 | `ppc approve-debt`: a human decides on debt the AI proposed (open, accepted with a reason, or dropped) | done, each part broken on purpose to confirm a test fails |
 | Slice-to-story link in the contract (`spec: { file, story }`), checked by `T15`; applied to three slices of the demo | done, each part broken on purpose |
+| `ppc next` and `ppc overview`: whose turn it is and the exact command, and where the project stands. Meant for the person who comes back after a pause | done (tests; each rule broken on purpose). Whether it actually helps a person is **not measured** |
 | Rule `W05`: every quality attribute is referenced by a live slice. It flags QA-003 in the demo, which no planned slice covers | done (warning, not an error) |
 | Experiment instrument (`tools/eval`): tested measures, neutral acceptance tests for four slices, mutation score per run | done: [evaluation plan](docs/evaluation-plan.md) |
 | Refactor phase exercised with a real agent (a refactor slice paying one debt entry, with a tempting request to touch the tests); `ppc finish` now marks the debt paid | done once, in a throwaway copy: [refactor exercise](docs/refactor-exercise.md) |

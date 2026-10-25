@@ -437,6 +437,18 @@ test('CLI: approve-debt opens, accepts or drops a proposed entry', (t) => {
   assert.equal(run(c.dir, 'approve-debt', 'DEBT-BE-001', '--by', 'reviewer').status, 1);
 });
 
+test('CLI: next tells whose turn it is, following the real git history', (t) => {
+  const { dir, commit } = repo(t);
+  assert.match(ppc(dir, 'next', dir).stdout, /\[anyone\][\s\S]*ppc start SL-001/);
+  assert.equal(ppc(dir, 'start', 'SL-001', dir).status, 0);
+  assert.match(ppc(dir, 'next', dir).stdout, /\[agent\][\s\S]*sddpp-cycle-red/);
+  commit('red(SL-001): health', RED);
+  assert.match(ppc(dir, 'next', dir).stdout, /\[human\][\s\S]*ppc approve-red --by/);
+  const overviewOut = ppc(dir, 'overview', dir);
+  assert.equal(overviewOut.status, 0);
+  assert.match(overviewOut.stdout, /In progress: SL-001/);
+});
+
 test('CLI: approve-slice records the approver', (t) => {
   const { dir } = repo(t);
   assert.equal(ppc(dir, 'approve-slice', 'SL-002', '--by', 'reviewer', dir).status, 0);

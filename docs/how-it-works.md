@@ -36,6 +36,8 @@ Each command either changes the project or refuses and leaves it untouched.
 | `ppc finish <slice> --audit <file>` | anyone; **a human** to add `--budget-reason` or `--mutation-reason` | Closes the slice. The sizes (production and test lines) are **measured from git**, then the result is validated and checked against git; if anything is off, nothing changes. A refactor slice also marks the debt it pays as `paid` |
 | `ppc mutation (--files a,b \| --slice <id>)` | anyone | Mutation-tests those files (or a finished slice's files) and prints the score and the mutants the tests missed. Changes nothing |
 | `ppc status` | anyone | What is in progress |
+| `ppc next` | anyone | Whose turn it is (human, agent or anyone) and the exact command to run, from the slice's phase and the git history. Also lists what else waits for a person and which slices are blocked |
+| `ppc overview` | anyone | One screen: slices by status, progress per capability, debt per component, contract problems |
 
 Approvals are human-only. The guard blocks the agent from running `ppc approve-*` and from writing any
 field that records a human decision into `.sddpp/`; the human runs the command themselves (in Claude
