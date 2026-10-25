@@ -63,8 +63,19 @@ would also be split into several slices.
 
 1. **Ceremony.** One capability produced 8 files and 576 lines of documents: `spec.md` 114, `plan.md`
    118, `research.md` 106, `contracts` 66, `data-model.md` 59, `quickstart.md` 51, a checklist 36 and
-   `tasks.md` 26. For a project whose finished slice was about 190 lines of code, that is heavy. Spec
-   Kit ships a `lean` preset; whether to adopt it is open.
+   `tasks.md` 26. For a project whose finished slice was about 190 lines of code, that is heavy.
+   **Adopted: Spec Kit's `lean` preset, installed below ours.** Measured on one capability (CAP-002), from
+   the same commit, both runs complete and valid against the contract in strict mode:
+
+   | | without `lean` | with `lean` |
+   |---|---|---|
+   | Documents | 8 files, 555 lines | 3 files, 358 lines |
+   | Planning sessions | 52 turns, 4.5 min, 1.10 USD | 46 turns, 3.3 min, 0.84 USD |
+   | Slices produced | SL-003, SL-009, SL-010 | the same three |
+
+   That is one run per condition, so read it as a direction. `lean`'s `plan.md` is longer (218 lines against
+   126), because it absorbs what went into `research` and `data-model`. Its command asks for a checklist and
+   ours asks for an index; ours won, and `tasks.md` stayed an index.
 2. **Acceptance criteria exist in several places.** The same scenarios appear in `spec.md`, in the slice
    file, in `quickstart.md` and in the contract notes. Nothing checks that they agree.
 3. **The link from a slice to its story is not in the contract.** It lives only in the "Spec coverage"

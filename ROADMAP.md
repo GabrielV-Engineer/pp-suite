@@ -19,22 +19,24 @@ Status key: **done** has tests in CI · **spiked** tried once by hand, not autom
 | Planning with Spec Kit on one capability: constitution, `specify`, `plan`, `tasks` with the preset; slices came out contract-valid. [Findings](docs/slices-in-sdd.md) | observed once |
 | Guard registered into Claude Code through Spec Kit and honored | spiked — [findings](docs/spike-findings.md) |
 | `sddpp-slices` preset: template override and command wrap | spiked |
+| Spec Kit's `lean` preset adopted below ours; measured once: 3 files and 358 lines against 8 and 555, same slices, 24% cheaper | done, n = 1: [slices-in-sdd](docs/slices-in-sdd.md) |
 | **M1:** one slice end to end with real agents (design tool run, red, review, green, audit, close). The reviewer was a stand-in | done, with limits: [report](docs/m1-report.md) |
 
 ## Next
 
 | Item | Why |
 |---|---|
-| **Diff budget that fits reality:** count production code only, excluding generated files, with its own budget for tests | M1: 429 changed lines against 200, of which tests 240 and a lockfile 75 (finding 3) |
+| **Diff budget that fits reality:** count production code only, excluding generated files, with its own budget for tests | Twice now: M1 429 lines against 200 (tests 240, lockfile 75); SL-002 246 lines (tests 137, production 109, which fits) |
 | Human-only budget exception and `ppc approve-debt` | Both are fields an agent could write; today the agent chose not to (findings 5, 6) |
 | Rule: every quality attribute is referenced by a slice | QA-003 had no slice and nothing noticed (finding 7) |
 | `check-git` extension: detect commits of a slice that its audit leaves out | The audit lists commits by hand; omissions go unnoticed today |
 | Session-start check that the guard script is present | The dispatcher fails open when the script is missing |
 | Approval gates as a Spec Kit workflow, and the agent prompts (`sddpp-cycle`, drafted; exercised in M1) | The `ppc` side of the loop exists and is tested; the agent side is new |
 | Mutation-testing gate in the audit | M1: green added a 503 branch, a default port and a loopback bind that no test covers (finding 4) |
-| **M2, remaining:** run a second slice that has a dependency and a refactor phase, a workflow with approval gates, **a person reviewing the tests**, and a harder test of the lock | Planning with Spec Kit is done; the rest of what M1 did not cover is not |
+| **M2, remaining:** close SL-002 (it awaits a decision on the diff budget), a refactor phase, a workflow with approval gates, and a harder test of the lock. A person has now approved the red tests of SL-002 | Planning, red, green and audit of a second slice with a dependency are done |
+| **Prove the benefit:** the experiment in the [evaluation plan](docs/evaluation-plan.md): a neutral acceptance test per slice, a measure of untested behavior, condition B2, at least 5 runs per condition | The [pilot](docs/pilot-sl002.md) proves nothing and found two measuring flaws. **No evidence yet that the methodology helps** |
 | Link a slice to its spec story in the contract, and check that acceptance criteria agree | The link exists only in a Markdown table; criteria are repeated in several files ([findings](docs/slices-in-sdd.md)) |
-| Decide on Spec Kit's `lean` preset | One capability produced 8 files and 576 lines of documents |
+
 
 ## Later
 

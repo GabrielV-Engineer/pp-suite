@@ -36,6 +36,19 @@ Run on 2026-10-24. This records what was **observed**, so later work does not re
 4. `specify extension add` takes the path first and `--dev` as a flag. `specify preset add` takes the path
    as the argument of `--dev`.
 
+## Found later, while running slices
+
+5. **Removing a preset that sits below a wrapper leaves the wrapped command stale.** With `lean` installed
+   below `sddpp-slices`, `speckit-tasks` was `lean`'s body wrapped by our rules (49 lines). After
+   `specify preset remove lean`, the skills of `specify`, `plan`, `implement` and `constitution` went back
+   to the core, but `tasks` stayed with `lean`'s body, while `specify preset resolve` reported the core as
+   the base. Removing and adding the wrapper again recomposed it (239 lines, core text, our rules).
+   Check the generated skill after any preset change, not only `preset resolve`.
+6. **A usage limit looks like a success in the result file.** A non-interactive session that hits the
+   account's limit returns `subtype: "success"` with `is_error: true` and `terminal_reason: "api_error"`
+   (and `0` tokens if it fails at once). A harness must check `is_error`. Two planning sessions of a
+   control run failed this way and would have produced a false comparison.
+
 ## Not tested
 
 - Running a Spec Kit workflow with `type: gate` steps end to end.
