@@ -109,6 +109,7 @@ Errors fail validation; warnings fail only with `--strict`. `ppc rules` prints t
 | `L04` | error | More than one slice is in progress. |
 | `L05` | error | A debt entry is marked paid but its paying slice is not done. |
 | `B01` | error | A slice exceeded the production-code budget without a recorded reason. |
+| `M01` | error | A slice mutation score is below the blueprint gate without a recorded reason. |
 | `C01` | error | An audit commit does not exist in the git history. (`ppc check-git`) |
 | `C02` | error | A green, refactor or structural commit touches a test file. (`ppc check-git`) |
 | `C03` | error | A red commit touches production code. (`ppc check-git`) |
@@ -139,13 +140,24 @@ of the repository the project lives in, for every slice that has an audit:
   blueprint): a slice may carry large tests, but then `test_lines` tells the reviewer how much there is to read;
 - the first `red` commit is an ancestor of the first `green` commit (`C05`).
 
+### Mutation gate (optional)
+
+If the blueprint sets `budgets.min_mutation_score`, `ppc finish` runs mutation testing (Stryker) on the
+production files the slice's commits changed, and records the score in the audit. A lower score is refused,
+with the surviving mutants listed, unless a human records `mutation_override_reason` (`M01` checks the
+result later). The score is measured by `ppc`; the caller cannot supply it. Without the setting, the score
+stays `null`. `ppc mutation (--files a,b | --slice SL-NNN)` runs the same measure on demand and prints the
+score and the survivors without changing the project. The project needs `@stryker-mutator/core` installed and
+a `stryker.config.json`; the setup that was run against the demo is in [mutation testing](mutation-testing.md).
+
 What counts as a test file is defined once, by [`test-path-cases.json`](../contract/v0.1/test-path-cases.json);
 the Python guard and `ppc` are both tested against it.
 
 ## What the contract does not check yet
 
-- That `tests_added` and `mutation_score` are true: they are still claims. A mutation-testing gate is on
-  the roadmap.
+- That `tests_added` is true, and that a stored `mutation_score` is the one the tool would give today:
+  `finish` measures it, but `check-git` does not re-run mutation testing (it takes minutes), so an audit edited
+  by hand could claim a better score. Only the JavaScript and TypeScript tooling (Stryker) is supported.
 - That an approval was given by a real person: `approved_by` is a name, not a signature.
 - That the commits listed in an audit are *all* the commits of the slice: `check-git` verifies the ones
   that are listed, not that none was left out.

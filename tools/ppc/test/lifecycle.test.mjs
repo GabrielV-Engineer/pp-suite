@@ -7,7 +7,7 @@ import { loadProject } from '../src/load.mjs';
 import { validateModel } from '../src/validate.mjs';
 import { checkGit } from '../src/gitcheck.mjs';
 import { generate, checkGenerated } from '../src/generate.mjs';
-import { start, approveSlice, approveRed, toRefactor, finish, status, initialPhase, LifecycleError } from '../src/lifecycle.mjs';
+import { start, approveSlice, approveRed, toRefactor, finish, mutate, status, initialPhase, LifecycleError } from '../src/lifecycle.mjs';
 import { CLI, lines, repo } from './helpers.mjs';
 
 const read = (dir, rel) => readFileSync(join(dir, rel), 'utf8');
@@ -180,6 +180,76 @@ test('finish: the sizes are never taken from the caller', (t) => {
   for (const field of ['diff_lines', 'production_lines', 'test_lines']) {
     fails(() => finish(dir, 'SL-001', { ...audit, [field]: 1 }), /computed from git/);
   }
+});
+
+// ── finish: the mutation gate ────────────────────────────────────
+const survivor = { status: 'Survived', mutatorName: 'BooleanLiteral', replacement: 'true', location: { start: { line: 2, column: 1 }, end: { line: 2, column: 5 } } };
+const killed = { status: 'Killed', mutatorName: 'StringLiteral', replacement: '""', location: { start: { line: 1, column: 1 }, end: { line: 1, column: 5 } } };
+const mutationReport = (...mutants) => ({ schemaVersion: '1.0', files: { 'src/health.js': { language: 'javascript', source: '', mutants } } });
+const neverRun = () => assert.fail('the mutation tool must not run when the blueprint sets no gate');
+
+function withGate(r, min = 0.8) {
+  r.write({ '.architect/blueprint.yaml': read(r.dir, '.architect/blueprint.yaml').replace(/(max_slice_production_lines: \d+)/, `$1\n  min_mutation_score: ${min}`) });
+  return r;
+}
+
+test('finish: without a mutation gate in the blueprint the tool is not run and the score stays null', (t) => {
+  const { dir, audit } = throughGreen(t);
+  finish(dir, 'SL-001', audit, { mutationRunner: neverRun });
+  assert.equal(slice(dir, 'SL-001').audit.mutation_score, null);
+});
+
+test('finish: the mutation score is never taken from the caller', (t) => {
+  const { dir, audit } = throughGreen(t);
+  fails(() => finish(dir, 'SL-001', { ...audit, mutation_score: 1 }), /mutation_score is computed/);
+});
+
+test('finish: with a gate it measures the score of the slice files and records it', (t) => {
+  const r = withGate(throughGreen(t));
+  const seen = [];
+  const mutationRunner = (root, files) => (seen.push(files), mutationReport(killed, killed, killed, killed, survivor));
+  finish(r.dir, 'SL-001', r.audit, { mutationRunner });
+  assert.deepEqual(seen, [['src/health.js']]);
+  assert.equal(slice(r.dir, 'SL-001').audit.mutation_score, 0.8);
+  assertConsistent(r.dir);
+});
+
+test('finish: below the gate it refuses, shows the surviving mutants, and changes nothing', (t) => {
+  const r = withGate(throughGreen(t));
+  const files = ['.sddpp/slices/SL-001-deployable-skeleton.md', '.sddpp/active.json'];
+  const before = files.map((f) => read(r.dir, f));
+  fails(() => finish(r.dir, 'SL-001', r.audit, { mutationRunner: () => mutationReport(killed, survivor) }), /0\.5.*0\.8[\s\S]*src\/health\.js:2/);
+  assert.deepEqual(files.map((f) => read(r.dir, f)), before);
+});
+
+test('finish: below the gate it closes only with a recorded reason', (t) => {
+  const r = withGate(throughGreen(t));
+  const reason = 'Equivalent mutants in the generated banner.';
+  finish(r.dir, 'SL-001', { ...r.audit, mutation_override_reason: reason }, { mutationRunner: () => mutationReport(killed, survivor) });
+  const audit = slice(r.dir, 'SL-001').audit;
+  assert.equal(audit.mutation_score, 0.5);
+  assert.equal(audit.mutation_override_reason, reason);
+  assertConsistent(r.dir);
+});
+
+// ── mutate: mutation testing on demand ───────────────────────────
+test('mutate: the files come from --files or from the audit of a finished slice', (t) => {
+  const { dir, audit } = throughGreen(t);
+  finish(dir, 'SL-001', audit);
+  const seen = [];
+  const runner = (root, files) => (seen.push(files), mutationReport(killed, survivor));
+  assert.equal(mutate(dir, { slice: 'SL-001' }, runner).score, 0.5);
+  assert.equal(mutate(dir, { files: ['src/other.js'] }, runner).files[0], 'src/other.js');
+  assert.deepEqual(seen, [['src/health.js'], ['src/other.js']]);
+});
+
+test('mutate: refuses without files, with both options, or for a slice that has no audit', (t) => {
+  const { dir } = repo(t);
+  const never = () => assert.fail('must not run');
+  fails(() => mutate(dir, {}, never), /--files <a,b> or --slice/);
+  fails(() => mutate(dir, { files: ['a.js'], slice: 'SL-001' }, never), /not both/);
+  fails(() => mutate(dir, { slice: 'SL-999' }, never), /unknown slice/);
+  fails(() => mutate(dir, { slice: 'SL-001' }, never), /no audit/);
 });
 
 test('finish ignores contract bookkeeping when it measures the diff', (t) => {

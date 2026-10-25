@@ -32,7 +32,7 @@ Status key: **done** has tests in CI · **spiked** tried once by hand, not autom
 | `check-git` extension: detect commits of a slice that its audit leaves out | The audit lists commits by hand; omissions go unnoticed today |
 | Session-start check that the guard script is present | The dispatcher fails open when the script is missing |
 | Approval gates as a Spec Kit workflow, and the agent prompts (`sddpp-cycle`, drafted; exercised in M1) | The `ppc` side of the loop exists and is tested; the agent side is new |
-| Mutation-testing gate in the audit | M1: green added a 503 branch, a default port and a loopback bind that no test covers (finding 4) |
+| Mutation gate in a real slice cycle: set `min_mutation_score` in a project and close a slice through it | The gate and `ppc mutation` exist and are tested (M1 finding 4); first measurement on the demo is in [mutation testing](docs/mutation-testing.md) |
 | **M2, remaining:** a refactor phase, a workflow with approval gates, and a harder test of the lock. SL-002, a slice with a dependency, is closed, and a person approved its red tests | Planning, red, green, audit and close of a second slice are done |
 | **Prove the benefit:** the experiment in the [evaluation plan](docs/evaluation-plan.md): a neutral acceptance test per slice, a measure of untested behavior, condition B2, at least 5 runs per condition | The [pilot](docs/pilot-sl002.md) proves nothing and found two measuring flaws. **No evidence yet that the methodology helps** |
 | Link a slice to its spec story in the contract, and check that acceptance criteria agree | The link exists only in a Markdown table; criteria are repeated in several files ([findings](docs/slices-in-sdd.md)) |

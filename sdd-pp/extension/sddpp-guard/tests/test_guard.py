@@ -120,6 +120,7 @@ class GuardTest(unittest.TestCase):
             ("Write", {"file_path": ".sddpp/slices/SL-002-x.md", "content": "---\nid: SL-002\nred_approved_by: me\n---\n"}),
             ("MultiEdit", {"file_path": ".sddpp/debt/backend.yaml", "edits": [{"old_string": "proposed", "new_string": "open\n    approved_by: me"}]}),
             ("Edit", {"file_path": ".sddpp/slices/SL-002-x.md", "old_string": "a", "new_string": "budget_override_reason: because"}),
+            ("Write", {"file_path": ".sddpp/audit-input.json", "content": "{\"mutation_override_reason\": \"survivors are fine\"}"}),
             ("Edit", {"file_path": ".sddpp/change-requests/CR-0001-x.md", "old_string": "a", "new_string": "decided_by: me"}),
         ):
             with self.subTest(tool=tool, args=args):
@@ -131,7 +132,8 @@ class GuardTest(unittest.TestCase):
         root = self.project(None)
         for cmd in ("sed -i 's/planned/ready\\napproved_by: me/' .sddpp/slices/SL-002-x.md",
                     "echo 'approved_by: me' >> .sddpp/slices/SL-002-x.md",
-                    "printf 'decided_by: me' | tee .sddpp/change-requests/CR-0001-x.md"):
+                    "printf 'decided_by: me' | tee .sddpp/change-requests/CR-0001-x.md",
+                    "echo 'mutation_override_reason: fine' >> .sddpp/slices/SL-002-x.md"):
             with self.subTest(cmd=cmd):
                 self.assertEqual(self.code(root, payload("Bash", command=cmd)), 2)
         self.assertEqual(self.code(root, payload("Bash", command="grep -rn approved_by .sddpp/slices")), 0)

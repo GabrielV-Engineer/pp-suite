@@ -13,7 +13,12 @@ $ARGUMENTS
 - Be honest. The audit exists so a person can review a slice in minutes: say what you cut, what you
   assumed and what you were unsure about.
 - You may **propose** debt (`status: proposed`). Never set `approved_by`: only a human decides.
-- Never provide the sizes. `ppc finish` measures production and test lines from git.
+- Never provide the sizes or the mutation score. `ppc finish` measures production and test lines from git, and,
+  when the blueprint sets `budgets.min_mutation_score`, runs mutation testing itself (it can take minutes).
+- If `ppc finish` refuses because the mutation score is below the gate, do **not** write
+  `mutation_override_reason` yourself and do not edit tests (they are locked). Stop and report the score,
+  the surviving mutants and the options: reopen the tests with the human, or a recorded exception.
+- For every surviving mutant you leave, propose a debt entry of kind `test` instead of hiding it.
 - If `ppc finish` refuses because the slice exceeded the production-code budget (`B01`), do **not** write
   `budget_override_reason` yourself. An exception to the budget is the human's decision. Stop and report
   the measured size, what it is made of, and the options (record an exception, or split the slice).
@@ -51,14 +56,13 @@ $ARGUMENTS
    {
      "commits": [{ "sha": "<full sha>", "kind": "red" }, { "sha": "<full sha>", "kind": "green" }],
      "tests_added": <number of test cases you added>,
-     "mutation_score": null,
      "decisions": [],
      "debt_created": ["DEBT-BE-002"],
      "deviations": ["<text>"]
    }
    ```
 
-   Kinds: `red`, `green`, `refactor`, `structural`, `docs`.
+   Kinds: `red`, `green`, `refactor`, `structural`, `docs`. Do not add `mutation_score`: `ppc finish` rejects it.
 6. Run `ppc finish <id> --audit .sddpp/audit-input.json`. If it refuses, read why, fix the cause and run
    it again. It either closes the slice or changes nothing.
 7. Delete `.sddpp/audit-input.json` and commit the bookkeeping with `chore(<id>): close slice`.

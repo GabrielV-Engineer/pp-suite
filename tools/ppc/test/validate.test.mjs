@@ -197,6 +197,25 @@ test('B01: large tests do not consume the budget, only production code does', ()
   assert.ok(!has(run(m), 'B01'));
 });
 
+test('M01: a mutation score below the blueprint gate needs a recorded reason', () => {
+  const gated = (audit) => {
+    const m = base();
+    m.blueprint.data.budgets.min_mutation_score = 0.8;
+    finish(m, 'SL-001', audit);
+    return m;
+  };
+  assert.ok(has(run(gated({ mutation_score: 0.5 })), 'M01', 'error'));
+  assert.ok(!has(run(gated({ mutation_score: 0.5, mutation_override_reason: 'Equivalent mutants only.' })), 'M01'));
+  assert.ok(!has(run(gated({ mutation_score: 0.8 })), 'M01'));
+  assert.ok(!has(run(gated({ mutation_score: null })), 'M01'));
+});
+
+test('M01: without a gate in the blueprint any score is accepted', () => {
+  const m = base();
+  finish(m, 'SL-001', { mutation_score: 0.1 });
+  assert.ok(!has(run(m), 'M01'));
+});
+
 test('SCHEMA: an audit must state both production_lines and test_lines', () => {
   const m = base();
   finish(m, 'SL-001');

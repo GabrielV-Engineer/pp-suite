@@ -5,7 +5,7 @@ import { loadProject } from '../src/load.mjs';
 import { validateModel, RULES } from '../src/validate.mjs';
 import { generate, writeGenerated, checkGenerated } from '../src/generate.mjs';
 import { checkGit } from '../src/gitcheck.mjs';
-import { start, approveSlice, approveRed, toRefactor, finish, status, LifecycleError } from '../src/lifecycle.mjs';
+import { start, approveSlice, approveRed, toRefactor, finish, mutate, status, LifecycleError } from '../src/lifecycle.mjs';
 
 const USAGE = `ppc — pp-suite contract tool
 
@@ -23,10 +23,12 @@ const USAGE = `ppc — pp-suite contract tool
     ppc refactor [dir]                   green -> refactor
     ppc finish <slice> --audit <file.json> [dir]
                                          close the slice; the diff size is measured from git
+    ppc mutation (--files a,b | --slice <id>) [dir]
+                                         run mutation testing and print the score and the surviving mutants
     ppc status [dir]                     what is in progress
 `;
 
-const VALUE_OPTIONS = new Set(['--by', '--audit']);
+const VALUE_OPTIONS = new Set(['--by', '--audit', '--files', '--slice']);
 const [command, ...rest] = process.argv.slice(2);
 const positionals = [];
 const flags = new Set();
@@ -117,6 +119,9 @@ switch (command) {
       }
       return finish(dirAt(1), positionals[0], input);
     });
+    break;
+  case 'mutation':
+    transition(() => mutate(dirAt(0), { files: options.get('files')?.split(',').filter(Boolean), slice: options.get('slice') }));
     break;
   case 'status':
     console.log(status(dirAt(0)).text);

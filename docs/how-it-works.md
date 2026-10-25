@@ -33,6 +33,7 @@ Each command either changes the project or refuses and leaves it untouched.
 | `ppc approve-red --by <name>` | **a human** | Approves the committed red tests and enters green. Refuses if code is uncommitted |
 | `ppc refactor` | anyone | green → refactor (tests stay locked) |
 | `ppc finish <slice> --audit <file>` | anyone | Closes the slice. The sizes (production and test lines) are **measured from git**, then the result is validated and checked against git; if anything is off, nothing changes |
+| `ppc mutation (--files a,b \| --slice <id>)` | anyone | Mutation-tests those files (or a finished slice's files) and prints the score and the mutants the tests missed. Changes nothing |
 | `ppc status` | anyone | What is in progress |
 
 Approvals are human-only. The guard blocks the agent from running `ppc approve-*` and from writing any

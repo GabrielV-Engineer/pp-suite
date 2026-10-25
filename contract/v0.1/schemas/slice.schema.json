@@ -63,7 +63,8 @@
         "decisions": { "type": "array", "items": { "type": "string", "pattern": "^ADR-\\d{4}$" } },
         "debt_created": { "type": "array", "items": { "type": "string", "pattern": "^DEBT-[A-Z]{2,5}-\\d{3,}$" } },
         "deviations": { "type": "array", "items": { "type": "string", "minLength": 3 } },
-        "budget_override_reason": { "type": "string", "minLength": 10 }
+        "budget_override_reason": { "type": "string", "minLength": 10 },
+        "mutation_override_reason": { "type": "string", "minLength": 10 }
       }
     }
   },

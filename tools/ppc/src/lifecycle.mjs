@@ -5,6 +5,7 @@ import { loadProject } from './load.mjs';
 import { validateModel } from './validate.mjs';
 import { checkGit, dirtyPaths, measure } from './gitcheck.mjs';
 import { generate, writeGenerated } from './generate.mjs';
+import { runMutation, sliceProductionFiles } from './mutation.mjs';
 
 /** A refused transition. The message says why; nothing was changed. */
 export class LifecycleError extends Error {}
@@ -165,8 +166,10 @@ export function toRefactor(root) {
 /**
  * Close a slice. The sizes are measured from git here, never taken from the caller, and the result
  * is validated and checked against git before it is kept: if it would be wrong, nothing changes.
+ * When the blueprint sets a mutation gate, the score is measured here too (`mutationRunner` replaces
+ * Stryker in tests).
  */
-export function finish(root, id, input) {
+export function finish(root, id, input, { mutationRunner } = {}) {
   return transact(root, () => {
     const model = loadValid(root);
     const entry = model.slices.find((s) => s.data.id === id) ?? fail(`unknown slice ${id}`);
@@ -177,6 +180,8 @@ export function finish(root, id, input) {
     for (const field of ['diff_lines', 'production_lines', 'test_lines']) {
       if (field in (input ?? {})) fail(`${field} is computed from git; remove it from the audit input`);
     }
+
+    if ('mutation_score' in (input ?? {})) fail('mutation_score is computed by ppc from the mutation tool; remove it from the audit input');
 
     let production_lines = 0;
     let test_lines = 0;
@@ -195,16 +200,28 @@ export function finish(root, id, input) {
         production_lines += m.production_lines;
         test_lines += m.test_lines;
       }
+      let mutation_score = null;
+      const gate = model.blueprint.data.budgets.min_mutation_score;
+      if (gate !== undefined && WORK_TYPES.includes(s.type)) {
+        const result = runMutation(root, sliceProductionFiles(root, input.commits), mutationRunner);
+        mutation_score = result.score;
+        if (mutation_score !== null && mutation_score < gate && !input.mutation_override_reason) {
+          const shown = result.survivors.slice(0, 10).map((m) => `  ${m.file}:${m.line} ${m.mutator} -> ${String(m.replacement).slice(0, 50)}`);
+          const more = result.survivors.length > shown.length ? [`  ... and ${result.survivors.length - shown.length} more`] : [];
+          fail(`mutation score ${mutation_score} is below the gate ${gate}. Mutants the tests did not detect:\n${[...shown, ...more].join('\n')}\nThe tests must detect them (a human decides whether to reopen the tests) or a human records mutation_override_reason.`);
+        }
+      }
       const audit = {
         commits: input.commits,
         production_lines,
         test_lines,
         tests_added: input.tests_added,
-        mutation_score: input.mutation_score ?? null,
+        mutation_score,
         decisions: input.decisions ?? [],
         debt_created: input.debt_created ?? [],
         deviations: input.deviations ?? [],
         ...(input.budget_override_reason ? { budget_override_reason: input.budget_override_reason } : {}),
+        ...(input.mutation_override_reason ? { mutation_override_reason: input.mutation_override_reason } : {}),
       };
       editFrontmatter(root, entry.file, (doc) => {
         doc.set('status', 'done');
@@ -219,6 +236,22 @@ export function finish(root, id, input) {
     if (problems.length) fail(`the audit does not match git history:\n${describe(problems)}`);
     return { slice: id, production_lines, test_lines };
   });
+}
+
+/**
+ * Mutation-test on demand, without changing the project: either the given files, or the production
+ * files of a finished slice (taken from its audit commits).
+ */
+export function mutate(root, { files, slice } = {}, mutationRunner) {
+  if (files && slice) fail('give --files or --slice, not both');
+  if (!files && !slice) fail('say what to mutate: --files <a,b> or --slice <id>');
+  let targets = files;
+  if (slice) {
+    const entry = loadProject(root).slices.find((s) => s.data.id === slice) ?? fail(`unknown slice ${slice}`);
+    if (!entry.data.audit) fail(`${slice} has no audit yet, so its files are not known; pass --files`);
+    targets = sliceProductionFiles(root, entry.data.audit.commits);
+  }
+  return runMutation(root, targets, mutationRunner);
 }
 
 export function status(root) {

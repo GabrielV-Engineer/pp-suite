@@ -34,6 +34,7 @@ export const RULES = {
   L04: 'More than one slice is in progress.',
   L05: 'A debt entry is marked paid but its paying slice is not done.',
   B01: 'A slice exceeded the production-code budget without a recorded reason.',
+  M01: 'A slice mutation score is below the blueprint gate without a recorded reason.',
   C01: 'An audit commit does not exist in the git history.',
   C02: 'A green, refactor or structural commit touches a test file.',
   C03: 'A red commit touches production code.',
@@ -249,6 +250,10 @@ export function validateModel(model, { now = new Date() } = {}) {
       const red = audit.commits.findIndex((c) => c.kind === 'red');
       const green = audit.commits.findIndex((c) => c.kind === 'green');
       if (red === -1 || green === -1 || red > green) error('L02', file, `${s.id} audit needs a red commit before a green commit`);
+    }
+    const gate = bp.budgets.min_mutation_score;
+    if (gate !== undefined && audit.mutation_score !== null && audit.mutation_score < gate && !audit.mutation_override_reason) {
+      error('M01', file, `${s.id} has a mutation score of ${audit.mutation_score}, the gate is ${gate}, and no mutation_override_reason is recorded`);
     }
     if (audit.production_lines > bp.budgets.max_slice_production_lines && !audit.budget_override_reason) {
       error('B01', file, `${s.id} changed ${audit.production_lines} production lines, budget is ${bp.budgets.max_slice_production_lines}, and no budget_override_reason is recorded`);

@@ -92,7 +92,8 @@
       "additionalProperties": false,
       "required": ["max_slice_production_lines"],
       "properties": {
-        "max_slice_production_lines": { "type": "integer", "minimum": 20, "maximum": 2000, "description": "Budget for hand-written production code per slice. Tests, lockfiles and contract bookkeeping do not count." }
+        "max_slice_production_lines": { "type": "integer", "minimum": 20, "maximum": 2000, "description": "Budget for hand-written production code per slice. Tests, lockfiles and contract bookkeeping do not count." },
+        "min_mutation_score": { "type": "number", "minimum": 0, "maximum": 1, "description": "Optional gate: the share of mutants the tests of a work slice must detect. When set, ppc finish runs mutation testing on the slice's production files and refuses a lower score unless a human records a reason." }
       }
     }
   }
