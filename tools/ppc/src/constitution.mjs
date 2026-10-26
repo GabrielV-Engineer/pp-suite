@@ -31,6 +31,7 @@ export function renderConstitution(model) {
     '### How to work here',
     '- At the start of every session run `ppc next`: it says whose turn it is and the exact command. `ppc overview` shows where the project stands.',
     '- Slices are planned with `/speckit-sddpp-cycle-slices`, built with `/speckit-sddpp-cycle-build` and closed with `/speckit-sddpp-cycle-audit`. The strict cycle (`-red`, `-green`, `-refactor`) is optional per slice.',
+    '- Optional reviews: `/speckit-sddpp-cycle-clarify` and `-analyze` before building (what is unclear, what contradicts the design), `-converge` before the audit (did the code do only what the slice promised). `-analyze` and `-converge` only read.',
     '- Never run `ppc approve-*` or `ppc decide-*`, and never write an approval or decision field (`approved_by`, `decided_by`, ...): a person decides those.',
     '',
     '### I. The design is decided; planning does not re-decide it',

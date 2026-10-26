@@ -21,6 +21,8 @@ command names are provisional.
 | **5. Close** (`/speckit-sddpp-cycle-audit`) | Review the audit; decide the proposed debt (`ppc approve-debt`) and when to pay it (`ppc schedule-debt`) | Records debt and deviations; `ppc finish` measures the size from git |
 | **6. Design changes** | Decide (`ppc decide-change`) | If a slice finds the design wrong, it opens a change request; Architect.PP revises the design |
 
+Three optional reviews, all by a model: `/speckit-sddpp-cycle-clarify` (what is unclear before building), `/speckit-sddpp-cycle-analyze` (read-only: contradictions and vague criteria the rules cannot see) and `/speckit-sddpp-cycle-converge` (read-only, before the audit: did the code do only what the slice promised).
+
 Before each task the agent offers to prepare its prompts (`/speckit-sddpp-cycle-prompts`): the limits of that slice, from the design.
 
 ## Two cycles: light and strict

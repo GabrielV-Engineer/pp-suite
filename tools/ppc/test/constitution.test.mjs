@@ -51,6 +51,7 @@ test('it orients an agent that has never seen the project: ppc next first, what 
   assert.match(out, /ppc change-request/);
   assert.match(out, /speckit-sddpp-cycle-slices/);
   assert.match(out, /speckit-sddpp-cycle-build/);
+  for (const review of ['clarify', 'analyze', 'converge']) assert.match(out, new RegExp(`speckit-sddpp-cycle-${review}|-${review}`), review);
 });
 
 test('it states the cycle and the test policy that apply, and changes with them', () => {
