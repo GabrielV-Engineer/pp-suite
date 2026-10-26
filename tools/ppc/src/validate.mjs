@@ -2,7 +2,7 @@ import Ajv2020 from 'ajv/dist/2020.js';
 import addFormats from 'ajv-formats';
 import { readFileSync } from 'node:fs';
 import { basename } from 'node:path';
-import { testPolicy } from './policy.mjs';
+import { modeOf, testPolicy } from './policy.mjs';
 
 const SCHEMA_DIR = new URL('../../../contract/v0.1/schemas/', import.meta.url);
 const SCHEMA_NAMES = ['blueprint', 'slice', 'debt', 'adr', 'evidence', 'change-request', 'active', 'additions'];
@@ -41,7 +41,8 @@ export const RULES = {
   T15: 'A slice points at a spec file or a user story that does not exist.',
   T16: 'A closed work slice changed no test files although its test policy is required.',
   L01: 'A slice has a phase while it is not in progress.',
-  L02: 'The audit commits are not ordered red before green.',
+  L02: 'The audit commits of a strict slice are not ordered red before green.',
+  L06: 'The phase of a slice does not belong to its mode (build is for light slices, red and green for strict ones).',
   L03: 'active.json is missing or does not match the slice in progress.',
   L04: 'More than one slice is in progress.',
   L05: 'A debt entry is marked paid but its paying slice is not done.',
@@ -222,6 +223,11 @@ export function validateModel(model, { now = new Date() } = {}) {
     for (const q of s.quality_attributes ?? []) if (!qas.has(q)) error('T03', file, `${s.id} references unknown quality attribute ${q}`);
     for (const d of s.depends_on ?? []) if (!sliceById.has(d)) error('T04', file, `${s.id} depends on unknown slice ${d}`);
     if (s.blueprint_revision > bp.revision) error('T14', file, `${s.id} targets revision ${s.blueprint_revision}, blueprint is at ${bp.revision}`);
+    if (s.phase && WORK_TYPES.includes(s.type)) {
+      const mode = modeOf(bp, s);
+      if (mode === 'light' && s.phase !== 'build') error('L06', file, `${s.id} is a light slice, so its phase is build, not ${s.phase}`);
+      if (mode === 'strict' && s.phase === 'build') error('L06', file, `${s.id} is a strict slice, so it has no build phase`);
+    }
     if (s.phase && s.status !== 'in_progress') error('L01', file, `${s.id} has phase "${s.phase}" but status is ${s.status}`);
     if (WORK_TYPES.includes(s.type) && !hasHeading(body, 'Out of scope')) warn('W01', file, `${s.id} should state what it leaves out under "## Out of scope"`);
     if (!['done', 'dropped'].includes(s.status) && s.blueprint_revision < bp.revision) warn('W03', file, `${s.id} was planned against revision ${s.blueprint_revision}, blueprint is at ${bp.revision}`);
@@ -327,7 +333,7 @@ export function validateModel(model, { now = new Date() } = {}) {
       if (!d) error('T13', file, `${s.id} audit lists unknown debt ${id}`);
       else if (d.entry.origin.type !== 'slice' || d.entry.origin.ref !== s.id) error('T13', file, `${id} should have origin slice ${s.id}`);
     }
-    if (WORK_TYPES.includes(s.type)) {
+    if (WORK_TYPES.includes(s.type) && modeOf(bp, s) === 'strict') {
       const red = audit.commits.findIndex((c) => c.kind === 'red');
       const green = audit.commits.findIndex((c) => c.kind === 'green');
       if (red === -1 || green === -1 || red > green) error('L02', file, `${s.id} audit needs a red commit before a green commit`);

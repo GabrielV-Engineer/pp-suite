@@ -54,6 +54,9 @@ the plan**. It is a format conversion, not a redesign: do not improve, add or re
      project (a server-rendered page whose server code lives beside it) is still described by responsibility:
      the interface, the logic, the data.
    - `budgets.max_slice_production_lines`: 200 unless the blueprint says otherwise.
+   - `default_mode: light`: the cycle SDD.PP follows by default (tests and code together in one session; a slice can
+     ask for the strict cycle). This is the method's default, not something the blueprint states. Leave `test_policy`
+     out unless the blueprint or the person says tests are required or not wanted.
 3. Write `.architect/brief.md` (the vision, users and goals in a page), `.architect/architecture.md` (the structure
    of the components and their rules, the data model and the API in summary; **no build steps**) and
    `.architect/glossary.md` (the terms of the domain).

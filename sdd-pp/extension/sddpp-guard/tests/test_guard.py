@@ -37,6 +37,12 @@ class GuardTest(unittest.TestCase):
         root = self.project({"slice": "SL-002", "phase": "red"})
         self.assertEqual(self.code(root, payload("Edit", file_path="tests/a.test.js")), 0)
 
+    def test_build_phase_of_the_light_cycle_does_not_lock_tests(self):
+        # The light cycle trades the lock for speed; ppc finish and the test policy are what still apply.
+        root = self.project({"slice": "SL-002", "phase": "build"})
+        self.assertEqual(self.code(root, payload("Edit", file_path="tests/a.test.js")), 0)
+        self.assertEqual(self.code(root, payload("Write", file_path="src/a.js")), 0)
+
     def test_refactor_phase_locks_tests_as_well(self):
         # Refactoring must not be a way to weaken tests: if a test has to change, the RED phase reopens.
         root = self.project({"slice": "SL-002", "phase": "refactor"})

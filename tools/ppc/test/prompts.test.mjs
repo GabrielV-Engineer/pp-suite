@@ -13,7 +13,7 @@ const blueprint = () => model().blueprint.data;
 
 // ── which tasks a slice has ──────────────────────────────────────
 test('appliesTo: work slices have red, green, refactor and audit; refactors skip red and green; spikes only explore', () => {
-  assert.deepEqual(TASKS, ['red', 'green', 'refactor', 'audit', 'explore']);
+  assert.deepEqual(TASKS, ['red', 'green', 'build', 'refactor', 'audit', 'explore']);
   assert.deepEqual(appliesTo('feature'), ['red', 'green', 'refactor', 'audit']);
   assert.deepEqual(appliesTo('skeleton'), ['red', 'green', 'refactor', 'audit']);
   assert.deepEqual(appliesTo('refactor'), ['refactor', 'audit']);

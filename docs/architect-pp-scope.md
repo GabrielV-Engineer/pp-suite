@@ -79,8 +79,8 @@ Kit does, but optional must not mean invisible:
 2. The audit **always records** whether the slice added tests, and its mutation score, without blocking (in light mode).
 3. Closing a slice **with no tests** proposes a technical debt entry of kind `test`, for a person to accept or not.
 4. `ppc overview` shows how many closed slices have no verification.
-5. The strict cycle (tests first, human approval, test lock, mutation gate) stays as an option per slice. (Today the
-   cycle is always strict; the light mode that would skip it is not built, so the policy is enforced at closing time.)
+5. The strict cycle (tests first, human approval, test lock, mutation gate) stays as an option per slice. (The light cycle,
+   built 2026-10-26, skips it: see [how it works](how-it-works.md). The policy is enforced at closing time in both.)
 6. In the experiment both arms build with tests, requested explicitly.
 
 Evidence behind the default: in the 33 runs where nobody asked for tests (only "run the project's tests"), the

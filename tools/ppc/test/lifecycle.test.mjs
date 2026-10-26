@@ -61,7 +61,7 @@ test('start only changes the lines it means to: flow lists keep their formatting
   const removed = before.filter((line) => !after.includes(line));
   const added = after.filter((line) => !before.includes(line));
   assert.deepEqual(removed, ['status: ready']);
-  assert.deepEqual(added.sort(), ['phase: red', 'status: in_progress']);
+  assert.deepEqual(added.sort(), ['mode: strict', 'phase: red', 'status: in_progress']);
 });
 
 test('start refuses what is not allowed', (t) => {

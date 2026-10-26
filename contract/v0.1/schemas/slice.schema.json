@@ -41,7 +41,8 @@
     "test_policy": { "enum": ["required", "optional", "none"], "description": "Overrides the blueprint test policy for this slice." },
     "pays": { "type": "array", "items": { "type": "string", "pattern": "^DEBT-[A-Z]{2,5}-\\d{3,}$" }, "uniqueItems": true },
     "approved_by": { "type": "string", "minLength": 1, "description": "Human who approved this slice to start." },
-    "phase": { "enum": ["red", "green", "refactor"] },
+    "mode": { "enum": ["light", "strict"], "description": "The cycle this slice follows. Light: build tests and code together, no approval of tests, no lock. Strict: red tests approved by a human, then green with the tests locked. `ppc start` records the mode it applied; without one the slice is checked as strict." },
+    "phase": { "enum": ["red", "green", "refactor", "build"] },
     "red_approved_by": { "type": "string", "minLength": 1, "description": "Human who approved the RED tests before GREEN began." },
     "timebox_hours": { "type": "number", "exclusiveMinimum": 0, "maximum": 8 },
     "disposable": { "type": "boolean" },
@@ -63,7 +64,7 @@
             "required": ["sha", "kind"],
             "properties": {
               "sha": { "type": "string", "pattern": "^[0-9a-f]{7,40}$" },
-              "kind": { "enum": ["red", "green", "refactor", "structural", "docs"] }
+              "kind": { "enum": ["red", "green", "refactor", "build", "structural", "docs"] }
             }
           }
         },
@@ -109,7 +110,7 @@
       "then": { "required": ["audit"] }
     },
     {
-      "if": { "properties": { "status": { "const": "done" }, "type": { "enum": ["skeleton", "feature", "fix"] } }, "required": ["status", "type"] },
+      "if": { "properties": { "status": { "const": "done" }, "type": { "enum": ["skeleton", "feature", "fix"] }, "mode": { "not": { "const": "light" } } }, "required": ["status", "type"] },
       "then": { "required": ["red_approved_by"] }
     },
     {
@@ -117,7 +118,7 @@
       "then": { "required": ["outcome"] }
     },
     {
-      "if": { "properties": { "phase": { "enum": ["green", "refactor"] }, "type": { "enum": ["skeleton", "feature", "fix"] } }, "required": ["phase", "type"] },
+      "if": { "properties": { "phase": { "enum": ["green", "refactor"] }, "type": { "enum": ["skeleton", "feature", "fix"] }, "mode": { "not": { "const": "light" } } }, "required": ["phase", "type"] },
       "then": { "required": ["red_approved_by"] }
     }
   ]

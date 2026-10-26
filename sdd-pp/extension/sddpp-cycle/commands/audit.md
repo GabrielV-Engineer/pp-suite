@@ -30,9 +30,9 @@ $ARGUMENTS
 
 ## Steps
 
-1. Run `ppc status`. The slice must be in the green or refactor phase, with everything committed.
+1. Run `ppc status`. The slice must be in the green or refactor phase (strict cycle) or the build phase (light cycle), with everything committed.
 2. Identify the slice's commits with `git log --oneline` and their message prefixes: `red(<id>)`,
-   `green(<id>)`, `refactor(<id>)`. Use the full sha you see in `git log`.
+   `green(<id>)`, `refactor(<id>)` or, in the light cycle, `build(<id>)`. Use the full sha you see in `git log`.
 3. **Debt.** For every shortcut, compromise or known weakness you introduced or noticed, add an entry to
    the owning component's register `.sddpp/debt/<component>.yaml`. Use the next free id
    (`DEBT-<code>-NNN`, the code is in `.architect/blueprint.yaml`):
@@ -65,7 +65,7 @@ $ARGUMENTS
    }
    ```
 
-   Kinds: `red`, `green`, `refactor`, `structural`, `docs`. Do not add `mutation_score`: `ppc finish` rejects it.
+   Kinds: `red`, `green`, `refactor`, `build`, `structural`, `docs`. Do not add `mutation_score`: `ppc finish` rejects it.
 6. Run `ppc finish <id> --audit .sddpp/audit-input.json`. If it refuses, read why, fix the cause and run
    it again. It either closes the slice or changes nothing.
 7. Delete `.sddpp/audit-input.json` and commit the bookkeeping with `chore(<id>): close slice`.

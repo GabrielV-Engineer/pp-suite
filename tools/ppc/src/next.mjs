@@ -4,8 +4,11 @@
 // The aim: a person who comes back to the project after an hour or a month is told, without reading anything,
 // whose turn it is and which command to run.
 
+import { modeOf } from './policy.mjs';
+
 const RED = '/speckit-sddpp-cycle-red';
 const GREEN = '/speckit-sddpp-cycle-green';
+const BUILD = '/speckit-sddpp-cycle-build';
 const REFACTOR = '/speckit-sddpp-cycle-refactor';
 const AUDIT = '/speckit-sddpp-cycle-audit';
 
@@ -17,6 +20,12 @@ function inProgressActions(s, subjects) {
   const head = `${id} "${s.title}" is in progress, ${s.phase} phase.`;
   if (s.type === 'spike') {
     return { headline: head, actions: [{ who: 'agent', what: 'Explore, then record what was learned', command: `ppc finish ${id} --audit <file.json>` }] };
+  }
+  if (s.phase === 'build') {
+    if (!committed(subjects, 'build', id)) {
+      return { headline: head, actions: [{ who: 'agent', what: 'Build the slice: tests and code together, in small commits', command: BUILD }] };
+    }
+    return { headline: head, actions: [{ who: 'agent', what: 'Record debt and deviations, and close the slice', command: AUDIT }] };
   }
   if (s.phase === 'red') {
     if (!committed(subjects, 'red', id)) {
@@ -78,7 +87,7 @@ export function nextSteps(model, subjects, errors = []) {
 
   const ready = live.find((s) => s.status === 'ready' && !unfinished(s, byId).length);
   if (ready) {
-    return result(`${ready.id} "${ready.title}" is approved and ready.`, [{ who: 'anyone', what: 'Start it (red phase)', command: `ppc start ${ready.id}` }]);
+    return result(`${ready.id} "${ready.title}" is approved and ready.`, [{ who: 'anyone', what: `Start it (${['skeleton', 'feature', 'fix'].includes(ready.type) && modeOf(model.blueprint.data, ready) === 'light' ? 'build' : 'red'} phase)`, command: `ppc start ${ready.id}` }]);
   }
 
   const approvable = live.find((s) => s.status === 'planned' && !unfinished(s, byId).length);

@@ -8,6 +8,6 @@
   "required": ["slice", "phase"],
   "properties": {
     "slice": { "type": ["string", "null"], "pattern": "^SL-\\d{3,}$" },
-    "phase": { "enum": ["red", "green", "refactor", null] }
+    "phase": { "enum": ["red", "green", "refactor", "build", null] }
   }
 }

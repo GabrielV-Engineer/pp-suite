@@ -88,6 +88,7 @@
       }
     },
     "test_policy": { "enum": ["required", "optional", "none"], "description": "Whether work slices must leave tests behind. Default optional: a slice may close without tests and the audit proposes a test debt entry. A slice may override it." },
+    "default_mode": { "enum": ["light", "strict"], "description": "The cycle a work slice follows unless it sets its own `mode`. Light: tests and code together in one session. Strict: red tests approved by a human, then green with the tests locked. Absent means strict." },
     "budgets": {
       "type": "object",
       "additionalProperties": false,

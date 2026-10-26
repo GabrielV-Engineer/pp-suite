@@ -6,7 +6,7 @@ import { validateModel } from './validate.mjs';
 import { checkGit, dirtyPaths, measure } from './gitcheck.mjs';
 import { generate, writeGenerated } from './generate.mjs';
 import { runMutation, sliceProductionFiles } from './mutation.mjs';
-import { testPolicy } from './policy.mjs';
+import { modeOf, testPolicy } from './policy.mjs';
 
 /** A refused transition. The message says why; nothing was changed. */
 export class LifecycleError extends Error {}
@@ -18,8 +18,11 @@ const WORK_TYPES = ['skeleton', 'feature', 'fix'];
 const FRONTMATTER = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/;
 const ACTIVE = '.sddpp/active.json';
 
-/** Work slices start in red; a refactor is all refactor; a spike keeps the tests editable. */
-export const initialPhase = (type) => (type === 'refactor' ? 'refactor' : 'red');
+/**
+ * Strict work slices start in red; light ones build tests and code together; a refactor is all refactor;
+ * a spike keeps the tests editable.
+ */
+export const initialPhase = (type, mode = 'strict') => (type === 'refactor' ? 'refactor' : mode === 'light' && WORK_TYPES.includes(type) ? 'build' : 'red');
 
 // ── transactions: every transition changes .sddpp/ or nothing at all ──────────────
 function listFiles(dir, base = dir) {
@@ -105,10 +108,13 @@ export function start(root, id) {
     const unfinished = (s.depends_on ?? []).filter((d) => model.slices.find((x) => x.data.id === d)?.data.status !== 'done');
     if (unfinished.length) fail(`${id} depends on unfinished ${unfinished.join(', ')}`);
 
-    const phase = initialPhase(s.type);
+    const mode = modeOf(model.blueprint.data, s);
+    const phase = initialPhase(s.type, mode);
     editFrontmatter(root, entry.file, (doc) => {
       doc.set('status', 'in_progress');
       doc.set('phase', phase);
+      // Record the cycle that was applied, so a later change of the project default cannot rewrite this slice's history.
+      if (WORK_TYPES.includes(s.type)) doc.set('mode', mode);
     });
     writeActive(root, id, phase);
     refreshViews(root);
@@ -220,6 +226,7 @@ export function approveRed(root, by) {
     const entry = inProgress(loadValid(root));
     const s = entry.data;
     if (!WORK_TYPES.includes(s.type)) fail(`${s.id} is a ${s.type} slice: it has no RED phase to approve`);
+    if (s.mode === 'light') fail(`${s.id} follows the light cycle: it has no red tests to approve. Build the tests and the code together, then audit`);
     if (s.phase !== 'red') fail(`${s.id} is in the ${s.phase} phase, not red`);
     requireCommitted(root);
 
@@ -237,6 +244,7 @@ export function toRefactor(root) {
   return transact(root, () => {
     const entry = inProgress(loadValid(root));
     const s = entry.data;
+    if (s.mode === 'light') fail(`${s.id} follows the light cycle: it has no refactor phase. Clean up inside the build, or plan a refactor slice`);
     if (s.phase !== 'green') fail(`${s.id} is in the ${s.phase} phase, not green`);
     requireCommitted(root);
     editFrontmatter(root, entry.file, (doc) => doc.set('phase', 'refactor'));

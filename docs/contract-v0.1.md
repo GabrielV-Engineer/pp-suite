@@ -114,7 +114,8 @@ Errors fail validation; warnings fail only with `--strict`. `ppc rules` prints t
 | `T15` | error | A slice points at a spec file or a user story that does not exist. |
 | `T16` | error | A closed work slice changed no test files although its test policy is required. |
 | `L01` | error | A slice has a phase while it is not in progress. |
-| `L02` | error | The audit commits are not ordered red before green. |
+| `L02` | error | The audit commits of a strict slice are not ordered red before green. |
+| `L06` | error | The phase of a slice does not belong to its mode (build is for light slices, red and green for strict ones). |
 | `L03` | error | `active.json` is missing or does not match the slice in progress. |
 | `L04` | error | More than one slice is in progress. |
 | `L05` | error | A debt entry is marked paid but its paying slice is not done. |
@@ -159,6 +160,17 @@ of the repository the project lives in, for every slice that has an audit:
   blueprint): a slice may carry large tests, but then `test_lines` tells the reviewer how much there is to read;
 - the first `red` commit is an ancestor of the first `green` commit (`C05`).
 
+### Mode: light and strict
+
+The blueprint may set `default_mode` (`light` or `strict`; absent means strict) and a slice may set `mode`. `ppc start`
+writes the mode it applied into the slice, so changing the default later does not rewrite history.
+
+- **Strict** (red → green → refactor): `red_approved_by` is required from green on; `L02` requires the red commit before
+  the green one; the guard and `C02`, `C06`, `C07` keep the approved tests unchanged.
+- **Light** (`build`): one phase, no human approval of tests, no lock. A done light slice needs no `red_approved_by`.
+  Its commits are `build`. `ppc approve-red` and `ppc refactor` refuse it.
+- `L06` checks that the phase belongs to the mode. A slice with no `mode` anywhere is checked as strict.
+
 ### Test policy
 
 The blueprint may set `test_policy`, and a slice may override it. Default: `optional`, as in Spec Kit.
@@ -172,7 +184,7 @@ The blueprint may set `test_policy`, and a slice may override it. Default: `opti
 "No tests" is measured from git (`test_lines` in the audit), never taken from the agent's own count. The policy
 applies to skeleton, feature and fix slices; a refactor changes no behavior and a spike leaves no code. `ppc overview`
 shows how many closed slices changed tests. The strict cycle (red tests first, approval, lock) always produces tests, so
-the policy decides what happens in the light mode, where that cycle is not used.
+the policy matters most in the light mode, where nothing else forces tests to exist.
 
 ### Mutation gate (optional)
 

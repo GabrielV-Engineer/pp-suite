@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { LifecycleError } from './lifecycle.mjs';
 import { loadProject } from './load.mjs';
+import { modeOf, testPolicy } from './policy.mjs';
 
 // Prompts for one task of one slice, made from the contract by a script, so they are the same every time.
 // Three parts, offered as files a person can use as they are, edit, or ignore:
@@ -14,11 +15,11 @@ const fail = (message) => {
   throw new PromptError(message);
 };
 
-export const TASKS = ['red', 'green', 'refactor', 'audit', 'explore'];
+export const TASKS = ['red', 'green', 'build', 'refactor', 'audit', 'explore'];
 const WORK_TYPES = ['skeleton', 'feature', 'fix'];
 
-export function appliesTo(type) {
-  if (WORK_TYPES.includes(type)) return ['red', 'green', 'refactor', 'audit'];
+export function appliesTo(type, mode = 'strict') {
+  if (WORK_TYPES.includes(type)) return mode === 'light' ? ['build', 'audit'] : ['red', 'green', 'refactor', 'audit'];
   if (type === 'refactor') return ['refactor', 'audit'];
   return ['explore'];
 }
@@ -40,7 +41,20 @@ export function outOfScope(body) {
 const list = (items) => items.map((i) => `- ${i}`);
 const join2 = (parts) => `${parts.flat().join('\n').replace(/\n{3,}/g, '\n\n').trimEnd()}\n`;
 
+const POLICY_TEXT = {
+  required: 'Tests are required: the slice cannot close without test files, so write them.',
+  optional: 'Tests are expected. If the slice closes without any, `ppc finish` proposes a debt entry for it.',
+  none: 'Tests are not asked for in this project. Add one only where a behavior is easy to get wrong.',
+};
+
 const RULES = {
+  build: (s, policy) => [
+    `Build the slice: for each acceptance criterion (${(s.acceptance ?? []).map((a) => a.id).join(', ')}) write a test and the code that passes it, in small steps.`,
+    POLICY_TEXT[policy],
+    'No one locks the tests in this cycle, so changing a test to make it pass is invisible until review: change the code, and tell the reader if you must change a test.',
+    `Commit in small steps as \`build(${s.id}): <summary>\`, keeping tests and code that belong together in the same commit.`,
+    'When it works, stop and run the audit task.',
+  ],
   red: (s) => [
     `Write the failing tests only: one per acceptance criterion (${(s.acceptance ?? []).map((a) => a.id).join(', ')}), named after the criterion.`,
     'Write no production code.',
@@ -67,6 +81,7 @@ const RULES = {
 };
 
 const FORBIDDEN = {
+  build: ['Weaken, delete or skip a test to get a green result.', 'Add behavior no acceptance criterion asks for.'],
   red: ['Write or change production code in this task.'],
   green: ['Edit, delete, skip or weaken any test.', 'Add behavior no approved test asks for.'],
   refactor: ['Change behavior, or edit any test.'],
@@ -74,13 +89,15 @@ const FORBIDDEN = {
   explore: ['Treat the exploration as the implementation: it is thrown away.'],
 };
 
-const COMMANDS = { red: '/speckit-sddpp-cycle-red', green: '/speckit-sddpp-cycle-green', refactor: '/speckit-sddpp-cycle-refactor', audit: '/speckit-sddpp-cycle-audit' };
+const COMMANDS = { build: '/speckit-sddpp-cycle-build', red: '/speckit-sddpp-cycle-red', green: '/speckit-sddpp-cycle-green', refactor: '/speckit-sddpp-cycle-refactor', audit: '/speckit-sddpp-cycle-audit' };
 
 function find(model, id, task) {
   const entry = model.slices.find((s) => s.data.id === id) ?? fail(`unknown slice ${id}`);
   if (!TASKS.includes(task)) fail(`unknown task ${task} (tasks: ${TASKS.join(', ')})`);
   const s = entry.data;
-  if (!appliesTo(s.type).includes(task)) fail(`${id} is a ${s.type} slice: it has no ${task} task (tasks: ${appliesTo(s.type).join(', ')})`);
+  const mode = modeOf(model.blueprint.data, s);
+  const tasks = appliesTo(s.type, mode);
+  if (!tasks.includes(task)) fail(`${id} is a ${mode === 'light' && WORK_TYPES.includes(s.type) ? 'light' : s.type} slice: it has no ${task} task (tasks: ${tasks.join(', ')})`);
   return entry;
 }
 
@@ -122,7 +139,7 @@ export function buildPrompts(model, id, task) {
     ...reads,
     '',
     `## This task: ${task}`,
-    ...list(RULES[task](s)),
+    ...list(RULES[task](s, testPolicy(bp, s))),
     ...(COMMANDS[task] ? ['', `The full instructions for this task are in \`${COMMANDS[task]}\`.`] : []),
   ]);
 
@@ -137,7 +154,7 @@ export function buildPrompts(model, id, task) {
     '',
     '## In this task',
     ...list(FORBIDDEN[task]),
-    ...(['red', 'green', 'refactor'].includes(task) ? [`- Exceed ${budget} lines of production code in this slice (the budget in the blueprint).`] : []),
+    ...(['red', 'green', 'build', 'refactor'].includes(task) ? [`- Exceed ${budget} lines of production code in this slice (the budget in the blueprint).`] : []),
     '',
     `## Out of scope for this slice (\`${entry.file}\`)`,
     ...(scope.length ? list(scope) : ['- (the slice states nothing; ask before adding anything beyond its acceptance criteria)']),

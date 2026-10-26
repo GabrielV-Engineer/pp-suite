@@ -7,3 +7,9 @@ export const TEST_POLICIES = ['required', 'optional', 'none'];
 
 /** The policy that applies to a slice: its own, else the project's, else optional. Takes the parsed `data` of each. */
 export const testPolicy = (blueprint, slice) => slice?.test_policy ?? blueprint?.test_policy ?? 'optional';
+
+/**
+ * The cycle a work slice follows: its own `mode`, else the project's `default_mode`, else strict. Absent means strict
+ * so that a project written before the light mode existed behaves as it always did.
+ */
+export const modeOf = (blueprint, slice) => slice?.mode ?? blueprint?.default_mode ?? 'strict';
