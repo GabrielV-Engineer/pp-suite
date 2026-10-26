@@ -12,9 +12,10 @@ Status: **v0.1, unstable.** Expect breaking changes until v1.0.
 ```
 .architect/                      written by Architect.PP, read-only for SDD.PP
   blueprint.yaml                 manifest: capabilities, components, quality attributes, budgets
-  brief.md  architecture.md  glossary.md
+  architecture.md                required: the structure, the rules between components, the data model and the API
+  brief.md  glossary.md          optional: the vision and users in a page, the terms of the domain
   decisions/ADR-0001-*.md        decisions with rejected alternatives
-  evidence/EV-001-*.md           sourced claims behind recommendations, with an expiry date
+  evidence/EV-001-*.md           optional: sourced claims behind recommendations, with an expiry date
 .sddpp/                          written by SDD.PP
   slices/SL-001-*.md             one file per slice: the leaves of the WBS
   debt/<component>.yaml          one register per component (the source of truth)

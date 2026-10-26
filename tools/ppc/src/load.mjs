@@ -4,9 +4,7 @@ import { parse as parseYaml } from 'yaml';
 
 export const REQUIRED_FILES = [
   '.architect/blueprint.yaml',
-  '.architect/brief.md',
   '.architect/architecture.md',
-  '.architect/glossary.md',
 ];
 
 export function splitFrontmatter(text) {

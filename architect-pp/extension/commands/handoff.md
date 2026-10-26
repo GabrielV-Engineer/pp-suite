@@ -57,9 +57,10 @@ the plan**. It is a format conversion, not a redesign: do not improve, add or re
    - `default_mode: light`: the cycle SDD.PP follows by default (tests and code together in one session; a slice can
      ask for the strict cycle). This is the method's default, not something the blueprint states. Leave `test_policy`
      out unless the blueprint or the person says tests are required or not wanted.
-3. Write `.architect/brief.md` (the vision, users and goals in a page), `.architect/architecture.md` (the structure
-   of the components and their rules, the data model and the API in summary; **no build steps**) and
-   `.architect/glossary.md` (the terms of the domain).
+3. Write `.architect/architecture.md` (the structure of the components and their rules, the data model and the API in
+   summary; **no build steps**), starting with one paragraph on the vision and who it is for. Write `.architect/brief.md`
+   (vision, users and goals in a page) and `.architect/glossary.md` (the terms of the domain) **only when the blueprint
+   has enough for them to be worth reading**; otherwise skip them. They are optional.
 4. Write `.architect/decisions/ADR-NNNN-<slug>.md` only for decisions that are **costly to reverse or that a
    reader would question**: the runtime and framework, the database, how the system is exposed, and a choice that
    removes a capability others expect. Cosmetic choices (a colour scheme), tooling choices (a linter, a formatter)
@@ -67,7 +68,7 @@ the plan**. It is a format conversion, not a redesign: do not improve, add or re
    six, say why in the report. Each has context, the decision, the **rejected alternatives and why** (those the
    blueprint gives; do not make up others) and the consequences, and references the capabilities, quality
    attributes or constraints that drove it.
-5. Write `.architect/evidence/EV-NNN-<slug>.md` for the checks the blueprint reports (for example, versions verified
+5. Write `.architect/evidence/EV-NNN-<slug>.md` (optional; skip it if the blueprint reports no checks) for the checks the blueprint reports (for example, versions verified
    against a package registry), with the source, the date and an expiry date. **Group by source and date**: all the
    package versions verified against one registry on one day are one evidence file, not one per package.
 6. Write `.architect/additions.yaml`, following `additions.schema.json` (in the `schemas` folder `ppc contract` printed), with one entry per

@@ -182,7 +182,7 @@ test('CLI: check-git fails with exit 1 when the audit lies about the diff', (t) 
 
 test('CLI: check-git refuses an invalid project', (t) => {
   const { dir } = finished(t);
-  rmSync(join(dir, '.architect/glossary.md'));
+  rmSync(join(dir, '.architect/architecture.md'));
   assert.equal(ppc('check-git', dir).status, 1);
 });
 

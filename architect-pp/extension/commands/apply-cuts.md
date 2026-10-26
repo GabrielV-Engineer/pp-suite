@@ -29,13 +29,13 @@ brings the addition back. It is a mechanical edit, not a redesign: remove what t
 
 ## Steps
 
-1. Read `.architect/additions.yaml`, `.architect/blueprint.yaml`, `.architect/architecture.md`, `.architect/brief.md`
-   and the decisions and evidence under `.architect/`. List the additions to apply.
+1. Read `.architect/additions.yaml`, `.architect/blueprint.yaml`, `.architect/architecture.md`
+   and, if they exist, `brief.md`, `glossary.md` and the decisions and evidence under `.architect/`. List the additions to apply.
 2. For each one, do all of this:
    - Remove each id in `affects` from `.architect/blueprint.yaml` (a capability, quality attribute or constraint).
      Remove it from the `justified_by` of components and from the `drivers` of decisions that cite it. A decision file
      listed in `affects` (`ADR-NNNN`) is deleted, and its number is not reused.
-   - Remove the text in `architecture.md`, `brief.md` and `glossary.md` that only describes the addition (a section, a
+   - Remove the text in `architecture.md` (and `brief.md` and `glossary.md`, if they exist) that only describes the addition (a section, a
      table row, a sentence). Keep what is shared with things that stay.
    - Add its `non_goal` sentence, exactly as written in `additions.yaml`, to `non_goals` in `blueprint.yaml`.
    - Raise `revision` in `blueprint.yaml` by one (once per run, however many cuts you apply).

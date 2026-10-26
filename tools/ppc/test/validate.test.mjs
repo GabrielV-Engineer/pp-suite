@@ -52,9 +52,9 @@ test('a correctly finished slice is accepted', () => {
 });
 
 // ── structure and schema ─────────────────────────────────────────
-test('R00: a missing required file is an error', () => {
+test('R00: a missing required file is an error, and brief, glossary and evidence are not required', () => {
   const m = base();
-  m.missingFiles = ['.architect/brief.md'];
+  m.missingFiles = ['.architect/architecture.md'];
   assert.ok(has(run(m), 'R00', 'error'));
 });
 
