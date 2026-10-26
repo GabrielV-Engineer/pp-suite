@@ -48,7 +48,7 @@ this is the "drop or simplify" case: not supported at this size.
 1. **Nobody weakened a test, in any condition.** There were 0 test edits after the first test commit in all 45
    runs. The lock never had anything to stop, so its value was not measured. A plain agent that writes its own
    tests and has no pressure to pass them does not cheat.
-2. **Scope did not drift.** Out-of-scope markers were 0 in nearly every run, baselines included (two runs of 45 had one: SL-006-B1-3 and SL-006-B2-3, both baselines). When the baseline never does the thing a rule forbids, the rule cannot show an advantage. This is a floor
+2. **Scope did not drift.** Out-of-scope markers were 0 in nearly every run, baselines included (two runs of 45 had one hit, SL-006-B1-3 and SL-006-B2-3, but both were **false positives**: the regex for "undo" matched the required confirmation text "This cannot be undone". The real count was 0 in all 45 runs; see the second experiment). When the baseline never does the thing a rule forbids, the rule cannot show an advantage. This is a floor
    effect and the measure has little sensitivity.
 3. **A ceiling on SL-008.** Its change is one line and every condition scored 1.0.
 4. **The human gate was simulated.** The claimed benefit of reading and approving the tests first (a person catches

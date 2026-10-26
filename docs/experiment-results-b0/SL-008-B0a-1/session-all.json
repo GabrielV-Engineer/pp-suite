@@ -1,0 +1,107 @@
+{
+  "duration_api_ms": 22863,
+  "stop_reason": "end_turn",
+  "session_id": "00364025-28cd-413f-8db6-0948cd646ced",
+  "total_cost_usd": 0.1845845,
+  "usage": {
+    "input_tokens": 16,
+    "cache_creation_input_tokens": 33079,
+    "cache_read_input_tokens": 271765,
+    "output_tokens": 2506,
+    "output_tokens_details": {
+      "thinking_tokens": 322
+    },
+    "server_tool_use": {
+      "web_search_requests": 0,
+      "web_fetch_requests": 0
+    },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 33079,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 266,
+        "cache_read_input_tokens": 43424,
+        "cache_creation_input_tokens": 180,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 180
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "modelUsage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 16,
+      "outputTokens": 2506,
+      "cacheReadInputTokens": 271765,
+      "cacheCreationInputTokens": 33079,
+      "webSearchRequests": 0,
+      "costUSD": 0.1845845,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 322,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "permission_denials": [
+    {
+      "tool_name": "Bash",
+      "tool_use_id": "toolu_01M8Kig7c8cHNKJSk1tgetNC",
+      "tool_input": {
+        "command": "python3 - <<'E'\nimport re\np='src/tasks.ts'\ns=open(p).read()\ns=s.replace('\"SELECT * FROM tasks ORDER BY id\"','\"SELECT * FROM tasks ORDER BY completed_at IS NOT NULL, id DESC\"')\nopen(p,'w').write(s)\np='public/app.js'\ns=open(p).read()\ns=s.replace('''  list.replaceChildren(\n    ...tasks.map(''','''  const open = tasks.filter((task) => task.completed_at === null);\n  if (open.length === 0) {\n    const empty = document.createElement(\"li\");\n    empty.id = \"empty-state\";\n    empty.textContent = \"No open tasks. Add one above to get started.\";\n    list.replaceChildren(empty);\n    return;\n  }\n  list.replaceChildren(\n    ...open.map(''')\nopen(p,'w').write(s)\nE\nsed -n 60,140p tests/tasks.test.ts; tail -20 tests/tasks.test.ts"
+      }
+    }
+  ],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": {
+      "background": 0,
+      "foreground": 0,
+      "unset": 0
+    },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": {
+      "parent": 0,
+      "user": 0,
+      "system": 0
+    },
+    "refused": {
+      "depth_limit": 0,
+      "concurrency_limit": 0,
+      "budget": 0
+    },
+    "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 11,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "The page now lists open tasks newest first, and it shows a message when there are none. `npm test` passes (18 of 18) and `npm run typecheck` reports no errors. I committed the work as `fbee96c`.\n\n- **Order:** `listTasks` in `src/tasks.ts` now sorts open tasks first, newest first, with completed tasks after them. That matches the API description in `architecture.md`.\n- **Empty state:** `public/app.js` shows only open tasks. When there are none, it shows \"No open tasks. Add one above to get started.\"\n- **Tests:** I added one test that creates three tasks and checks they come back newest first. I added another that checks the page script contains the empty-state message. The empty-state test only looks for the text in the script, so it doesn't render the page.\n\nI haven't opened the page in a browser.",
+  "ttft_ms": 4590,
+  "type": "result",
+  "duration_ms": 41916,
+  "uuid": "2012e36c-8831-4e31-b3e8-acc3825104f9",
+  "ttft_stream_ms": 3840,
+  "time_to_request_ms": 682,
+  "first_content_frame_ms": 3842,
+  "queued_turn_count": 0,
+  "result_index": 0
+}

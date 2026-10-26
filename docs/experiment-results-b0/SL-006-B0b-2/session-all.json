@@ -1,0 +1,114 @@
+{
+  "duration_api_ms": 102137,
+  "stop_reason": "end_turn",
+  "session_id": "a15b2841-859a-42d7-af8b-6d82fc2f677e",
+  "total_cost_usd": 0.43055419999999994,
+  "usage": {
+    "input_tokens": 24,
+    "cache_creation_input_tokens": 52084,
+    "cache_read_input_tokens": 566102,
+    "output_tokens": 16556,
+    "output_tokens_details": {
+      "thinking_tokens": 2627
+    },
+    "server_tool_use": {
+      "web_search_requests": 0,
+      "web_fetch_requests": 0
+    },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 52084,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 1131,
+        "cache_read_input_tokens": 62132,
+        "cache_creation_input_tokens": 477,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 477
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "modelUsage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 24,
+      "outputTokens": 16556,
+      "cacheReadInputTokens": 566102,
+      "cacheCreationInputTokens": 52084,
+      "webSearchRequests": 0,
+      "costUSD": 0.43055419999999994,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 2627,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "permission_denials": [
+    {
+      "tool_name": "Bash",
+      "tool_use_id": "toolu_01NmpnTQzDFT5D5Xtv2Fhnd9",
+      "tool_input": {
+        "command": "cat > migrations/002-add-task-deleted-at.sql <<'EOF'\nALTER TABLE tasks ADD COLUMN deleted_at TEXT;\nEOF\ncat > src/tasks.ts <<'EOF'\nimport type { Database } from \"./db.ts\";\n\n/** How long a deleted task stays recoverable before it is removed for good. */\nexport const TRASH_RETENTION_DAYS = 30;\nconst DAY_MS = 24 * 60 * 60 * 1000;\n\nexport interface Task {\n  id: number;\n  title: string;\n  created_at: string;\n  updated_at: string;\n  completed_at: string | null;\n  deleted_at: string | null;\n}\n\nexport function listTasks(db: Database): Task[] {\n  return db.all(\"SELECT * FROM tasks WHERE deleted_at IS NULL ORDER BY id\") as unknown as Task[];\n}\n\nexport function createTask(db: Database, title: string): Task {\n  const now = new Date().toISOString();\n  const [task] = db.all(\n    \"INSERT INTO tasks (title, created_at, updated_at) VALUES (?, ?, ?) RETURNING *\",\n    title.trim(),\n    now,\n    now,\n  );\n  return task as unknown as Task;\n}\n\n/** Removes tasks that have been in the trash longer than the retention period. */\nfunction purgeExpired(db: Database): void {\n  const cutoff = new Date(Date.now() - TRASH_RETENTION_DAYS * DAY_MS).toISOString();\n  db.all(\"DELETE FROM tasks WHERE deleted_at IS NOT NULL AND deleted_at < ?\", cutoff);\n}\n\n/** Deleted tasks that can still be restored, most recently deleted first. */\nexport function listTrash(db: Database): Task[] {\n  purgeExpired(db);\n  return db.all(\n    \"SELECT * FROM tasks WHERE deleted_at IS NOT NULL ORDER BY deleted_at DESC, id DESC\",\n  ) as unknown as Task[];\n}\n\n/** Moves a task to the trash. Idempotent: deleting a trashed task keeps its first deletion time. Returns false when the task does not exist. */\nexport function deleteTask(db: Database, id: number): boolean {\n  purgeExpired(db);\n  const rows = db.all(\n    \"UPDATE tasks SET deleted_at = COALESCE(deleted_at, ?) WHERE id = ? RETURNING id\",\n    new Date().toISOString(),\n    id,\n  );\n  return rows.length > 0;\n}\n\n/** Brings a trashed task back. Idempotent for live tasks. Returns undefined when the task does not exist or was purged. */\nexport function restoreTask(db: Database, id: number): Task | undefined {\n  purgeExpired(db);\n  const [task] = db.all(\"UPDATE tasks SET deleted_at = NULL WHERE id = ? RETURNING *\", id);\n  return task as unknown as Task | undefined;\n}\nEOF\npython3 - <<'EOF'\np='src/app.ts'\ns=open(p).read()\ns=s.replace('import { createTask, listTasks } from \"./tasks.ts\";','import { createTask, deleteTask, listTasks, listTrash, restoreTask } from \"./tasks.ts\";')\ns=s.replace('''const PUBLIC_DIR = relative(process.cwd(), `${import.meta.dirname}/../public`) || \".\";\n''','''const PUBLIC_DIR = relative(process.cwd(), `${import.meta.dirname}/../public`) || \".\";\n\nfunction errorBody(code: string, message: string) {\n  return { error: { code, message } };\n}\n\n/** A task id from the URL: a positive integer, or undefined when the path cannot name a task. */\nfunction parseId(raw: string): number | undefined {\n  const id = /^[1-9]\\\\d{0,15}$/.test(raw) ? Number(raw) : undefined;\n  return id !== undefined && Number.isSafeInteger(id) ? id : undefined;\n}\n''')\ns=s.replace('''  app.get(\"/\",serveStatic''','''  app.delete(\"/api/tasks/:id\", (c) => {\n    const id = parseId(c.req.param(\"id\"));\n    if (id === undefined || !deleteTask(db, id)) {\n      return c.json(errorBody(\"not_found\", \"Task not found.\"), 404);\n    }\n    return c.body(null, 204);\n  });\n\n  app.post(\"/api/tasks/:id/restore\", (c) => {\n    const id = parseId(c.req.param(\"id\"));\n    const task = id === undefined ? undefined : restoreTask(db, id);\n    return task ? c.json({ task }) : c.json(errorBody(\"not_found\", \"Task not found.\"), 404);\n  });\n\n  app.get(\"/api/trash\", (c) => c.json({ tasks: listTrash(db) }));\n\n  app.onError((error, c) => {\n    console.error(error);\n    return c.json(errorBody(\"internal_error\", \"Something went wrong.\"), 500);\n  });\n\n  app.get(\"/\",serveStatic''')\nopen(p,'w').write(s)\nEOF\ngit diff src/app.ts | head -60"
+      }
+    },
+    {
+      "tool_name": "Bash",
+      "tool_use_id": "toolu_01GT2n82e2YvG4evsdxBiGzd",
+      "tool_input": {
+        "command": "sed -i 's/^  - Undo, trash and soft delete$/  - Undo of anything except a deleted task (see ADR-0004), and a permanent \"empty trash\" action/' .architect/blueprint.yaml && sed -i 's/^revision: 1$/revision: 2/' .architect/blueprint.yaml && sed -i 's/description: The owner can rename a task, or delete it permanently with a confirmation\\./description: The owner can rename a task, or delete it. A deleted task goes to a trash and can be restored for 30 days (ADR-0004)./' .architect/blueprint.yaml && git diff --stat .architect"
+      }
+    }
+  ],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": {
+      "background": 0,
+      "foreground": 0,
+      "unset": 0
+    },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": {
+      "parent": 0,
+      "user": 0,
+      "system": 0
+    },
+    "refused": {
+      "depth_limit": 0,
+      "concurrency_limit": 0,
+      "budget": 0
+    },
+    "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 26,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "Se pueden borrar tareas, y una tarea borrada por error se puede recuperar durante 30 días. `npm test` pasa (33 de 33, 17 nuevas) y `npm run typecheck` no da errores. Está commiteado como `25c3b20`.\n\n## Cómo funciona\n- **Borrar:** `DELETE /api/tasks/:id` manda la tarea a una papelera en vez de eliminarla. La tarea sale de `GET /api/tasks` y conserva su id y sus fechas.\n- **Ver la papelera:** `GET /api/trash` lista las tareas borradas, la más reciente primero.\n- **Restaurar:** `POST /api/tasks/:id/restore` la devuelve tal cual estaba.\n- **Repetir la acción:** borrar dos veces, o restaurar una tarea que no está borrada, no da error (un doble clic es inofensivo). Un id desconocido o mal formado da `404 not_found`.\n- **Purga a los 30 días:** las tareas con más de 30 días en la papelera se eliminan definitivamente. Se comprueba en cada operación de borrar, restaurar o ver la papelera, sin tarea en segundo plano.\n- **Errores inesperados:** ahora devuelven un JSON `internal_error` sin detalles internos. Esto también cambia las respuestas de `POST /api/tasks`.\n- **Bases de datos existentes:** la migración `002-add-task-deleted-at.sql` solo añade una columna, así que no se pierde ninguna tarea.\n- **Página:** cada tarea tiene un botón Delete. Al borrar aparece un aviso con \"Undo\", y una sección \"Recently deleted\" con \"Restore\". Los textos se escriben sin `innerHTML`, y si el servidor falla se muestra un mensaje.\n\nLos tests nuevos (`tests/delete.test.ts`) cubren:\n- el ciclo borrar y restaurar;\n- ids inválidos;\n- la persistencia tras `kill -9`;\n- la purga a los 30 días;\n- la actualización de una base de datos antigua;\n- el contenido de la página.\n\n## Decisión que tomé\nEl blueprint listaba \"Undo, trash and soft delete\" como non-goal. Tu petición lo contradice, así que lo traté como un cambio deliberado y no dejé la documentación contradiciendo al código. Escribí el ADR-0004, subí el blueprint a la revisión 2 y actualicé la tabla de la API, la arquitectura y el glosario. Un \"vaciar papelera ahora\" sigue fuera de alcance. Si prefieres otra retención que no sean 30 días, es la constante `TRASH_RETENTION_DAYS` en `src/tasks.ts`.\n\n## Pendiente que no toqué\n- **Guard de Host/Origin:** `architecture.md` y QA-003 lo describen, pero no está implementado en `src/`. Los endpoints de escribir, incluido el nuevo, no lo comprueban. Es una brecha previa que conviene cerrar antes de llamarlo production-ready de verdad.\n- **Validación en `POST /api/tasks`:** un título vacío o un JSON inválido sigue sin validarse y acaba en 500.\n- **Renombrar y completar tareas:** `PATCH` no existe todavía.",
+  "ttft_ms": 1602,
+  "type": "result",
+  "duration_ms": 123746,
+  "uuid": "d8d8ff34-0c6c-4e3d-8f5e-4cb5d881683b",
+  "ttft_stream_ms": 1210,
+  "time_to_request_ms": 105,
+  "first_content_frame_ms": 1211,
+  "queued_turn_count": 0,
+  "result_index": 0
+}

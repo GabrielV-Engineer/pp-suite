@@ -1,0 +1,121 @@
+{
+  "duration_api_ms": 114468,
+  "stop_reason": "end_turn",
+  "session_id": "178f4531-67b5-4ea2-9f58-6576f1cc9db3",
+  "total_cost_usd": 0.4516192,
+  "usage": {
+    "input_tokens": 26,
+    "cache_creation_input_tokens": 53641,
+    "cache_read_input_tokens": 612432,
+    "output_tokens": 17576,
+    "output_tokens_details": {
+      "thinking_tokens": 2028
+    },
+    "server_tool_use": {
+      "web_search_requests": 0,
+      "web_fetch_requests": 0
+    },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 53641,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 952,
+        "cache_read_input_tokens": 63382,
+        "cache_creation_input_tokens": 784,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 784
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "modelUsage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 26,
+      "outputTokens": 17576,
+      "cacheReadInputTokens": 612432,
+      "cacheCreationInputTokens": 53641,
+      "webSearchRequests": 0,
+      "costUSD": 0.4516192,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 2028,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "permission_denials": [
+    {
+      "tool_name": "Bash",
+      "tool_use_id": "toolu_01U9cHTRDLPScWr7ue5CcjjJ",
+      "tool_input": {
+        "command": "cat > migrations/002-soft-delete-tasks.sql <<'EOF'\nALTER TABLE tasks ADD COLUMN deleted_at TEXT;\nCREATE INDEX tasks_deleted_at ON tasks (deleted_at);\nEOF\ncat > src/tasks.ts <<'EOF'\nimport type { Database } from \"./db.ts\";\n\nexport interface Task {\n  id: number;\n  title: string;\n  created_at: string;\n  updated_at: string;\n  completed_at: string | null;\n}\n\nexport interface DeletedTask extends Task {\n  deleted_at: string;\n}\n\nconst TASK_COLUMNS = \"id, title, created_at, updated_at, completed_at\";\n\n/** Active tasks only: a deleted task stays out of the list until it is restored. */\nexport function listTasks(db: Database): Task[] {\n  return db.all(\n    `SELECT ${TASK_COLUMNS} FROM tasks WHERE deleted_at IS NULL ORDER BY id`,\n  ) as unknown as Task[];\n}\n\nexport function createTask(db: Database, title: string): Task {\n  const now = new Date().toISOString();\n  const [task] = db.all(\n    `INSERT INTO tasks (title, created_at, updated_at) VALUES (?, ?, ?) RETURNING ${TASK_COLUMNS}`,\n    title.trim(),\n    now,\n    now,\n  );\n  return task as unknown as Task;\n}\n\n/** Tasks in the trash, most recently deleted first. */\nexport function listDeletedTasks(db: Database): DeletedTask[] {\n  return db.all(\n    `SELECT ${TASK_COLUMNS}, deleted_at FROM tasks WHERE deleted_at IS NOT NULL\n     ORDER BY deleted_at DESC, id DESC`,\n  ) as unknown as DeletedTask[];\n}\n\n/** Moves an active task to the trash. Returns false when there is no such active task. */\nexport function deleteTask(db: Database, id: number): boolean {\n  const rows = db.all(\n    \"UPDATE tasks SET deleted_at = ? WHERE id = ? AND deleted_at IS NULL RETURNING id\",\n    new Date().toISOString(),\n    id,\n  );\n  return rows.length > 0;\n}\n\n/** Brings a task back from the trash. Returns null when that task is not in the trash. */\nexport function restoreTask(db: Database, id: number): Task | null {\n  const [task] = db.all(\n    `UPDATE tasks SET deleted_at = NULL WHERE id = ? AND deleted_at IS NOT NULL\n     RETURNING ${TASK_COLUMNS}`,\n    id,\n  );\n  return (task as unknown as Task | undefined) ?? null;\n}\nEOF\npython3 - <<'EOF'\np='src/app.ts'\ns=open(p).read()\ns=s.replace('import { createTask, listTasks } from \"./tasks.ts\";','import { createTask, deleteTask, listDeletedTasks, listTasks, restoreTask } from \"./tasks.ts\";')\ns=s.replace('''const PUBLIC_DIR''','''const notFound = { error: { code: \"not_found\", message: \"Task not found.\" } };\n\n/** A task id from the URL: a positive integer that SQLite can hold, or null. */\nfunction parseId(raw: string): number | null {\n  const id = Number(raw);\n  return /^\\\\d+$/.test(raw) && Number.isSafeInteger(id) && id > 0 ? id : null;\n}\n\nconst PUBLIC_DIR''')\ns=s.replace('''  app.get(\"/\",serve''','''  app.get(\"/api/tasks/deleted\", (c) => c.json({ tasks: listDeletedTasks(db) }));\n\n  app.delete(\"/api/tasks/:id\", (c) => {\n    const id = parseId(c.req.param(\"id\"));\n    if (id === null) return c.json(invalidId, 400);\n    return deleteTask(db, id) ? c.body(null, 204) : c.json(notFound, 404);\n  });\n\n  app.post(\"/api/tasks/:id/restore\", (c) => {\n    const id = parseId(c.req.param(\"id\"));\n    if (id === null) return c.json(invalidId, 400);\n    const task = restoreTask(db, id);\n    return task ? c.json({ task }) : c.json(notFound, 404);\n  });\n\n  app.get(\"/\",serve''')\ns=s.replace('''const PUBLIC_DIR''','''const invalidId = {\n  error: { code: \"validation_failed\", message: \"The task id must be a positive integer.\" },\n};\n\nconst PUBLIC_DIR''',1)\nopen(p,'w').write(s)\nEOF\nsed -n 1,25p src/app.ts"
+      }
+    },
+    {
+      "tool_name": "Bash",
+      "tool_use_id": "toolu_01MDv1FMukMDCYhdt4T2Yjik",
+      "tool_input": {
+        "command": "cat > public/app.js <<'EOF'\nconst form = document.getElementById(\"task-form\");\nconst titleInput = document.getElementById(\"task-title\");\nconst list = document.getElementById(\"task-list\");\nconst trash = document.getElementById(\"trash-list\");\nconst trashSection = document.getElementById(\"trash\");\nconst status = document.getElementById(\"status\");\n\nfunction actionButton(label, onClick) {\n  const button = document.createElement(\"button\");\n  button.type = \"button\";\n  button.textContent = label;\n  button.addEventListener(\"click\", onClick);\n  return button;\n}\n\nfunction taskItem(task, label, onClick) {\n  const item = document.createElement(\"li\");\n  const title = document.createElement(\"span\");\n  title.textContent = task.title;\n  item.append(title, \" \", actionButton(label, () => onClick(task)));\n  return item;\n}\n\nasync function showTasks() {\n  const [active, deleted] = await Promise.all([\n    fetch(\"/api/tasks\").then((response) => response.json()),\n    fetch(\"/api/tasks/deleted\").then((response) => response.json()),\n  ]);\n  list.replaceChildren(...active.tasks.map((task) => taskItem(task, \"Delete\", deleteTask)));\n  trash.replaceChildren(...deleted.tasks.map((task) => taskItem(task, \"Restore\", restoreTask)));\n  trashSection.hidden = deleted.tasks.length === 0;\n}\n\n/** Runs a change, then redraws; a failed change is reported instead of silently ignored. */\nasync function change(request, failure) {\n  status.textContent = \"\";\n  try {\n    const response = await request();\n    // A 404 means the task is already in the wanted state (for example, deleted in another tab).\n    if (!response.ok && response.status !== 404) status.textContent = failure;\n  } catch {\n    status.textContent = failure;\n  }\n  await showTasks();\n}\n\nfunction deleteTask(task) {\n  return change(\n    () => fetch(`/api/tasks/${task.id}`, { method: \"DELETE\" }),\n    \"Could not delete the task. Try again.\",\n  );\n}\n\nfunction restoreTask(task) {\n  return change(\n    () => fetch(`/api/tasks/${task.id}/restore`, { method: \"POST\" }),\n    \"Could not restore the task. Try again.\",\n  );\n}\n\nform.addEventListener(\"submit\", async (event) => {\n  event.preventDefault();\n  await fetch(\"/api/tasks\", {\n    method: \"POST\",\n    headers: { \"content-type\": \"application/json\" },\n    body: JSON.stringify({ title: titleInput.value }),\n  });\n  titleInput.value = \"\";\n  await showTasks();\n});\n\nshowTasks();\nEOF\n"
+      }
+    },
+    {
+      "tool_name": "Bash",
+      "tool_use_id": "toolu_01FgNvG8ydhThjjhPgxjNTAe",
+      "tool_input": {
+        "command": "cat > .architect/decisions/ADR-0004-soft-delete-trash.md <<'EOF'\n---\nid: ADR-0004\ntitle: Delete moves a task to a trash; restore brings it back\nstatus: proposed\ndate: 2026-10-25\ndrivers: [CAP-003, QA-001]\n---\n\n## Context\n\nCAP-003 said a task is deleted permanently, with a confirmation, and the blueprint listed \"Undo, trash\nand soft delete\" as a non-goal. The owner has since asked for a safe way to recover a task deleted by\nmistake. This ADR reverses that non-goal, for deletion only (undoing other edits stays out of scope).\n\n## Decision\n\n- `DELETE /api/tasks/:id` sets `tasks.deleted_at` (migration 002) instead of removing the row. It\n  answers `204`, or `404` when the task is missing or already deleted.\n- `GET /api/tasks` returns active tasks only. `GET /api/tasks/deleted` returns the trash, most\n  recently deleted first, with `deleted_at`.\n- `POST /api/tasks/:id/restore` clears `deleted_at` and answers `200 {\"task\"}`, or `404` when the\n  task is not in the trash. The task keeps its id and timestamps.\n- A malformed id answers `400 validation_failed`.\n- The page asks no confirmation, because deleting is reversible: it lists \"Recently deleted\" tasks\n  with a Restore button.\n- Deleted rows are kept, in the same SQLite file and under the same durability pragmas (ADR-0002), so\n  a delete or restore that was acknowledged survives `kill -9`.\n\n## Rejected alternatives\n\n- **Hard delete with a confirmation dialog.** A confirmation does not help once it is confirmed by\n  habit; the data is gone.\n- **A separate trash table.** Two writes to move a row, and a restore that must re-insert with the\n  old id. A nullable column is one atomic `UPDATE`.\n\n## Consequences\n\n- The trash grows without limit: there is no way to empty it or to delete a task for good yet. For\n  one person's task list this is small; an \"empty trash\" action or a retention period is a follow-up.\n- Ids of deleted tasks are never reused (`AUTOINCREMENT`), so a restore cannot collide.\n- Every query on `tasks` must filter on `deleted_at`; they all live in `src/tasks.ts`.\nEOF\nperl -0pi -e 's/\\| DELETE \\| `\\/api\\/tasks\\/:id` \\| Hard delete, `204` \\|/| DELETE | `\\/api\\/tasks\\/:id` | Move to the trash (soft delete), `204`; `404` when missing or already deleted |\\n| GET | `\\/api\\/tasks\\/deleted` | `200 {\"tasks\":[...]}`, the trash, most recently deleted first, each with `deleted_at` |\\n| POST | `\\/api\\/tasks\\/:id\\/restore` | Take a task out of the trash, `200 {\"task\"}`; `404` when it is not in the trash |/; s/`not_found` as 404\\./`not_found` as 404. A malformed task id in the path is `validation_failed`./; s/(- ADR-0003: architecture tests enforce the boundary rules\\.)/$1\\n- ADR-0004: delete moves a task to a trash, and restore brings it back./' .architect/architecture.md\nperl -0pi -e 's/  - Undo, trash and soft delete\\n/  - Undo of anything but a deletion, and emptying the trash (ADR-0004)\\n/; s/The owner can rename a task, or delete it permanently with a confirmation\\./The owner can rename a task, or delete it and restore it from the trash if it was a mistake (ADR-0004)./' .architect/blueprint.yaml\nprintf '| Deleted task | A task moved to the trash (`deleted_at` set). It is hidden from the list and can be restored. |\\n| Trash | The deleted tasks, shown as \"Recently deleted\". Nothing empties it yet. |\\n' >> .architect/glossary.md\ngit diff .architect | head -70"
+      }
+    }
+  ],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": {
+      "background": 0,
+      "foreground": 0,
+      "unset": 0
+    },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": {
+      "parent": 0,
+      "user": 0,
+      "system": 0
+    },
+    "refused": {
+      "depth_limit": 0,
+      "concurrency_limit": 0,
+      "budget": 0
+    },
+    "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 26,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "Ya se pueden borrar tareas y recuperar las borradas por error. `npm test` pasa (31 de 31) y `npm run typecheck` no da errores. Todo está en un commit (`0c477d3`).\n\n**Cómo funciona**\n- **Borrar:** `DELETE /api/tasks/:id` ya no elimina la fila. La mueve a una papelera marcándola con `deleted_at` y responde `204`. Si la tarea no existe o ya estaba borrada, responde `404`.\n- **Papelera:** `GET /api/tasks/deleted` lista las tareas borradas, la más reciente primero. `GET /api/tasks` solo devuelve las activas.\n- **Recuperar:** `POST /api/tasks/:id/restore` devuelve la tarea con el mismo id y las mismas fechas. Si no está en la papelera, responde `404`.\n- **Ids inválidos:** un id mal formado (`abc`, `-1`, `1.5`, un número enorme) responde `400 validation_failed` y no cambia nada.\n- **Migración:** la migración `002` añade la columna `deleted_at`. Las bases creadas antes siguen abriendo, y hay un test que lo comprueba.\n- **Página:** cada tarea tiene un botón \"Delete\" y aparece una sección \"Recently deleted\" con \"Restore\". No pide confirmación, porque borrar ya se puede deshacer. Si una acción falla, muestra un mensaje.\n- **Tests:** `tests/delete-restore.test.ts` cubre todo lo anterior. También comprueba que un borrado y una restauración sobreviven a `kill -9` y reinicio.\n\n**Un cambio en el diseño**\n- `blueprint.yaml` tenía \"Undo, trash and soft delete\" como non-goal, y `architecture.md` describía un borrado definitivo. Seguí tu petición explícita y lo dejé documentado en `ADR-0004` (estado `proposed`). Actualicé también `architecture.md`, `blueprint.yaml` y el glosario. Si prefieres otro enfoque, dímelo.\n\n**Lo que no cubre**\n- **Papelera sin límite:** no hay forma de vaciarla ni borrar una tarea para siempre. Para una lista personal es poco, pero queda como siguiente paso (vaciar la papelera o un plazo de retención).\n- **Guard Host/Origin:** `architecture.md` lo exige, pero aún no existe en el código. Mientras no esté, un sitio externo podría enviar `POST /restore` o `DELETE` a `localhost`.\n- **Fuera de alcance, sin tocar:** `PATCH`, la validación del título y el manejo de JSON inválido en `POST /api/tasks`. Este último devuelve 500 hoy.",
+  "ttft_ms": 2104,
+  "type": "result",
+  "duration_ms": 137852,
+  "uuid": "dbd7fc85-110d-420f-9174-c871605895ad",
+  "ttft_stream_ms": 1712,
+  "time_to_request_ms": 105,
+  "first_content_frame_ms": 1713,
+  "queued_turn_count": 0,
+  "result_index": 0
+}

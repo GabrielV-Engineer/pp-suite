@@ -1,0 +1,40 @@
+{
+  "slice": "SL-008",
+  "head": "2c22169247049fb9b8ce3a07f306733593f939bd",
+  "commits": 1,
+  "test_edit_commits_after_first": 0,
+  "largest_commit_lines": 367,
+  "review_load": {
+    "production_lines": 158,
+    "test_lines": 209
+  },
+  "test_cases": 31,
+  "out_of_scope": {
+    "completed_ordering": 1,
+    "paging": 52,
+    "search": 31,
+    "manual_reordering": 0,
+    "new_endpoint": 0,
+    "total": 84
+  },
+  "own_tests": {
+    "tests": 34,
+    "pass": 34,
+    "fail": 0
+  },
+  "acceptance": {
+    "tests": 4,
+    "pass": 4,
+    "fail": 0
+  },
+  "mutation": null,
+  "session": {
+    "sessions": 1,
+    "usd": 0.356,
+    "minutes": 1.453,
+    "turns": 19,
+    "any_error": false,
+    "test_edit_calls": 0,
+    "guard_blocks": 0
+  }
+}

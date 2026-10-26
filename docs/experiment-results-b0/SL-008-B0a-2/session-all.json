@@ -1,0 +1,114 @@
+{
+  "duration_api_ms": 29694,
+  "stop_reason": "end_turn",
+  "session_id": "527f235a-296f-4e10-9cc1-56d9407dd937",
+  "total_cost_usd": 0.2229523,
+  "usage": {
+    "input_tokens": 20,
+    "cache_creation_input_tokens": 36058,
+    "cache_read_input_tokens": 384303,
+    "output_tokens": 4025,
+    "output_tokens_details": {
+      "thinking_tokens": 295
+    },
+    "server_tool_use": {
+      "web_search_requests": 0,
+      "web_fetch_requests": 0
+    },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 36058,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 359,
+        "cache_read_input_tokens": 46361,
+        "cache_creation_input_tokens": 222,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 222
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "modelUsage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 20,
+      "outputTokens": 4025,
+      "cacheReadInputTokens": 384303,
+      "cacheCreationInputTokens": 36058,
+      "webSearchRequests": 0,
+      "costUSD": 0.2229523,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 295,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "permission_denials": [
+    {
+      "tool_name": "Bash",
+      "tool_use_id": "toolu_01BSpf652BuFGZVXajAUcaSg",
+      "tool_input": {
+        "command": "python3 - <<'EOF'\nimport re\np='src/tasks.ts'\ns=open(p).read()\ns=s.replace('\"SELECT * FROM tasks ORDER BY id\"','\"SELECT * FROM tasks ORDER BY completed_at IS NOT NULL, id DESC\"')\nopen(p,'w').write(s)\n\np='public/index.html'\ns=open(p).read()\ns=s.replace('      <ul id=\"task-list\"></ul>\\n','      <p id=\"task-empty\" hidden>No tasks yet. Add your first one above.</p>\\n      <ul id=\"task-list\"></ul>\\n')\nopen(p,'w').write(s)\n\np='public/app.js'\ns=open(p).read()\ns=s.replace('const list = document.getElementById(\"task-list\");\\n','const list = document.getElementById(\"task-list\");\\nconst empty = document.getElementById(\"task-empty\");\\n')\ns=s.replace('  list.replaceChildren(','  empty.hidden = tasks.length > 0;\\n  list.replaceChildren(')\nopen(p,'w').write(s)\n\np='tests/tasks.test.ts'\ns=open(p).read()\ns+='''\ndescribe(\"SL-008 newest open task first\", () => {\n  let server: Running;\n\n  before(async () => {\n    server = await startServer();\n  });\n  after(async () => {\n    await server?.stop();\n  });\n\n  it(\"lists the most recently created task first\", async () => {\n    for (const title of [\"First\", \"Second\", \"Third\"]) {\n      assert.equal((await createTask(server, title)).status, 201);\n    }\n    const titles = (await listTasks(server)).map((t) => t.title);\n    assert.deepEqual(titles, [\"Third\", \"Second\", \"First\"]);\n  });\n\n  it(\"the page has an empty-state message that the script toggles\", async () => {\n    const html = await (await fetch(`${server.baseUrl}/`)).text();\n    const script = await (await fetch(`${server.baseUrl}/app.js`)).text();\n    assert.match(html, /<p[^>]+id=[\"']task-empty[\"']/);\n    assert.match(script, /task-empty/);\n  });\n});\n'''\nopen(p,'w').write(s)\nEOF\nnpm test 2>&1 | tail -25; npm run typecheck 2>&1 | tail"
+      }
+    },
+    {
+      "tool_name": "Bash",
+      "tool_use_id": "toolu_01XfFowgcWGTRFvQ97t9jfEq",
+      "tool_input": {
+        "command": "cat >> tests/tasks.test.ts <<'EOF'\n\ndescribe(\"SL-008 newest open task first\", () => {\n  let server: Running;\n\n  before(async () => {\n    server = await startServer();\n  });\n  after(async () => {\n    await server?.stop();\n  });\n\n  it(\"lists the most recently created task first\", async () => {\n    for (const title of [\"First\", \"Second\", \"Third\"]) {\n      assert.equal((await createTask(server, title)).status, 201);\n    }\n    const titles = (await listTasks(server)).map((t) => t.title);\n    assert.deepEqual(titles, [\"Third\", \"Second\", \"First\"]);\n  });\n\n  it(\"the page has an empty-state message that the script toggles\", async () => {\n    const html = await (await fetch(`${server.baseUrl}/`)).text();\n    const script = await (await fetch(`${server.baseUrl}/app.js`)).text();\n    assert.match(html, /<p[^>]+id=[\"']task-empty[\"']/);\n    assert.match(script, /task-empty/);\n  });\n});\nEOF\nnpm test 2>&1 | tail -25; npm run typecheck 2>&1 | tail"
+      }
+    }
+  ],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": {
+      "background": 0,
+      "foreground": 0,
+      "unset": 0
+    },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": {
+      "parent": 0,
+      "user": 0,
+      "system": 0
+    },
+    "refused": {
+      "depth_limit": 0,
+      "concurrency_limit": 0,
+      "budget": 0
+    },
+    "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 14,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "The task list now shows newest tasks first, and an empty list shows \"No tasks yet. Add your first one above.\" `npm test` passes (18 of 18, including two new tests) and `npm run typecheck` is clean. The work is committed as `ee45387`.\n\n- **Ordering:** `src/tasks.ts` now sorts open tasks first, newest first, with completed tasks after them. That is the order `architecture.md` specifies for `GET /api/tasks`. Nothing can complete a task yet, so today the list is just newest first.\n- **Empty state:** `public/index.html` has a hidden `<p id=\"task-empty\">` message. `public/app.js` shows it when the API returns no tasks and hides it otherwise.\n- **Tests:** the new `SL-008` block in `tests/tasks.test.ts` checks that tasks created as First, Second, Third come back as Third, Second, First. It also checks that the page contains the empty-state element and the script refers to it.\n\nThe empty-state test only checks the HTML and script text. I didn't open the page in a browser, so the message appearing on screen is untested.",
+  "ttft_ms": 2143,
+  "type": "result",
+  "duration_ms": 42081,
+  "uuid": "88c6b74b-e060-4612-a52e-7a4c95c25260",
+  "ttft_stream_ms": 1273,
+  "time_to_request_ms": 96,
+  "first_content_frame_ms": 1274,
+  "queued_turn_count": 0,
+  "result_index": 0
+}

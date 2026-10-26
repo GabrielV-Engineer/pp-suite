@@ -15,7 +15,9 @@ They talk through one versioned [contract](docs/contract-v0.1.md), and neither i
 >
 > **Does it help? Not shown.** A 45-run experiment found that on thin slices SDD.PP did not produce better
 > tested or more focused code than a plain prompt, and cost 2.5 times as much: see the
-> [experiment report](docs/experiment-report.md) for what it could and could not test.
+> [experiment report](docs/experiment-report.md) for what it could and could not test. A second one found that a
+> written, narrow slice does keep an agent from building what an ambitious request invites (4.6 times the code,
+> soft delete, paging, search): [report 2](docs/experiment-report-2.md).
 
 ## Why
 

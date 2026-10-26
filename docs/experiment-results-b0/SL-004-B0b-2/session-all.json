@@ -1,0 +1,121 @@
+{
+  "duration_api_ms": 66429,
+  "stop_reason": "end_turn",
+  "session_id": "08741bda-a989-4761-bfd4-6b2740978c11",
+  "total_cost_usd": 0.3416796000000001,
+  "usage": {
+    "input_tokens": 32,
+    "cache_creation_input_tokens": 42769,
+    "cache_read_input_tokens": 706696,
+    "output_tokens": 9987,
+    "output_tokens_details": {
+      "thinking_tokens": 1519
+    },
+    "server_tool_use": {
+      "web_search_requests": 0,
+      "web_fetch_requests": 0
+    },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 42769,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 716,
+        "cache_read_input_tokens": 52552,
+        "cache_creation_input_tokens": 742,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 742
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "modelUsage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 32,
+      "outputTokens": 9987,
+      "cacheReadInputTokens": 706696,
+      "cacheCreationInputTokens": 42769,
+      "webSearchRequests": 0,
+      "costUSD": 0.3416796000000001,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 1519,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "permission_denials": [
+    {
+      "tool_name": "Bash",
+      "tool_use_id": "toolu_018vzUFRT3DzNtgQpoQ9HZJW",
+      "tool_input": {
+        "command": "python3 - <<'EOF'\np='src/tasks.ts'\ns=open(p).read()\ns=s.replace('''export function listTasks''','''export const TITLE_MAX_LENGTH = 500;\n\n/** A rule of the task that the input broke; the HTTP layer reports it as `validation_failed`. */\nexport class ValidationError extends Error {}\n\n/**\n * Returns the title as it is stored: trimmed, 1 to 500 characters.\n * Characters are counted as code points, the way SQLite's `length()` counts them in the CHECK constraint.\n */\nexport function parseTitle(input: unknown): string {\n  if (typeof input !== \"string\") throw new ValidationError(\"title must be a string\");\n  if (!input.isWellFormed()) throw new ValidationError(\"title must be valid Unicode text\");\n  // Control characters (NUL included, which truncates SQLite's length()) have no place in a one-line title.\n  if (/\\\\p{Cc}/u.test(input.trim())) {\n    throw new ValidationError(\"title must not contain control characters\");\n  }\n  const title = input.trim();\n  if (title.length === 0) throw new ValidationError(\"title must not be empty\");\n  if ([...title].length > TITLE_MAX_LENGTH) {\n    throw new ValidationError(`title must be at most ${TITLE_MAX_LENGTH} characters`);\n  }\n  return title;\n}\n\nexport function listTasks''')\ns=s.replace('''export function createTask(db: Database, title: string): Task {''','''export function createTask(db: Database, input: unknown): Task {\n  const title = parseTitle(input);''')\ns=s.replace(\"    title.trim(),\\n\",\"    title,\\n\")\nopen(p,'w').write(s)\n\np='src/app.ts'\ns=open(p).read()\ns=s.replace('''import { Hono } from \"hono\";\n''','''import { Hono } from \"hono\";\nimport { bodyLimit } from \"hono/body-limit\";\n''')\ns=s.replace('import { createTask, listTasks } from','import { createTask, listTasks, ValidationError } from')\ns=s.replace('''export function createApp''','''/** Far above the largest valid body (500 characters, even if every one is escaped), far below a memory problem. */\nconst MAX_BODY_BYTES = 16 * 1024;\n\ntype ErrorStatus = 400 | 413 | 500;\n\nfunction errorBody(code: string, message: string) {\n  return { error: { code, message } };\n}\n\nexport function createApp''')\ns=s.replace('''  app.post(\"/api/tasks\", async (c) => {\n    const { title } = await c.req.json();\n    return c.json({ task: createTask(db, title) }, 201);\n  });\n''','''  app.post(\n    \"/api/tasks\",\n    bodyLimit({\n      maxSize: MAX_BODY_BYTES,\n      onError: (c) => c.json(errorBody(\"payload_too_large\", \"request body is too large\"), 413),\n    }),\n    async (c) => {\n      let body: unknown;\n      try {\n        body = await c.req.json();\n      } catch {\n        return c.json(errorBody(\"invalid_json\", \"request body must be valid JSON\"), 400);\n      }\n      if (typeof body !== \"object\" || body === null || Array.isArray(body)) {\n        return c.json(errorBody(\"validation_failed\", 'body must be an object like {\"title\": \"...\"}'), 400);\n      }\n      return c.json({ task: createTask(db, (body as { title?: unknown }).title) }, 201);\n    },\n  );\n\n  app.onError((error, c) => {\n    if (error instanceof ValidationError) {\n      return c.json(errorBody(\"validation_failed\", error.message), 400);\n    }\n    console.error(error);\n    return c.json(errorBody(\"internal_error\", \"unexpected error\"), 500 satisfies ErrorStatus);\n  });\n''')\nopen(p,'w').write(s)\nEOF\nsed -i 's/^type ErrorStatus.*\\n//' src/app.ts\npython3 - <<'EOF'\np='/tmp/claude-1000/pp-suite-exp/runs/SL-004-B0b-2/src/app.ts'\ns=open(p).read()\ns=s.replace('type ErrorStatus = 400 | 413 | 500;\\n\\n','').replace(' satisfies ErrorStatus','')\nopen(p,'w').write(s)\nEOF"
+      }
+    },
+    {
+      "tool_name": "Bash",
+      "tool_use_id": "toolu_01CEjKTK18uKYqsF5feJit93",
+      "tool_input": {
+        "command": "cat > /tmp/edit.mjs <<'EOF'\nimport { readFileSync, writeFileSync } from \"node:fs\";\nconst p = \"public/app.js\";\nlet s = readFileSync(p, \"utf8\");\ns = s.replace(`  await fetch(\"/api/tasks\", {`, `  const response = await fetch(\"/api/tasks\", {`);\ns = s.replace(`  titleInput.value = \"\";\n  await showTasks();`, `  // A rejected title stays in the field so the owner can fix it instead of retyping it.\n  if (!response.ok) return;\n  titleInput.value = \"\";\n  await showTasks();`);\nwriteFileSync(p, s);\nEOF\nnode /tmp/edit.mjs && git diff public"
+      }
+    },
+    {
+      "tool_name": "Bash",
+      "tool_use_id": "toolu_01CQcjPE7KZNrBBAQZiYUixv",
+      "tool_input": {
+        "command": "sed -i 's|if (!input.isWellFormed())|if (/\\\\p{Surrogate}/u.test(input))|' src/tasks.ts && grep -n Surrogate src/tasks.ts && npm run typecheck 2>&1 | tail -5 && npm test 2>&1 | grep -E \"✖|ℹ (tests|pass|fail)\""
+      }
+    }
+  ],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": {
+      "background": 0,
+      "foreground": 0,
+      "unset": 0
+    },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": {
+      "parent": 0,
+      "user": 0,
+      "system": 0
+    },
+    "refused": {
+      "depth_limit": 0,
+      "concurrency_limit": 0,
+      "budget": 0
+    },
+    "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 20,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "Creating a task now validates its input and answers bad requests with JSON errors. `npm test` passes all 44 tests and `npm run typecheck` is clean. Both ran on the final code, and the work is committed as `0d1078e`.\n\n**Title rules** (`src/tasks.ts`):\n- The title must be a string. It is trimmed, then must be 1 to 500 characters long.\n- Length counts Unicode code points, matching SQLite's `length()` in the table's CHECK constraint. 500 emoji are accepted and 501 are rejected.\n- Control characters (newline, tab, NUL) and unpaired surrogates are rejected. NUL would otherwise make SQLite's `length()` miscount.\n- Any other bad title (missing, null, a number, an array, empty or whitespace-only) fails the same way.\n\n**HTTP behavior** (`src/app.ts`):\n\n| Input | Response |\n|---|---|\n| Malformed or empty JSON | `400 invalid_json` |\n| Body that is `null`, an array, a string or a number | `400 validation_failed` |\n| Bad title | `400 validation_failed` |\n| Body over 16 KiB | `413 payload_too_large` |\n| Unexpected error | `500 internal_error` (before, the framework's default plain-text 500) |\n\nExtra fields in the body are ignored. No rejected request creates a task.\n\n**Frontend:** `public/app.js` used to clear the input even when the server rejected the title. It now keeps the text in the field on a failed response. It still shows no error message.\n\n**Tests:** `tests/task-validation.test.ts` adds 28 tests for these cases, including the boundary lengths and SQL/markup-looking titles stored as-is.\n\nTwo things you should check:\n- **Contract change:** I added `payload_too_large` and `internal_error` to the error list in `.architect/architecture.md`. They weren't in the original contract, so change them if you'd rather have different codes.\n- **Missing guard:** The architecture says a Host/Origin guard runs before every route, but `src/app.ts` doesn't implement one. I left it alone because it's outside creating a task, but it is a gap against QA-003.",
+  "ttft_ms": 2089,
+  "type": "result",
+  "duration_ms": 90609,
+  "uuid": "a75d865c-1a40-4ba3-809e-8ed2767d2c93",
+  "ttft_stream_ms": 1235,
+  "time_to_request_ms": 102,
+  "first_content_frame_ms": 1236,
+  "queued_turn_count": 0,
+  "result_index": 0
+}

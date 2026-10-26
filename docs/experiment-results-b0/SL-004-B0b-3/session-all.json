@@ -1,0 +1,107 @@
+{
+  "duration_api_ms": 56293,
+  "stop_reason": "end_turn",
+  "session_id": "6a9adad7-8c1e-4688-bb56-44f87ccbf17f",
+  "total_cost_usd": 0.30132000000000003,
+  "usage": {
+    "input_tokens": 24,
+    "cache_creation_input_tokens": 41306,
+    "cache_read_input_tokens": 510280,
+    "output_tokens": 8502,
+    "output_tokens_details": {
+      "thinking_tokens": 1109
+    },
+    "server_tool_use": {
+      "web_search_requests": 0,
+      "web_fetch_requests": 0
+    },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 41306,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 836,
+        "cache_read_input_tokens": 51191,
+        "cache_creation_input_tokens": 640,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 640
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "modelUsage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 24,
+      "outputTokens": 8502,
+      "cacheReadInputTokens": 510280,
+      "cacheCreationInputTokens": 41306,
+      "webSearchRequests": 0,
+      "costUSD": 0.30132000000000003,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 1109,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "permission_denials": [
+    {
+      "tool_name": "Bash",
+      "tool_use_id": "toolu_01XWAwfUtTpZL2rT8pygq5qK",
+      "tool_input": {
+        "command": "cat > src/validation.ts <<'EOF'\nexport const TITLE_MAX_LENGTH = 500;\n\nexport class ValidationError extends Error {}\n\n/** Characters that render as nothing: separators and invisible format characters (zero-width space, joiners, BOM...). */\nconst INVISIBLE_ONLY = /^[\\p{Z}\\p{Cf}]*$/u;\n/** C0/C1 control characters. NUL in particular makes SQLite's length() stop early, defeating the CHECK. */\nconst CONTROL = /\\p{Cc}/u;\n\n/**\n * Returns the trimmed title to store, or throws a ValidationError saying what is wrong.\n * Length is counted in code points, the way SQLite's length() counts it, so the two never disagree.\n */\nexport function parseTitle(input: unknown): string {\n  if (typeof input !== \"string\") throw new ValidationError(\"title must be a string\");\n  if (!input.isWellFormed()) throw new ValidationError(\"title must be valid Unicode text\");\n\n  const title = input.trim();\n  if (title === \"\" || INVISIBLE_ONLY.test(title)) throw new ValidationError(\"title must not be empty\");\n  if (CONTROL.test(title)) throw new ValidationError(\"title must not contain control characters\");\n\n  const length = [...title].length;\n  if (length > TITLE_MAX_LENGTH) {\n    throw new ValidationError(`title must be at most ${TITLE_MAX_LENGTH} characters long`);\n  }\n  return title;\n}\n\n/** Reads the `title` of a decoded JSON body, which must be a plain object. */\nexport function parseCreateBody(body: unknown): { title: string } {\n  if (typeof body !== \"object\" || body === null || Array.isArray(body)) {\n    throw new ValidationError(\"body must be a JSON object\");\n  }\n  return { title: parseTitle((body as Record<string, unknown>).title) };\n}\nEOF\npython3 - <<'EOF'\nimport re\np='src/app.ts'\ns=open(p).read()\ns=s.replace('''import { Hono } from \"hono\";\n''','''import { Hono } from \"hono\";\nimport { bodyLimit } from \"hono/body-limit\";\n''')\ns=s.replace('''import { createTask, listTasks } from \"./tasks.ts\";\n''','''import { createTask, listTasks } from \"./tasks.ts\";\nimport { parseCreateBody, ValidationError } from \"./validation.ts\";\n\n/** A valid body is a 500-character title; even fully \\\\u-escaped that is far below this, so this only stops abuse. */\nconst MAX_BODY_BYTES = 16 * 1024;\n\nconst errorBody = (code: string, message: string) => ({ error: { code, message } });\n''')\ns=s.replace('''  app.post(\"/api/tasks\", async (c) => {\n    const { title } = await c.req.json();\n    return c.json({ task: createTask(db, title) }, 201);\n  });\n''','''  app.post(\n    \"/api/tasks\",\n    bodyLimit({\n      maxSize: MAX_BODY_BYTES,\n      onError: (c) => c.json(errorBody(\"payload_too_large\", \"request body is too large\"), 413),\n    }),\n    async (c) => {\n      let body: unknown;\n      try {\n        body = await c.req.json();\n      } catch {\n        return c.json(errorBody(\"invalid_json\", \"request body is not valid JSON\"), 400);\n      }\n      const { title } = parseCreateBody(body);\n      return c.json({ task: createTask(db, title) }, 201);\n    },\n  );\n\n  app.onError((error, c) => {\n    if (error instanceof ValidationError) {\n      return c.json(errorBody(\"validation_failed\", error.message), 400);\n    }\n    console.error(error);\n    return c.json(errorBody(\"internal_error\", \"unexpected error\"), 500);\n  });\n''')\nopen(p,'w').write(s)\nEOF\ngrep -n \"title.trim\" src/tasks.ts"
+      }
+    }
+  ],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": {
+      "background": 0,
+      "foreground": 0,
+      "unset": 0
+    },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": {
+      "parent": 0,
+      "user": 0,
+      "system": 0
+    },
+    "refused": {
+      "depth_limit": 0,
+      "concurrency_limit": 0,
+      "budget": 0
+    },
+    "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 16,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "Ya valido la creación de tareas (`POST /api/tasks`) y rechazo las entradas malas con errores estructurados. `npm test` pasa (47 de 47) y `npm run typecheck` pasa sin errores. Lo dejé en el commit `a3cacdc`.\n\nAntes de este cambio, un JSON malformado, un título que no fuera texto o un body `null` terminaban en un 500 sin forma definida.\n\n**Respuestas del endpoint**\n- **JSON roto o vacío:** `400 invalid_json`.\n- **Body que no es un objeto** (`null`, array, string, número): `400 validation_failed`.\n- **Body de más de 16 KiB:** `413 payload_too_large`. Esto es nuevo: la arquitectura solo definía 400 y 404, así que añadí también `internal_error` (500) en `.architect/architecture.md`.\n- **Error inesperado:** `500 internal_error` con el mismo formato de siempre, en vez de una respuesta sin estructura.\n\n**Reglas del título**\n- Tiene que ser un string. Se recorta y se rechaza si queda vacío.\n- También se rechaza si solo tiene caracteres invisibles (espacios de ancho cero, espacios duros, BOM).\n- Máximo 500 caracteres, contados por code points como hace `length()` de SQLite, así que 500 emojis pasan. Se mide después de recortar.\n- Se rechazan los caracteres de control, incluidos los saltos de línea. Un NUL hace que `length()` de SQLite se corte antes de tiempo y se salte la restricción de 1 a 500.\n- Se rechaza Unicode mal formado (surrogates sueltos).\n- Los acentos, otros alfabetos y el texto con apariencia de HTML o SQL se guardan tal cual. Los campos desconocidos se ignoran.\n\nLa validación vive en `src/validation.ts` y los tests nuevos en `tests/validation.test.ts`. `createTask` en `src/tasks.ts` ya no recorta: asume que el título viene validado.\n\nCambié `target` a `ES2024` en `tsconfig.json`, porque `String.prototype.isWellFormed` no existe en `ES2023`. Node 24 lo soporta.\n\nNo toqué el guard de Host/Origin ni el resto de endpoints. Tampoco interpreté \"scales\" como trabajo de rendimiento: no hice nada de eso porque no lo pediste.",
+  "ttft_ms": 1591,
+  "type": "result",
+  "duration_ms": 74413,
+  "uuid": "6a6e87fc-ed8a-49e0-bd11-ddfd5c91abb7",
+  "ttft_stream_ms": 1160,
+  "time_to_request_ms": 97,
+  "first_content_frame_ms": 1160,
+  "queued_turn_count": 0,
+  "result_index": 0
+}

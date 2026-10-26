@@ -1,0 +1,99 @@
+{
+  "duration_api_ms": 21778,
+  "stop_reason": "end_turn",
+  "session_id": "b91e92ec-ff94-466b-a0d9-0ee1eaa22de7",
+  "total_cost_usd": 0.1855976,
+  "usage": {
+    "input_tokens": 16,
+    "cache_creation_input_tokens": 31966,
+    "cache_read_input_tokens": 279916,
+    "output_tokens": 2971,
+    "output_tokens_details": {
+      "thinking_tokens": 115
+    },
+    "server_tool_use": {
+      "web_search_requests": 0,
+      "web_fetch_requests": 0
+    },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 31966,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 357,
+        "cache_read_input_tokens": 42215,
+        "cache_creation_input_tokens": 276,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 276
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "modelUsage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 16,
+      "outputTokens": 2971,
+      "cacheReadInputTokens": 279916,
+      "cacheCreationInputTokens": 31966,
+      "webSearchRequests": 0,
+      "costUSD": 0.1855976,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 115,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "permission_denials": [],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": {
+      "background": 0,
+      "foreground": 0,
+      "unset": 0
+    },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": {
+      "parent": 0,
+      "user": 0,
+      "system": 0
+    },
+    "refused": {
+      "depth_limit": 0,
+      "concurrency_limit": 0,
+      "budget": 0
+    },
+    "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 11,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "`POST /api/tasks` now rejects bad titles. `npm test` passes (23 of 23) and `npm run typecheck` is clean. The work is committed as `99ff6bc`.\n\n- **Rule:** a title is trimmed, then must be a string of 1 to 500 characters. An empty, whitespace-only, non-string or missing title, or one over 500 characters after trimming, gets `400 {\"error\":{\"code\":\"validation_failed\",\"message\":...}}`. Nothing is stored in that case.\n- **Bad JSON:** a body that isn't valid JSON gets `400 invalid_json`. Both codes match the error format in `architecture.md`.\n- **Code:** the check is a new `parseTitle` in `src/tasks.ts`, and the route in `src/app.ts` calls it.\n- **Tests:** I added a \"title validation on create\" suite to `tests/tasks.test.ts`. It covers each rejection case and titles of exactly 1 and 500 characters, including a 500-character title with surrounding spaces. It also checks that rejected requests don't create tasks.",
+  "ttft_ms": 2160,
+  "type": "result",
+  "duration_ms": 29941,
+  "uuid": "ba74ad92-0845-4ec7-af36-31672844a19a",
+  "ttft_stream_ms": 1281,
+  "time_to_request_ms": 104,
+  "first_content_frame_ms": 1282,
+  "queued_turn_count": 0,
+  "result_index": 0
+}
