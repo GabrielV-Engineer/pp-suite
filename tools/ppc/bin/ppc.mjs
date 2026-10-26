@@ -2,7 +2,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { loadProject } from '../src/load.mjs';
-import { validateModel, RULES } from '../src/validate.mjs';
+import { validateModel, designFindings, RULES } from '../src/validate.mjs';
 import { generate, writeGenerated, checkGenerated } from '../src/generate.mjs';
 import { checkGit } from '../src/gitcheck.mjs';
 import { nextSteps, overview, renderNext } from '../src/next.mjs';
@@ -13,6 +13,7 @@ const USAGE = `ppc — pp-suite contract tool
 
   Checks
     ppc validate [dir] [--strict]        check a project against the contract (strict: warnings fail too)
+    ppc validate [dir] --design          judge only the design (.architect/), before any slice or debt register exists
     ppc check-git [dir]                  verify every slice audit against the real git history
     ppc generate [dir] [--check]         write the derived views (WBS, debt tables); --check only verifies them
     ppc rules                            list every rule the checks can emit
@@ -73,8 +74,9 @@ switch (command) {
   case 'validate': {
     const root = dirAt(0);
     const model = loadProject(root);
-    const findings = validateModel(model);
-    if (!findings.some((f) => f.severity === 'error') && model.blueprint) findings.push(...checkGenerated(root, generate(model)));
+    let findings = validateModel(model);
+    if (flags.has('--design')) findings = designFindings(findings);
+    else if (!findings.some((f) => f.severity === 'error') && model.blueprint) findings.push(...checkGenerated(root, generate(model)));
     const { errors, warnings } = report(findings);
     process.exit(errors || (flags.has('--strict') && warnings) ? 1 : 0);
     break;

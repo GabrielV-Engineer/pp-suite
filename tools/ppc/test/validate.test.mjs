@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { loadProject } from '../src/load.mjs';
-import { validateModel, RULES } from '../src/validate.mjs';
+import { validateModel, designFindings, RULES } from '../src/validate.mjs';
 import { repo } from './helpers.mjs';
 
 const EXAMPLE = fileURLToPath(new URL('../../../examples/todo-app/', import.meta.url));
@@ -313,6 +313,35 @@ test('D04: when every capability is a must, nothing was prioritized', () => {
   const few = base();
   few.blueprint.data.capabilities = few.blueprint.data.capabilities.slice(0, 2).map((c) => ({ ...c, priority: 'must' }));
   assert.ok(!has(run(few), 'D04')); // with so few capabilities, all of them being a must is plausible
+});
+
+test('designFindings: a design with no plan yet is judged only by the rules that concern the design', () => {
+  const m = base();
+  m.slices = []; // nothing planned: T06 fires for every capability
+  m.debt = []; // no registers yet: R01 fires for every component
+  const all = run(m);
+  assert.ok(has(all, 'T06') && has(all, 'R01'));
+  assert.deepEqual(errors(designFindings(all)), []);
+});
+
+test('designFindings: still reports the faults of the design itself', () => {
+  const cycle = base();
+  cycle.slices = [];
+  cycle.debt = [];
+  component(cycle, 'database').may_depend_on = ['frontend'];
+  assert.ok(designFindings(run(cycle)).some((f) => f.rule === 'D01'));
+  const schema = base();
+  schema.slices = [];
+  schema.debt = [];
+  schema.blueprint.data.capabilities[0].priority = 'urgent'; // not in the schema
+  assert.ok(designFindings(run(schema)).some((f) => f.rule === 'SCHEMA'));
+});
+
+test('designFindings: a broken slice or debt file is not the design\'s business', () => {
+  const m = base();
+  slice(m, 'SL-002').data.surprise = true; // SCHEMA error in a slice file
+  assert.ok(has(run(m), 'SCHEMA'));
+  assert.ok(!designFindings(run(m)).some((f) => f.file.startsWith('.sddpp/')));
 });
 
 test('W05: a quality attribute that no live slice references is a warning, and a dropped slice does not count', () => {

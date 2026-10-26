@@ -61,6 +61,14 @@ export const RULES = {
   G01: 'A generated view is missing or stale.',
 };
 
+/** The rules that judge a design on its own, before any slice or debt register exists. */
+const DESIGN_RULES = new Set(['PARSE', 'SCHEMA', 'R00', 'T07', 'T08', 'A01', 'W02', 'D01', 'D02', 'D03', 'D04']);
+
+/** Keep only the findings about `.architect/`, from the rules that concern the design. */
+export function designFindings(findings) {
+  return findings.filter((f) => DESIGN_RULES.has(f.rule) && String(f.file).startsWith('.architect/'));
+}
+
 let compiled;
 function validators() {
   if (compiled) return compiled;
