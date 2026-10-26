@@ -29,10 +29,13 @@ limitations: [spike findings](../docs/spike-findings.md).
 python3 -m unittest discover -s extension/sddpp-guard/tests -v
 ```
 
-## Installing the pieces into a Spec Kit project (manual, for now)
+## Installing the pieces into a Spec Kit project
+
+With `ppc init <project> --apply` (see [install](../install/README.md)). The manual steps it runs are:
 
 ```bash
 specify extension add /path/to/pp-suite/sdd-pp/extension/sddpp-guard --dev
+specify extension add /path/to/pp-suite/sdd-pp/extension/sddpp-cycle --dev
 specify preset add --dev /path/to/pp-suite/sdd-pp/preset/sddpp-slices
 ```
 

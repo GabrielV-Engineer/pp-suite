@@ -1,0 +1,17 @@
+{
+  "checked": "2026-10-26",
+  "node": { "min": 22, "tested": "24.21.0" },
+  "python": { "tested": "3.14.8" },
+  "speckit": {
+    "version": "1.2.4.dev0",
+    "commit": "67e0f7294e6e728ab60bf7b4590deb470448bc2d",
+    "repository": "https://github.com/github/spec-kit",
+    "note": "Tested at this commit (a development build after release v1.2.3). The published release v1.2.3 was not tested."
+  },
+  "claude_code": { "tested": "2.1.310" },
+  "the_architect": {
+    "version": "2.6.0",
+    "commit": "a25b09e85933e227e50464ee007428a59f90aa0b",
+    "repository": "https://github.com/Hainrixz/the-architect"
+  }
+}

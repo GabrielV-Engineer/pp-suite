@@ -27,7 +27,7 @@ last column is what is **not built yet**. Nothing below has been measured as tim
 | 12 | Track technical debt | None | Model proposes, Person decides (`approve-debt`), one register per component | |
 | 13 | Trace a requirement to a test and a commit | Coverage notes by hand | **Auto-checked**: ids (CAP, QA, SL, DEBT, ADR), rules `T01` to `T15`, `W05`; spec link `T15` | A check that criteria agree across spec, slice and tests |
 | 14 | Design the interface (UI/UX) | None | None | A design field in the contract and a design step |
-| 15 | Install and start | `specify init` | **Person (by hand)**, versions not pinned | An install command with pinned versions |
+| 15 | Install and start | `specify init` | **Auto, on request**: `ppc init` checks the machine and project against pinned versions (`install/versions.json`) and runs the missing project-level steps; it prints, and does not run, the command that installs Spec Kit. Tried once | Updating installed extensions; other operating systems |
 
 ## What this table says
 
@@ -45,6 +45,6 @@ last column is what is **not built yet**. Nothing below has been measured as tim
    literal code).
 2. **Tests optional** in SDD.PP, so that its default mode matches Spec Kit's and the strict cycle is an option.
 3. A decision on **step 7** (a generated prompt per slice).
-4. An **install command** with pinned versions.
+4. ~~An **install command** with pinned versions.~~ Built (`ppc init`).
 5. The harness: the same ambiguous idea into both methods, counting the steps and prompts a person must supply
    and recording what each method produced by itself.

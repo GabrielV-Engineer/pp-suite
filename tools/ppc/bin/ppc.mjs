@@ -7,6 +7,9 @@ import { generate, writeGenerated, checkGenerated } from '../src/generate.mjs';
 import { checkGit } from '../src/gitcheck.mjs';
 import { nextSteps, overview, renderNext } from '../src/next.mjs';
 import { execFileSync } from 'node:child_process';
+import { apply, plan as installPlan, renderPlan, InstallError } from '../src/install.mjs';
+import { spawnSync } from 'node:child_process';
+import { homedir } from 'node:os';
 import { buildPrompts, resolveTarget, writePrompts } from '../src/prompts.mjs';
 import { start, approveSlice, approveRed, approveDebt, decideAddition, toRefactor, finish, mutate, status, LifecycleError } from '../src/lifecycle.mjs';
 
@@ -18,6 +21,12 @@ const USAGE = `ppc — pp-suite contract tool
     ppc check-git [dir]                  verify every slice audit against the real git history
     ppc generate [dir] [--check]         write the derived views (WBS, debt tables); --check only verifies them
     ppc rules                            list every rule the checks can emit
+
+  Setup
+    ppc init [dir] [--apply] [--shim] [--allow-untested] [--specify <path>]
+                                         check the machine and the project against the pinned versions and print the
+                                         commands that would set it up; --apply runs them (needs a clean git tree);
+                                         --shim also writes ~/.local/bin/ppc
 
   Slice cycle (each step changes the project or nothing at all)
     ppc approve-slice <slice> --by <name> [dir]
@@ -43,7 +52,7 @@ const USAGE = `ppc — pp-suite contract tool
     ppc overview [dir]                   where the project stands: slices, capabilities, debt, contract
 `;
 
-const VALUE_OPTIONS = new Set(['--by', '--audit', '--files', '--slice', '--accept', '--budget-reason', '--mutation-reason', '--reason', '--task']);
+const VALUE_OPTIONS = new Set(['--by', '--audit', '--files', '--slice', '--accept', '--budget-reason', '--mutation-reason', '--reason', '--task', '--specify']);
 const [command, ...rest] = process.argv.slice(2);
 const positionals = [];
 const flags = new Set();
@@ -172,6 +181,33 @@ switch (command) {
       // not a git repository: the phase alone decides, as if no commit had been made yet
     }
     process.stdout.write(renderNext(nextSteps(model, subjects, findings.filter((f) => f.severity === 'error'))));
+    break;
+  }
+  case 'init': {
+    const root = dirAt(0);
+    const suite = resolve(new URL('../../..', import.meta.url).pathname);
+    const probe = (cmd, args, opts = {}) => {
+      const r = spawnSync(cmd, args, { encoding: 'utf8', cwd: opts.cwd, timeout: 30000 });
+      return r.error ? null : r;
+    };
+    const env = { suite, probe, nodeVersion: process.versions.node, pathDirs: (process.env.PATH ?? '').split(':').filter(Boolean), home: homedir(), specify: options.get('specify') ?? 'specify' };
+    const opts = { shim: flags.has('--shim'), allowUntested: flags.has('--allow-untested') };
+    try {
+      if (!flags.has('--apply')) {
+        const p = installPlan(root, env, opts);
+        process.stdout.write(renderPlan(p));
+        process.exit(p.blocked.length ? 1 : 0);
+      }
+      const run = (command, cwd) => spawnSync(command[0], command.slice(1), { cwd, encoding: 'utf8', stdio: ['ignore', 'inherit', 'pipe'] });
+      const { ran, plan: after } = apply(root, env, { ...opts, run });
+      console.log(ran.length ? `ran: ${ran.join(', ')}` : 'nothing to do');
+      process.stdout.write(renderPlan(after, { applied: true }));
+      process.exit(after.checks.some((c) => c.status !== 'ok' && ['guard-script', 'guard-hook', 'specify-project'].includes(c.id)) ? 1 : 0);
+    } catch (error) {
+      if (!(error instanceof InstallError)) throw error;
+      console.error(error.message);
+      process.exit(1);
+    }
     break;
   }
   case 'prompt':
