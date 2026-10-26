@@ -55,6 +55,8 @@ export const RULES = {
   C05: 'The red commit is not an ancestor of the green commit.',
   C06: 'A test file changed between the approved red commit and the end of the slice, whether or not the audit lists the commit that changed it.',
   C07: 'The test script in package.json changed between the approved red commit and the end of the slice.',
+  C08: 'A commit of a slice changes the design (.architect/), which is read-only for a build.',
+  C09: 'A commit of a slice changes files that belong to a component the slice does not list.',
   A01: 'An ADR lacks a required section.',
   W01: 'A work slice does not state what it leaves out of scope.',
   W02: 'Evidence has expired and must be re-checked.',

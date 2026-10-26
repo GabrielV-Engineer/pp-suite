@@ -1,5 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import { isGeneratedPath, isTestPath } from './testpaths.mjs';
+import { matchesGlob } from './globs.mjs';
 
 const SHA = /^[0-9a-f]{7,40}$/;
 /** Contract bookkeeping is neither code nor tests: it is never measured and never trips C02/C03. */
@@ -35,6 +36,11 @@ function changes(root, full) {
       return { path: path.join('\t'), lines: count(added) + count(deleted) };
     })
     .filter((f) => !isBookkeeping(f.path) && !isGeneratedPath(f.path));
+}
+
+/** Every path a commit changed, bookkeeping and generated files included. */
+function allPaths(root, full) {
+  return git(root, ['diff-tree', '--no-commit-id', '--name-only', '-r', '--root', '--no-renames', '-z', full]).split('\0').filter(Boolean);
 }
 
 /** What one commit changed, or null if it does not exist. */
@@ -122,6 +128,24 @@ export function checkGit(model, root, { tips = new Map() } = {}) {
       if (tests.length && TESTS_LOCKED_KINDS.includes(kind)) {
         tests.forEach((p) => reported.add(p));
         add('C02', file, `${s.id}: ${sha} (${kind}) touches ${tests.join(', ')}; tests are locked after the red phase`);
+      }
+      // C08: the design belongs to Architect.PP; a build asks for a change instead of making it.
+      const paths = allPaths(root, m.full);
+      const design = paths.filter((p) => p.startsWith('.architect/'));
+      if (design.length) add('C08', file, `${s.id}: ${sha} (${kind}) changes ${design.join(', ')}; the design is read-only for a build: open a change request (ppc change-request) and let Architect.PP revise it`);
+      // C09: a slice changes the files of the components it lists. Only components that declare `paths` take part, and tests,
+      // documentation and files no component claims are free.
+      const claimed = (model.blueprint?.data.components ?? []).filter((c) => c.paths?.length);
+      if (claimed.length) {
+        const foreign = new Map();
+        for (const p of paths.filter((x) => !isBookkeeping(x) && !isTestPath(x) && !isGeneratedPath(x))) {
+          const owners = claimed.filter((c) => c.paths.some((pattern) => matchesGlob(pattern, p))).map((c) => c.id);
+          if (owners.length && !owners.some((id) => s.components.includes(id))) foreign.set(p, owners);
+        }
+        if (foreign.size) {
+          const names = [...new Set([...foreign.values()].flat())];
+          add('C09', file, `${s.id}: ${sha} (${kind}) changes ${[...foreign.keys()].join(', ')}, which belong to ${names.join(', ')}; the slice lists ${s.components.join(', ')}. List the component in the slice or leave the file alone`);
+        }
       }
       if (kind === 'red' && productionFiles.length) add('C03', file, `${s.id}: ${sha} (red) touches production code: ${productionFiles.join(', ')}`);
     }

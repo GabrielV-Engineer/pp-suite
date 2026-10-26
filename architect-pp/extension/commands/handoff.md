@@ -53,6 +53,9 @@ the plan**. It is a format conversion, not a redesign: do not improve, add or re
      `justified_by` (a capability, quality attribute or constraint behind each). A framework that merges layers in one
      project (a server-rendered page whose server code lives beside it) is still described by responsibility:
      the interface, the logic, the data.
+   - `paths` on a component (optional): globs of the files it owns (for example `public/**`, `migrations/**`), only when the
+     blueprint says where each component's files live. `ppc check-git` then reports a slice that changes files of a component it does
+     not list. Leave it out when the blueprint does not say.
    - `budgets.max_slice_production_lines`: 200 unless the blueprint says otherwise.
    - `default_mode: light`: the cycle SDD.PP follows by default (tests and code together in one session; a slice can
      ask for the strict cycle). This is the method's default, not something the blueprint states. Leave `test_policy`

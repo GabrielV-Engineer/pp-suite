@@ -66,6 +66,7 @@ components:
     kind: frontend
     responsibility: Renders the task list and form, and talks to the backend over HTTP only.
     may_depend_on: [backend]
+    paths: ["public/**"]
     justified_by: [CAP-001, QA-001]
   - id: backend
     code: BE
@@ -73,6 +74,7 @@ components:
     kind: backend
     responsibility: Validates input, applies the task rules and exposes them as an HTTP API.
     may_depend_on: [database]
+    paths: ["src/**"]
     justified_by: [CAP-001, QA-002, QA-004]
   - id: database
     code: DB
@@ -80,6 +82,7 @@ components:
     kind: database
     responsibility: Stores tasks durably on the owner's machine.
     may_depend_on: []
+    paths: ["migrations/**", "src/db.ts"]
     justified_by: [QA-003, CON-002]
 
 budgets:

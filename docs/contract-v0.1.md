@@ -145,6 +145,8 @@ Errors fail validation; warnings fail only with `--strict`. `ppc rules` prints t
 | `C05` | error | The red commit is not an ancestor of the green commit. (`ppc check-git`) |
 | `C06` | error | A test file changed between the approved red commit and the end of the slice, whether or not the audit lists the commit that changed it. (`ppc check-git`) |
 | `C07` | error | The test script in `package.json` changed between the approved red commit and the end of the slice. (`ppc check-git`) |
+| `C08` | error | A commit of a slice changes the design (`.architect/`), which is read-only for a build. Open a change request. |
+| `C09` | error | A commit of a slice changes files that belong to a component the slice does not list. Needs `paths` on the components of the blueprint; tests, documentation and files no component claims are free. |
 | `A01` | error / warning | An ADR lacks a required section (error when accepted, warning otherwise). |
 | `W01` | warning | A work slice does not state what it leaves out of scope. |
 | `W02` | warning | Evidence has expired and must be re-checked. |
