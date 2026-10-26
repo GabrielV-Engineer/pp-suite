@@ -20,9 +20,11 @@ const EXTENSIONS = [
   { id: 'sddpp-guard', dir: 'sdd-pp/extension/sddpp-guard' },
   { id: 'sddpp-cycle', dir: 'sdd-pp/extension/sddpp-cycle' },
 ];
-// Skills of Spec Kit that this flow replaces (the design already exists, and the slices come from it). They are
-// removed from the project, not from Spec Kit; the change shows in git.
-const DROPPED_SKILLS = ['speckit-specify', 'speckit-plan'];
+// Skills of Spec Kit that this flow does not use: the design already exists and the slices come from it
+// (`speckit-sddpp-cycle-slices`), tasks are built by `-build` and checked by `ppc`, and the project rules are
+// generated into CLAUDE.md. Left in place they compete with our skills for the agent's attention. They are removed
+// from the project, not from Spec Kit; the change shows in git.
+export const DROPPED_SKILLS = ['speckit-specify', 'speckit-plan', 'speckit-tasks', 'speckit-implement', 'speckit-clarify', 'speckit-analyze', 'speckit-checklist', 'speckit-constitution', 'speckit-converge', 'speckit-taskstoissues'];
 const OLD_PRESET = 'sddpp-slices';
 const GUARD_SCRIPT = '.specify/extensions/sddpp-guard/scripts/python/guard.py';
 const HOOK_NAME = 'speckit.sddpp-guard.pre-tool';
@@ -43,7 +45,7 @@ function differing(source, installed, base = '') {
 const versionOf = (out) => /(\d+(?:\.\d+)+\S*)/.exec(out ?? '')?.[1];
 
 /** Reads the current state of the machine and the project, and the steps that would fix what is missing. */
-export function plan(root, env, { shim = false, allowUntested = false } = {}) {
+export function plan(root, env, { shim = false, allowUntested = false, update = false } = {}) {
   const { suite, probe, nodeVersion, pathDirs = [], home = '', specify = 'specify' } = env;
   const pins = readPins(suite);
   const checks = [];
@@ -93,6 +95,7 @@ export function plan(root, env, { shim = false, allowUntested = false } = {}) {
       return [];
     }
   };
+  const staleExtensions = new Set();
   const piece = (kind, id, version, sourceDir) => {
     const found = listed(kind).find((x) => x.id === id);
     let status = !found ? 'missing' : found.version === version ? 'ok' : 'differs';
@@ -108,7 +111,9 @@ export function plan(root, env, { shim = false, allowUntested = false } = {}) {
         fix = `specify ${kind} remove ${id}, then ppc init --apply (check the generated skills afterwards: docs/spike-findings.md, point 5)`;
       }
     }
-    add({ id: `${kind}-${id}`, label: `${kind} ${id}`, status, found: shown, wanted: version, fix }, { blocks: status === 'differs' });
+    // With --update a stale piece is removed and added again, so it is not a blocker.
+    if (update && status === 'differs') staleExtensions.add(id);
+    add({ id: `${kind}-${id}`, label: `${kind} ${id}`, status, found: shown, wanted: version, fix }, { blocks: status === 'differs' && !update });
     return status === 'ok';
   };
   const extensionOk = Object.fromEntries(EXTENSIONS.map(({ id, dir }) => [id, piece('extension', id, manifestVersion(suite, `${dir}/extension.yml`, 'extension'), dir)]));
@@ -127,8 +132,11 @@ export function plan(root, env, { shim = false, allowUntested = false } = {}) {
   const steps = [
     { id: 'npm-ci', title: 'Install the dependencies of ppc', command: ['npm', 'ci'], cwd: join(suite, 'tools/ppc'), done: depsOk },
     { id: 'specify-init', title: 'Initialize Spec Kit for Claude Code', command: [specify, 'init', '--here', '--force', '--non-interactive', '--integration', 'claude'], cwd: root, done: hasSpecify },
-    ...EXTENSIONS.map(({ id, dir }) => ({ id: `extension-${id}`, title: `Install the ${id} extension`, command: [specify, 'extension', 'add', join(suite, dir), '--dev'], cwd: root, done: extensionOk[id] })),
-    ...DROPPED_SKILLS.map((name) => ({ id: `drop-${name}`, title: `Remove the ${name} skill, which this flow replaces`, remove: join(root, '.claude/skills', name), done: hasSpecify && !existsSync(join(root, '.claude/skills', name)) })),
+    ...EXTENSIONS.flatMap(({ id, dir }) => [
+      ...(staleExtensions.has(id) ? [{ id: `extension-${id}-remove`, title: `Remove the out-of-date ${id} extension`, command: [specify, 'extension', 'remove', id, '--force'], cwd: root, done: false }] : []),
+      { id: `extension-${id}`, title: `Install the ${id} extension`, command: [specify, 'extension', 'add', join(suite, dir), '--dev'], cwd: root, done: extensionOk[id] },
+    ]),
+    ...DROPPED_SKILLS.map((name) => ({ id: `drop-${name}`, title: `Remove the ${name} skill, which this flow does not use`, remove: join(root, '.claude/skills', name), done: hasSpecify && !existsSync(join(root, '.claude/skills', name)) })),
   ];
   if (shim) {
     const dir = pathDirs.find((d) => d === join(home, '.local/bin'));
@@ -144,8 +152,8 @@ export function plan(root, env, { shim = false, allowUntested = false } = {}) {
  * Runs the steps that are not done, in order, and stops at the first failure. Refuses a blocked machine and a project
  * with uncommitted changes, so that everything the install does shows up as a reviewable diff.
  */
-export function apply(root, env, { run, shim = false, allowUntested = false } = {}) {
-  const before = plan(root, env, { shim, allowUntested });
+export function apply(root, env, { run, shim = false, allowUntested = false, update = false } = {}) {
+  const before = plan(root, env, { shim, allowUntested, update });
   if (before.blocked.length) fail(`cannot continue:\n${before.blocked.map((b) => `  - ${b.why}`).join('\n')}`);
   const pending = before.steps.filter((s) => !s.done);
   if (pending.length) {
@@ -166,7 +174,7 @@ export function apply(root, env, { run, shim = false, allowUntested = false } = 
     }
     ran.push(step.id);
   }
-  return { ran, plan: plan(root, env, { shim, allowUntested }) };
+  return { ran, plan: plan(root, env, { shim, allowUntested, update }) };
 }
 
 const MARK = { ok: 'ok     ', differs: 'DIFFERS', missing: 'MISSING' };

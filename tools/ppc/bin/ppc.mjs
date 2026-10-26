@@ -27,10 +27,11 @@ const USAGE = `ppc — pp-suite contract tool
                                          write Spec Kit's constitution from the design (.specify/memory/constitution.md);
                                          --check only verifies it is current
     ppc contract                         print where the contract's schemas, document and worked example are
-    ppc init [dir] [--apply] [--shim] [--allow-untested] [--specify <path>]
+    ppc init [dir] [--apply] [--shim] [--update] [--allow-untested] [--specify <path>]
                                          check the machine and the project against the pinned versions and print the
                                          commands that would set it up; --apply runs them (needs a clean git tree);
-                                         --shim also writes ~/.local/bin/ppc
+                                         --shim also writes ~/.local/bin/ppc; --update removes and reinstalls
+                                         extensions whose files differ from this repository
 
   Design changes (a slice asks, a person decides, Architect.PP revises)
     ppc change-request --slice <id> --title <t> --problem <what it found> --proposal <what should change>
@@ -235,7 +236,7 @@ switch (command) {
       return r.error ? null : r;
     };
     const env = { suite, probe, nodeVersion: process.versions.node, pathDirs: (process.env.PATH ?? '').split(':').filter(Boolean), home: homedir(), specify: options.get('specify') ?? 'specify' };
-    const opts = { shim: flags.has('--shim'), allowUntested: flags.has('--allow-untested') };
+    const opts = { shim: flags.has('--shim'), allowUntested: flags.has('--allow-untested'), update: flags.has('--update') };
     try {
       if (!flags.has('--apply')) {
         const p = installPlan(root, env, opts);

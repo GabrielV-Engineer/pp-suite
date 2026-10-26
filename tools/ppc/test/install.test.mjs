@@ -5,7 +5,7 @@ import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rm
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { readPins, plan, apply, InstallError } from '../src/install.mjs';
+import { readPins, plan, apply, InstallError, DROPPED_SKILLS } from '../src/install.mjs';
 import { CLI } from './helpers.mjs';
 
 const SUITE = fileURLToPath(new URL('../../../', import.meta.url)).replace(/\/$/, '');
@@ -101,10 +101,10 @@ test('plan: a directory that is not a git repository blocks, since ppc reads git
 });
 
 // ── the steps ────────────────────────────────────────────────────
-test('plan: a fresh project gets specify init, the three extensions and the removal of the two skills this flow replaces, in that order, none done', (t) => {
+test('plan: a fresh project gets specify init, the three extensions and the removal of the Spec Kit skills this flow does not use, in that order, none done', (t) => {
   const p = plan(project(t), env(machine()));
   const ids = p.steps.filter((s) => !s.done).map((s) => s.id);
-  assert.deepEqual(ids.filter((id) => id !== 'npm-ci'), ['specify-init', 'extension-architect-pp', 'extension-sddpp-guard', 'extension-sddpp-cycle', 'drop-speckit-specify', 'drop-speckit-plan']);
+  assert.deepEqual(ids.filter((id) => id !== 'npm-ci'), ['specify-init', 'extension-architect-pp', 'extension-sddpp-guard', 'extension-sddpp-cycle', ...DROPPED_SKILLS.map((n) => `drop-${n}`)]);
   const init = p.steps.find((s) => s.id === 'specify-init');
   assert.deepEqual(init.command.slice(0, 2), ['specify', 'init']);
   for (const flag of ['--here', '--force', '--non-interactive']) assert.ok(init.command.includes(flag), flag);
@@ -236,7 +236,7 @@ test('apply: runs the steps that are not done, in order, inside the project', (t
   const fresh = project(t);
   const log2 = [];
   const r2 = apply(fresh, env(machine()), { run: runner(log2) });
-  assert.deepEqual(r2.ran.filter((id) => id !== 'npm-ci'), ['specify-init', 'extension-architect-pp', 'extension-sddpp-guard', 'extension-sddpp-cycle', 'drop-speckit-specify', 'drop-speckit-plan']);
+  assert.deepEqual(r2.ran.filter((id) => id !== 'npm-ci'), ['specify-init', 'extension-architect-pp', 'extension-sddpp-guard', 'extension-sddpp-cycle', ...DROPPED_SKILLS.map((n) => `drop-${n}`)]);
   assert.ok(log2.every((l) => l.cwd === fresh || l.command[0] === 'npm'));
 });
 
@@ -296,17 +296,65 @@ test('CLI: contract prints where the schemas, the contract document and the exam
   assert.ok(existsSync(join(lines.example, '.architect/blueprint.yaml')), lines.example);
 });
 
-test('apply: removes the skills Spec Kit just installed that this flow replaces, and nothing else', (t) => {
+const UNUSED = ['speckit-specify', 'speckit-plan', 'speckit-tasks', 'speckit-implement', 'speckit-clarify', 'speckit-analyze', 'speckit-checklist', 'speckit-constitution', 'speckit-converge', 'speckit-taskstoissues'];
+
+test('the Spec Kit skills this flow does not use are all named, and none of ours is among them', () => {
+  assert.deepEqual([...DROPPED_SKILLS].sort(), [...UNUSED].sort());
+  assert.ok(!DROPPED_SKILLS.some((n) => n.includes('sddpp') || n.includes('architect-pp')));
+});
+
+test('apply: removes the Spec Kit skills this flow does not use, and keeps ours and the guard', (t) => {
   const dir = project(t, { specify: true });
-  for (const name of ['speckit-specify', 'speckit-plan', 'speckit-tasks']) {
+  const ours = ['speckit-sddpp-cycle-build', 'speckit-sddpp-guard-pre-tool', 'speckit-architect-pp-handoff'];
+  for (const name of [...UNUSED, ...ours]) {
     mkdirSync(join(dir, '.claude/skills', name), { recursive: true });
     writeFileSync(join(dir, '.claude/skills', name, 'SKILL.md'), 'x');
   }
   spawnSync('git', ['add', '-A'], { cwd: dir });
   spawnSync('git', ['commit', '-q', '-m', 'skills'], { cwd: dir });
   const result = apply(dir, env(machine(installed)), { run: runner([]) });
-  assert.deepEqual(result.ran, ['drop-speckit-specify', 'drop-speckit-plan']);
-  assert.ok(!existsSync(join(dir, '.claude/skills/speckit-specify')));
-  assert.ok(!existsSync(join(dir, '.claude/skills/speckit-plan')));
-  assert.ok(existsSync(join(dir, '.claude/skills/speckit-tasks')), 'only the two named skills go');
+  assert.deepEqual(result.ran.sort(), UNUSED.map((n) => `drop-${n}`).sort());
+  for (const name of UNUSED) assert.ok(!existsSync(join(dir, '.claude/skills', name)), name);
+  for (const name of ours) assert.ok(existsSync(join(dir, '.claude/skills', name)), `${name} must stay`);
+});
+
+// ── updating what is installed ───────────────────────────────────
+function staleCycle(t) {
+  const dir = project(t, { specify: true });
+  const copy = join(dir, '.specify/extensions/sddpp-cycle');
+  cpSync(join(SUITE, 'sdd-pp/extension/sddpp-cycle'), copy, { recursive: true });
+  writeFileSync(join(copy, 'commands/red.md'), 'older\n');
+  return dir;
+}
+
+test('plan --update: a stale extension is removed and added again instead of blocking', (t) => {
+  const dir = staleCycle(t);
+  const m = machine(installed);
+  assert.ok(plan(dir, env(m)).blocked.some((b) => b.id === 'extension-sddpp-cycle'), 'without --update it blocks');
+  const p = plan(dir, env(m), { update: true });
+  assert.ok(!p.blocked.some((b) => b.id === 'extension-sddpp-cycle'));
+  const ids = p.steps.filter((s) => !s.done).map((s) => s.id);
+  assert.ok(ids.indexOf('extension-sddpp-cycle-remove') !== -1 && ids.indexOf('extension-sddpp-cycle-remove') < ids.indexOf('extension-sddpp-cycle'), ids.join(','));
+  assert.deepEqual(p.steps.find((s) => s.id === 'extension-sddpp-cycle-remove').command, ['specify', 'extension', 'remove', 'sddpp-cycle', '--force']);
+});
+
+test('plan --update: what is current is left alone', (t) => {
+  const dir = project(t, { specify: true });
+  const p = plan(dir, env(machine(installed)), { update: true });
+  assert.ok(!p.steps.some((s) => s.id.endsWith('-remove')));
+});
+
+test('apply --update: runs the removal first, then the installation, in the project', (t) => {
+  const dir = staleCycle(t);
+  spawnSync('git', ['add', '-A'], { cwd: dir });
+  spawnSync('git', ['commit', '-q', '-m', 'stale'], { cwd: dir });
+  const log = [];
+  const result = apply(dir, env(machine(installed)), { run: runner(log), update: true });
+  assert.deepEqual(result.ran.slice(0, 2), ['extension-sddpp-cycle-remove', 'extension-sddpp-cycle']);
+  assert.deepEqual(log.slice(0, 2).map((l) => l.command.slice(0, 3).join(' ')), ['specify extension remove', 'specify extension add']);
+});
+
+test('CLI: init --update is accepted', (t) => {
+  const out = spawnSync(process.execPath, [CLI, 'init', project(t), '--update'], { encoding: 'utf8', env: { ...process.env, PATH: '/usr/bin:/bin' } });
+  assert.match(out.stdout, /Checks:/);
 });
