@@ -12,7 +12,7 @@ import { spawnSync } from 'node:child_process';
 import { homedir } from 'node:os';
 import { applyChange, decideChange, openChange } from '../src/changes.mjs';
 import { buildPrompts, resolveTarget, writePrompts } from '../src/prompts.mjs';
-import { start, approveSlice, approveRed, approveDebt, decideAddition, toRefactor, finish, mutate, status, LifecycleError } from '../src/lifecycle.mjs';
+import { start, approveSlice, approveRed, approveDebt, scheduleDebt, decideAddition, toRefactor, finish, mutate, status, LifecycleError } from '../src/lifecycle.mjs';
 
 const USAGE = `ppc — pp-suite contract tool
 
@@ -47,6 +47,8 @@ const USAGE = `ppc — pp-suite contract tool
     ppc approve-red --by <name> [dir]    HUMAN ONLY: approve the committed red tests, enter green
     ppc approve-debt <DEBT-ID> --by <name> [--accept <reason> | --drop] [dir]
                                          HUMAN ONLY: decide on proposed debt (default: it becomes open)
+    ppc schedule-debt <DEBT-ID> --slice <refactor slice> [dir]
+                                         assign an approved (open) debt to a planned refactor slice that touches its component
     ppc decide-addition <ADD-ID>... (--keep --reason <why> | --cut) [--alone] --by <name> [dir]
                                          several ids are decided the same way; additions that overlap must be decided
                                          together (--alone decides one on purpose)
@@ -127,6 +129,9 @@ switch (command) {
     break;
   case 'approve-debt':
     transition(() => approveDebt(dirAt(1), positionals[0], { by: options.get('by'), accept: options.get('accept'), drop: flags.has('--drop') }));
+    break;
+  case 'schedule-debt':
+    transition(() => scheduleDebt(dirAt(1), positionals[0], options.get('slice')));
     break;
   case 'decide-addition':
     transition(() => {

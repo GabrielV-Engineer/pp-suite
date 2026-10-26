@@ -267,6 +267,33 @@ export function approveDebt(root, id, { by, accept, drop } = {}) {
   });
 }
 
+/**
+ * Assign an open debt (one a person approved) to a refactor slice that has not started. Only a refactor slice pays
+ * debt, so that structure and behavior stay in separate commits; to pay it "while touching that code", plan a small
+ * refactor slice next to the feature one. Records the debt as scheduled and lists it in the slice's `pays`.
+ */
+export function scheduleDebt(root, debtId, sliceId) {
+  return transact(root, () => {
+    const model = loadValid(root);
+    const register = model.debt.find((d) => d.data.entries.some((e) => e.id === debtId)) ?? fail(`unknown debt ${debtId}`);
+    const debt = register.data.entries.find((e) => e.id === debtId);
+    const target = model.slices.find((s) => s.data.id === sliceId) ?? fail(`unknown slice ${sliceId}`);
+    const s = target.data;
+    if (debt.status !== 'open') fail(`${debtId} is ${debt.status}; only an open debt (one a person approved with ppc approve-debt) can be scheduled`);
+    if (s.type !== 'refactor') fail(`${sliceId} is a ${s.type} slice. Only a refactor slice pays debt, so that structure and behavior stay in separate commits: plan a small refactor slice (type: refactor, pays: [${debtId}]) before or after it`);
+    if (!['planned', 'ready'].includes(s.status)) fail(`${sliceId} is ${s.status}; debt can be scheduled only into a slice that is planned or ready`);
+    if (!s.components.includes(debt.component) && !(debt.also_affects ?? []).some((c) => s.components.includes(c))) fail(`${sliceId} does not touch ${debt.component}, where ${debtId} lives`);
+    setDebtFields(root, register, debtId, { status: 'scheduled', paid_by: sliceId });
+    editFrontmatter(root, target.file, (doc) => {
+      const pays = doc.get('pays');
+      if (pays?.items) pays.items.push(debtId);
+      else doc.set('pays', [debtId]);
+    });
+    ensureValid(root);
+    return { debt: debtId, slice: sliceId, status: 'scheduled' };
+  });
+}
+
 export function approveRed(root, by) {
   return transact(root, () => {
     if (!by || !by.trim()) fail('--by <name> is required: a human approves the RED tests');
