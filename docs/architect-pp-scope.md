@@ -62,8 +62,18 @@ Decided with the owner:
 - **Offered, not imposed.** Saved as files the person can use as they are, edit, or ignore.
 - Generated from the contract by a script, so it is the same every time. Not built.
 
-## Tests
+## Tests (decided 2026-10-26; not built)
 
-The owner works with tests and wants the experiment to use them. By default SDD.PP leaves tests optional, as Spec Kit
-does; the strict cycle (tests first, human approval, test lock) is an option per slice. In the experiment both arms
-build with tests.
+The owner works with tests and wants the experiment to use them. The method's default leaves them optional, as Spec
+Kit does, but optional must not mean invisible:
+
+1. A **policy** with three values, set for the project and adjustable per slice: `required`, `optional` (the default)
+   and `none`. The owner's own projects would be `required`.
+2. The audit **always records** whether the slice added tests, and its mutation score, without blocking (in light mode).
+3. Closing a slice **with no tests** proposes a technical debt entry of kind `test`, for a person to accept or not.
+4. `ppc overview` shows how many closed slices have no verification.
+5. The strict cycle (tests first, human approval, test lock, mutation gate) stays as an option per slice.
+6. In the experiment both arms build with tests, requested explicitly.
+
+Evidence behind the default: in the 33 runs where nobody asked for tests (only "run the project's tests"), the
+agent wrote them in all 33. Caveat: the project already had 16 tests and an `npm test`, and one model was used.
