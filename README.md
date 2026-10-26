@@ -80,10 +80,10 @@ Each slice follows one of two cycles. **Light** (the default for new projects): 
 | Mechanism | What it is | Does |
 |---|---|---|
 | **Skills** (`/speckit-...`) | Markdown prompts that Spec Kit turns into Claude Code skills | Tell the model what to read, write and not do in each step |
-| **A hook** | A program Claude Code runs before every tool call (the guard) | Blocks an agent from running `ppc approve-*` or `ppc decide-*`, from writing a decision field, and, in the strict cycle, from editing the tests |
+| **Hooks** | Programs Claude Code runs at set moments | Before every tool call (the guard): blocks an agent from running `ppc approve-*` or `ppc decide-*`, from writing a decision field, and, in the strict cycle, from editing the tests. At the start of every session: shows whose turn it is (`ppc session`) |
 | **Scripts** (`ppc`) | Plain Node code, no AI | Measures sizes from git, runs each transition, generates the prompts and the rules |
 | **Rules** | `ppc validate` and `ppc check-git` | Check the contract and compare every audit with the real git history |
-| **`CLAUDE.md`** | One block of project rules, generated from the design | Every session starts with the same rules: run `ppc next`, what only a person decides |
+| **`CLAUDE.md`** | One short block (about 1,300 characters), generated | Where the design is and how to work: run `ppc next`, what only a person decides. It copies nothing from the design |
 
 There are no webhooks, servers or network calls of our own: everything runs on your machine, with files, hooks and git.
 The guard is a guard rail, not a security boundary; `ppc check-git` is the backstop.
@@ -104,8 +104,9 @@ No upstream code is copied. Why these bases and not others: [upstream-analysis](
 
 How the others teach Claude Code to use them, as far as their documentation shows: Spec Kit installs skills (slash commands)
 into `.claude/skills/` plus a `.specify/` folder; [OpenSpec](https://github.com/Fission-AI/OpenSpec) installs skills and
-slash commands into `.claude/` plus an `openspec/` folder with a `config.yaml`. pp-suite does the same, and adds a hook
-and a short block of rules in `CLAUDE.md`, so a session starts oriented without anyone typing a command.
+slash commands into `.claude/` plus an `openspec/` folder with a `config.yaml`. pp-suite does the same, and adds a guard hook,
+a hook that shows the project's state when a session starts, and a short block of rules in `CLAUDE.md`, so a session starts
+oriented without anyone typing a command.
 
 What pp-suite adds, as far as the sources I checked show: the review of what the tool added to the design, human decisions
 protected by a hook, sizes measured from git, and a contract with a validator.
