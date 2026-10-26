@@ -19,5 +19,6 @@ description: "Generate dependency-ordered SDD.PP slices"
 
 ## SDD.PP sign-off
 
-Before finishing, check that no task is a layer-only task, that every slice file validates against
+Before finishing, run `ppc scaffold .` (it writes the empty technical-debt registers that rule `R01` asks for, one per
+component), `ppc generate .` and `ppc validate .`, and fix what they report. Check that no task is a layer-only task, that every slice file validates against
 the schema, and that `tasks.md` only lists the slices (an index, not a second copy).
