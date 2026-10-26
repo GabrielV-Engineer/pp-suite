@@ -1,0 +1,24 @@
+== head: 0480388 (main)
+== typecheck
+exit 0
+== own tests (npm test)
+ℹ tests 26
+ℹ pass 26
+ℹ fail 0
+== neutral acceptance, the request as written (sl004)
+✔ SL-004, neutral acceptance (from the criteria text only)
+ℹ tests 4
+ℹ pass 4
+ℹ fail 0
+== latent quality probes (sl004-latent)
+✔ SL-004 latent quality probes
+ℹ tests 8
+ℹ pass 8
+ℹ fail 0
+== regression: the earlier slice (sl002)
+✔ SL-002, neutral acceptance (from the criteria text only)
+ℹ tests 2
+ℹ pass 2
+ℹ fail 0
+== the limit written as a literal 500 in hand-written code (duplication of the rule)
+1

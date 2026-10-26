@@ -1,0 +1,1 @@
+You are working in a TypeScript project on Node 24 (see .architect/architecture.md and .architect/blueprint.yaml). The work to do is slice SL-004, described in .sddpp/slices/SL-004-reject-invalid-titles.md. Implement it, with tests for the acceptance criteria. Run the project's tests (npm test) and the type check (npm run typecheck). Commit your work with git when you are done.
