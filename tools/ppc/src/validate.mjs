@@ -39,6 +39,7 @@ export const RULES = {
   T13: 'A slice audit references unknown decisions or debt, or debt with the wrong origin.',
   T14: 'A slice was planned against a blueprint revision that does not exist yet.',
   T15: 'A slice points at a spec file or a user story that does not exist.',
+  T17: 'A change request is marked applied but the design revision has not risen since it was opened.',
   T16: 'A closed work slice changed no test files although its test policy is required.',
   L01: 'A slice has a phase while it is not in progress.',
   L02: 'The audit commits of a strict slice are not ordered red before green.',
@@ -315,6 +316,7 @@ export function validateModel(model, { now = new Date() } = {}) {
 
   // ── change requests: T11 ──────────────────────────────────────
   for (const { file, data: c } of crs) {
+    if (c.status === 'applied' && c.blueprint_revision !== undefined && bp.revision <= c.blueprint_revision) error('T17', file, `${c.id} is applied, but the design is still at revision ${bp.revision}, where it was opened`);
     if (!sliceById.has(c.raised_by)) error('T11', file, `${c.id} raised by unknown slice ${c.raised_by}`);
     for (const x of c.affects.components ?? []) if (!comps.has(x)) error('T11', file, `${c.id} affects unknown component ${x}`);
     for (const x of c.affects.adrs ?? []) if (!adrIds.has(x)) error('T11', file, `${c.id} affects unknown ${x}`);

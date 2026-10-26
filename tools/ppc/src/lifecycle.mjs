@@ -39,7 +39,7 @@ function restore(root, snap) {
     writeFileSync(f, content);
   }
 }
-function transact(root, work) {
+export function transact(root, work) {
   const snap = snapshot(root);
   try {
     return work();
@@ -52,7 +52,7 @@ function transact(root, work) {
 // ── helpers ───────────────────────────────────────────────────────────────────────
 const describe = (findings) => findings.map((f) => `  ${f.rule} ${f.file}: ${f.message}`).join('\n');
 
-function loadValid(root) {
+export function loadValid(root) {
   const model = loadProject(root);
   const errors = validateModel(model).filter((f) => f.severity === 'error');
   if (errors.length) fail(`the project is invalid, fix it first:\n${describe(errors)}`);
@@ -60,7 +60,7 @@ function loadValid(root) {
 }
 
 /** Edit one slice's frontmatter in place, keeping the body and the other fields as they were. */
-function editFrontmatter(root, file, mutate) {
+export function editFrontmatter(root, file, mutate) {
   const abs = join(root, file);
   const match = FRONTMATTER.exec(readFileSync(abs, 'utf8'));
   const doc = parseDocument(match[1]);
@@ -75,7 +75,7 @@ function writeActive(root, slice, phase) {
 }
 
 /** Regenerate the derived views and make sure the project is still valid. */
-function refreshViews(root) {
+export function refreshViews(root) {
   const model = loadValid(root);
   writeGenerated(root, generate(model));
 }

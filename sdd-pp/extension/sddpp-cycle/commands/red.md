@@ -13,6 +13,7 @@ $ARGUMENTS
 - You write **tests only**. No production code, no stubs, no configuration of the application.
 - The tests are the specification. A person will read them and approve them before any code exists,
   so make them easy to read.
+- If the design is wrong or silent about something this slice needs, **stop**. Do not decide it yourself and do not work around it: open a change request with `ppc change-request --slice <id> --title ... --problem ... --proposal ... --qa|--component|--adr ...`, tell the human, and wait. A person decides.
 - Never edit the slice's state yourself (`.sddpp/active.json`, `status`, `phase`). Use `ppc`.
 
 ## Steps

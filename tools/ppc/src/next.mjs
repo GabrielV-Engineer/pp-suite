@@ -71,7 +71,16 @@ export function nextSteps(model, subjects, errors = []) {
     .filter((s) => ['planned', 'ready'].includes(s.status) && unfinished(s, byId).length)
     .map((s) => ({ slice: s.id, waits_for: unfinished(s, byId) }));
 
-  const result = (headline, actions) => ({ headline, actions, waiting, blocked });
+  // Design changes: what a person must decide, what Architect.PP must revise, and what is stale afterwards.
+  const crs = model.changeRequests.map((c) => c.data).sort((a, b) => a.id.localeCompare(b.id));
+  const changeAction = (c) => (c.status === 'open'
+    ? { who: 'human', what: `Decide on change request ${c.id}: ${c.title} (raised by ${c.raised_by})`, command: `ppc decide-change ${c.id} --accept|--reject --by <your name>` }
+    : { who: 'agent', what: `Revise the design for ${c.id}: ${c.title}`, command: `/speckit-architect-pp-apply-change ${c.id}` });
+  const pending = crs.filter((c) => ['open', 'accepted'].includes(c.status));
+  const revision = model.blueprint.data.revision;
+  const stale = live.filter((s) => s.status !== 'done' && s.blueprint_revision < revision);
+  const staleNote = stale.length ? [{ who: 'anyone', what: `Slices planned against an older design (now revision ${revision}): ${stale.map((s) => `${s.id} (revision ${s.blueprint_revision})`).join(', ')}. Read what changed, then update their blueprint_revision` }] : [];
+  const result = (headline, actions, paused) => ({ headline, actions, waiting, blocked, changes: [...pending.filter((c) => c !== paused).map(changeAction), ...staleNote] });
 
   if (errors.length) {
     return result(`The contract has ${errors.length} error(s); fix them first, because every other step assumes a valid project.`, [
@@ -81,6 +90,11 @@ export function nextSteps(model, subjects, errors = []) {
 
   const open = live.find((s) => s.status === 'in_progress');
   if (open) {
+    const asked = pending.find((c) => c.raised_by === open.id);
+    if (asked) {
+      const why = asked.status === 'open' ? 'a person has not decided it yet' : 'it is accepted and waits for the design to be revised';
+      return result(`${open.id} "${open.title}" is paused: it raised ${asked.id} ("${asked.title}"), and ${why}.`, [changeAction(asked)], asked);
+    }
     const { headline, actions } = inProgressActions(open, subjects);
     return result(headline, actions);
   }
@@ -106,6 +120,7 @@ export function renderNext(next) {
   const out = [next.headline, ''];
   if (next.actions.length) out.push('Next:', ...next.actions.map(line), '');
   if (next.waiting.length) out.push('Also waiting for a person:', ...next.waiting.map(line), '');
+  if (next.changes.length) out.push('Design changes:', ...next.changes.map((a) => (a.command ? line(a) : `  ${a.what}`)), '');
   if (next.blocked.length) out.push('Blocked:', ...next.blocked.map((b) => `  ${b.slice} waits for ${b.waits_for.join(', ')}`), '');
   return out.join('\n').replace(/\n+$/, '\n');
 }

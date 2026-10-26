@@ -20,6 +20,7 @@ $ARGUMENTS
   `ppc finish` proposes a debt entry for a person to decide; `none` means they are not asked for.
 - Stay inside the production-code budget (`budgets.max_slice_production_lines`). If the slice is growing past it,
   stop and say so: a person decides whether to split it.
+- If the design is wrong or silent about something this slice needs, **stop**. Do not decide it yourself and do not work around it: open a change request with `ppc change-request --slice <id> --title ... --problem ... --proposal ... --qa|--component|--adr ...`, tell the human, and wait. A person decides.
 - Respect the component boundaries in `.architect/architecture.md`. Nothing hardcoded that varies per environment.
 - Never approve anything and never write a decision field: those belong to people.
 

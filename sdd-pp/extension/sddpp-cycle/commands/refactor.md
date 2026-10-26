@@ -13,6 +13,7 @@ $ARGUMENTS
 - Behavior does not change. The proof is that **the existing tests pass, untouched**. A guard blocks editing
   them. If a test has to change, the behavior is changing: stop and tell the human, who can reopen a red phase
   in a new slice.
+- If the design is wrong or silent about something this slice needs, **stop**. Do not decide it yourself and do not work around it: open a change request with `ppc change-request --slice <id> --title ... --problem ... --proposal ... --qa|--component|--adr ...`, tell the human, and wait. A person decides.
 - Change the structure only: names, duplication, where code lives, how it is configured. No new feature, no
   new error branch, no new option, no new dependency.
 - Do only what the debt entries this slice pays describe (`pays` in the slice file). If you find other

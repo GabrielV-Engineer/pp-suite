@@ -108,7 +108,7 @@ class GuardTest(unittest.TestCase):
             root = self.project(state)
             for cmd in ("ppc approve-red --by me", "node tools/ppc/bin/ppc.mjs approve-red --by me",
                         "cd proj && ppc  approve-red", "npx ppc approve-slice SL-003", "ppc approve-debt DEBT-BE-004 --by me",
-                        "ppc decide-addition ADD-001 --cut --by me", "node tools/ppc/bin/ppc.mjs decide-addition --accept-recommended --by me"):
+                        "ppc decide-addition ADD-001 --cut --by me", "ppc decide-change CR-0002 --accept --by me", "node tools/ppc/bin/ppc.mjs decide-addition --accept-recommended --by me"):
                 with self.subTest(state=state, cmd=cmd):
                     code, message = guard.decide(payload("Bash", command=cmd), root)
                     self.assertEqual(code, 2)
@@ -136,6 +136,17 @@ class GuardTest(unittest.TestCase):
                 code, message = guard.decide(payload("Bash", command=cmd), root)
                 self.assertEqual(code, 2)
                 self.assertIn("human", message)
+
+    def test_the_agent_cannot_accept_a_change_request_by_writing_the_file(self):
+        root = self.project()
+        edit = payload("Edit", file_path=".sddpp/change-requests/CR-0002-x.md", old_string="status: open", new_string="status: accepted\ndecided_by: me")
+        self.assertEqual(guard.decide(edit, root)[0], 2)
+
+    def test_the_agent_may_open_a_change_request_and_apply_one_a_person_accepted(self):
+        root = self.project()
+        for cmd in ("ppc change-request --slice SL-004 --title t --problem p --proposal q --qa QA-004", "ppc apply-change CR-0002", "ppc constitution"):
+            with self.subTest(cmd=cmd):
+                self.assertEqual(guard.decide(payload("Bash", command=cmd), root)[0], 0)
 
     def test_every_other_ppc_command_is_allowed(self):
         root = self.project({"slice": "SL-002", "phase": "red"})

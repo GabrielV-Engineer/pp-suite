@@ -44,6 +44,11 @@ test('system prompt: made of references, so it does not paste the slice or the a
   assert.ok(system.length < 3500, `the system prompt stays short, it is ${system.length} characters`);
 });
 
+test('every task except the audit tells the agent to stop and open a change request when the design is wrong', () => {
+  for (const task of ['red', 'green', 'refactor']) assert.match(prompts('SL-002', task).system, /change request/i, task);
+  assert.doesNotMatch(prompts('SL-002', 'audit').system, /change request/i);
+});
+
 test('each task has its own rules', () => {
   assert.match(prompts('SL-002', 'green').system, /do not (edit|change|touch).*tests?|tests?.*locked/i);
   assert.match(prompts('SL-002', 'refactor').system, /behavior/i);

@@ -11,6 +11,7 @@ import { checkConstitution, writeConstitution, ConstitutionError } from '../src/
 import { apply, plan as installPlan, renderPlan, InstallError } from '../src/install.mjs';
 import { spawnSync } from 'node:child_process';
 import { homedir } from 'node:os';
+import { applyChange, decideChange, openChange } from '../src/changes.mjs';
 import { buildPrompts, resolveTarget, writePrompts } from '../src/prompts.mjs';
 import { start, approveSlice, approveRed, approveDebt, decideAddition, toRefactor, finish, mutate, status, LifecycleError } from '../src/lifecycle.mjs';
 
@@ -32,6 +33,14 @@ const USAGE = `ppc — pp-suite contract tool
                                          check the machine and the project against the pinned versions and print the
                                          commands that would set it up; --apply runs them (needs a clean git tree);
                                          --shim also writes ~/.local/bin/ppc
+
+  Design changes (a slice asks, a person decides, Architect.PP revises)
+    ppc change-request --slice <id> --title <t> --problem <what it found> --proposal <what should change>
+                       [--component a,b] [--adr ADR-0001] [--qa QA-001] [dir]
+                                         open a change request: the design is wrong or silent about something a slice needs
+    ppc decide-change <CR-ID> (--accept | --reject --reason <why>) --by <name> [dir]
+                                         HUMAN ONLY: accept or reject it
+    ppc apply-change <CR-ID> [dir]       mark it applied, once the design revision has risen and the constitution follows it
 
   Slice cycle (each step changes the project or nothing at all)
     ppc approve-slice <slice> --by <name> [dir]
@@ -59,13 +68,14 @@ const USAGE = `ppc — pp-suite contract tool
     ppc overview [dir]                   where the project stands: slices, capabilities, debt, contract
 `;
 
-const VALUE_OPTIONS = new Set(['--by', '--audit', '--files', '--slice', '--accept', '--budget-reason', '--mutation-reason', '--reason', '--task', '--specify']);
+const VALUE_OPTIONS = new Set(['--by', '--audit', '--files', '--slice', '--accept', '--budget-reason', '--mutation-reason', '--reason', '--task', '--specify', '--title', '--problem', '--proposal', '--component', '--adr', '--qa']);
 const [command, ...rest] = process.argv.slice(2);
 const positionals = [];
 const flags = new Set();
 const options = new Map();
 for (let i = 0; i < rest.length; i++) {
-  if (VALUE_OPTIONS.has(rest[i])) options.set(rest[i].slice(2), rest[++i]);
+  // `--accept` takes a reason in approve-debt, and is a plain flag in decide-change
+  if (VALUE_OPTIONS.has(rest[i]) && !(rest[i] === '--accept' && command === 'decide-change')) options.set(rest[i].slice(2), rest[++i]);
   else if (rest[i].startsWith('--')) flags.add(rest[i]);
   else positionals.push(rest[i]);
 }
@@ -149,6 +159,17 @@ switch (command) {
       hint();
       return done;
     });
+    break;
+  case 'change-request': {
+    const list = (v) => (v ? v.split(',').map((x) => x.trim()).filter(Boolean) : []);
+    transition(() => openChange(dirAt(0), { slice: options.get('slice'), title: options.get('title'), problem: options.get('problem'), proposal: options.get('proposal'), components: list(options.get('component')), adrs: list(options.get('adr')), qas: list(options.get('qa')) }));
+    break;
+  }
+  case 'decide-change':
+    transition(() => decideChange(dirAt(1), positionals[0], { decision: flags.has('--accept') ? 'accept' : flags.has('--reject') ? 'reject' : undefined, by: options.get('by'), reason: options.get('reason') }));
+    break;
+  case 'apply-change':
+    transition(() => applyChange(dirAt(1), positionals[0]));
     break;
   case 'approve-red':
     transition(() => approveRed(dirAt(0), options.get('by')));

@@ -24,8 +24,23 @@ Status: **v0.1, unstable.** Expect breaking changes until v1.0.
   wbs.md                         generated work breakdown (do not edit)
 ```
 
-SDD.PP never edits `.architect/`. If a slice finds the design wrong, it opens a **change request**; the
-blueprint `revision` is bumped when Architect.PP applies it.
+SDD.PP never edits `.architect/`. If a slice finds the design wrong or silent, it opens a **change request**; the
+blueprint `revision` is bumped when Architect.PP applies it. The life of a request:
+
+| Status | How it gets there | Who |
+|---|---|---|
+| `open` | `ppc change-request --slice ... --problem ... --proposal ...` (records the design revision it was opened at) | an agent or a person |
+| `accepted` / `rejected` | `ppc decide-change CR-NNNN --accept` or `--reject --reason ...` | **a person**; the guard blocks agents |
+| `applied` | `/speckit-architect-pp-apply-change CR-NNNN` revises `.architect/` and raises `revision`; then `ppc apply-change` checks that the revision rose (`T17`) and that the constitution follows the design | Architect.PP, then the tool |
+
+Slices planned against the older revision are flagged (`W03`, and listed by `ppc next`); nothing updates their
+`blueprint_revision` automatically, since that is the reader saying "I read what changed".
+
+**The constitution.** `ppc constitution` writes Spec Kit's `.specify/memory/constitution.md` from the design: the
+decisions in force, the non-goals, the component boundaries, the quality targets, the slice budget, the default cycle and
+the test policy. It is the same text every time and its version is the blueprint revision. It refuses while additions
+are undecided (it would bind the plan to things the person may cut) and never replaces a hand-written file without
+`--force`. `ppc constitution --check` verifies it is current. Do not write it with `/speckit-constitution`.
 
 Spec Kit's own folders (`.specify/`, `specs/`) coexist with these and are not governed by the contract.
 
@@ -113,6 +128,7 @@ Errors fail validation; warnings fail only with `--strict`. `ppc rules` prints t
 | `T14` | error | A slice was planned against a blueprint revision that does not exist yet. |
 | `T15` | error | A slice points at a spec file or a user story that does not exist. |
 | `T16` | error | A closed work slice changed no test files although its test policy is required. |
+| `T17` | error | A change request is marked applied but the design revision has not risen since it was opened. |
 | `L01` | error | A slice has a phase while it is not in progress. |
 | `L02` | error | The audit commits of a strict slice are not ordered red before green. |
 | `L06` | error | The phase of a slice does not belong to its mode (build is for light slices, red and green for strict ones). |

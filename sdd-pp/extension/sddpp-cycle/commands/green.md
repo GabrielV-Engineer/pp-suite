@@ -18,6 +18,7 @@ $ARGUMENTS
 - **No behavior that no test asks for**: no extra error branch, default value or option, even if the
   design describes it. If the design calls for it, say so in your report so the human can ask for a test
   in a new red phase. Untested code is code that nothing would notice breaking.
+- If the design is wrong or silent about something this slice needs, **stop**. Do not decide it yourself and do not work around it: open a change request with `ppc change-request --slice <id> --title ... --problem ... --proposal ... --qa|--component|--adr ...`, tell the human, and wait. A person decides.
 - Respect the component boundaries in `.architect/architecture.md`.
 - No hardcoded values: anything that varies per environment comes from configuration.
 

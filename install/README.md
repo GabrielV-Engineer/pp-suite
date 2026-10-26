@@ -26,7 +26,9 @@ What it does not do, on purpose:
 - **It does not overwrite another program called `ppc`**, and it refuses to run on a project with uncommitted changes, so
   everything it does shows up as a diff you can review and revert.
 - It does not clone The Architect. `versions.json` records the commit the design step was tried with.
-- It does not replace a different version of an extension or the preset: it reports the difference and stops.
+- It does not replace a different version of an extension or the preset: it reports the difference and stops. It compares the
+  installed files with this repository's too, because a version number can stay the same while the files change (the demo project
+  had `0.1.0` installed with older content). The fix it prints is to remove the piece and run `ppc init --apply` again.
 
 Tried: against Spec Kit at the pinned commit, in a scratch project and a scratch home directory: from a bare git
 repository to 14 checks ok, a second run did nothing, and `ppc status` ran through the shim. Not tried: macOS or Windows,

@@ -20,12 +20,18 @@
         "quality_attributes": { "type": "array", "items": { "type": "string", "pattern": "^QA-\\d{3}$" } }
       }
     },
-    "decided_by": { "type": "string", "minLength": 1 }
+    "blueprint_revision": { "type": "integer", "minimum": 1, "description": "The design revision when the request was opened. It is applied only once the design has moved past it." },
+    "decided_by": { "type": "string", "minLength": 1 },
+    "reason": { "type": "string", "minLength": 5, "description": "Why a person rejected it (required), or why accepted it." }
   },
   "allOf": [
     {
       "if": { "properties": { "status": { "enum": ["accepted", "rejected", "applied"] } }, "required": ["status"] },
       "then": { "required": ["decided_by"] }
+    },
+    {
+      "if": { "properties": { "status": { "const": "rejected" } }, "required": ["status"] },
+      "then": { "required": ["reason"] }
     }
   ]
 }

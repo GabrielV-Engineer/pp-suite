@@ -140,6 +140,7 @@ export function buildPrompts(model, id, task) {
     '',
     `## This task: ${task}`,
     ...list(RULES[task](s, testPolicy(bp, s))),
+    ...(task === 'audit' ? [] : ['- If the design is wrong or silent about something you need, stop and open a change request (`ppc change-request`); do not decide it yourself.']),
     ...(COMMANDS[task] ? ['', `The full instructions for this task are in \`${COMMANDS[task]}\`.`] : []),
   ]);
 

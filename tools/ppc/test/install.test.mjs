@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -141,6 +141,38 @@ test('plan: the guard hook and script are verified, because a missing guard fail
   writeFileSync(join(dir, '.claude/settings.json'), JSON.stringify({ hooks: { PreToolUse: [{ hooks: [{ command: 'python3 .specify/events.py speckit.sddpp-guard.pre-tool pre_tool_use 60' }] }] } }));
   writeFileSync(join(dir, '.specify/extensions/sddpp-guard/scripts/python/guard.py'), '#');
   assert.deepEqual(ok(plan(dir, env(machine(installed)))), ['ok', 'ok']);
+});
+
+// ── same version, other content ──────────────────────────────────
+test('plan: an installed extension with the right version but other content is reported, since a version can stay while files change', (t) => {
+  const dir = project(t, { specify: true });
+  const installedCopy = join(dir, '.specify/extensions/sddpp-cycle');
+  cpSync(join(SUITE, 'sdd-pp/extension/sddpp-cycle'), installedCopy, { recursive: true });
+  mkdirSync(join(installedCopy, '.specify-dev'));
+  writeFileSync(join(installedCopy, '.specify-dev/extra.txt'), 'added by Spec Kit');
+  const status = () => check(plan(dir, env(machine(installed))), 'extension-sddpp-cycle');
+  assert.equal(status().status, 'ok', 'an identical copy, with extra files of its own, is current');
+  mkdirSync(join(SUITE, 'sdd-pp/extension/sddpp-cycle/__pycache__'), { recursive: true });
+  writeFileSync(join(SUITE, 'sdd-pp/extension/sddpp-cycle/__pycache__/x.pyc'), 'compiled');
+  t.after(() => rmSync(join(SUITE, 'sdd-pp/extension/sddpp-cycle/__pycache__'), { recursive: true, force: true }));
+  assert.equal(status().status, 'ok', 'compiled python caches are ignored');
+  writeFileSync(join(installedCopy, 'commands/red.md'), 'an older red.md\n');
+  assert.equal(status().status, 'differs');
+  assert.match(status().found, /red\.md/);
+  assert.match(status().fix, /specify extension remove sddpp-cycle/);
+  assert.ok(plan(dir, env(machine(installed))).blocked.some((b) => b.id === 'extension-sddpp-cycle'));
+  cpSync(join(SUITE, 'sdd-pp/extension/sddpp-cycle/commands/red.md'), join(installedCopy, 'commands/red.md'));
+  rmSync(join(installedCopy, 'commands/build.md'));
+  assert.match(status().found, /build\.md/, 'a file that is missing counts too');
+});
+
+test('plan: the same holds for the preset', (t) => {
+  const dir = project(t, { specify: true });
+  const copy = join(dir, '.specify/presets/sddpp-slices');
+  cpSync(join(SUITE, 'sdd-pp/preset/sddpp-slices'), copy, { recursive: true });
+  assert.equal(check(plan(dir, env(machine(installed))), 'preset-sddpp-slices').status, 'ok');
+  writeFileSync(join(copy, 'templates/tasks-template.md'), 'older\n');
+  assert.equal(check(plan(dir, env(machine(installed))), 'preset-sddpp-slices').status, 'differs');
 });
 
 // ── the shim ─────────────────────────────────────────────────────

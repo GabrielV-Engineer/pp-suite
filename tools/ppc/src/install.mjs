@@ -1,4 +1,4 @@
-import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parse as parseYaml } from 'yaml';
 
@@ -26,6 +26,17 @@ const HOOK_NAME = 'speckit.sddpp-guard.pre-tool';
 
 const manifestVersion = (suite, file, key) => String(parseYaml(readFileSync(join(suite, file), 'utf8'))[key].version);
 const shimText = (suite) => `#!/bin/sh\nexec node "${join(suite, 'tools/ppc/bin/ppc.mjs')}" "$@"\n`;
+/** Files of `source` that are missing from `installed` or differ there. Extra files in `installed` are Spec Kit's own. */
+function differing(source, installed, base = '') {
+  return readdirSync(join(source, base), { withFileTypes: true }).flatMap((entry) => {
+    const rel = join(base, entry.name);
+    if (entry.name === '__pycache__') return []; // compiled by running the tests; not part of what is installed
+    if (entry.isDirectory()) return differing(source, installed, rel);
+    const there = join(installed, rel);
+    return !existsSync(there) || !readFileSync(there).equals(readFileSync(join(source, rel))) ? [rel] : [];
+  });
+}
+
 const versionOf = (out) => /(\d+(?:\.\d+)+\S*)/.exec(out ?? '')?.[1];
 
 /** Reads the current state of the machine and the project, and the steps that would fix what is missing. */
@@ -79,14 +90,26 @@ export function plan(root, env, { shim = false, allowUntested = false } = {}) {
       return [];
     }
   };
-  const piece = (kind, id, version) => {
+  const piece = (kind, id, version, sourceDir) => {
     const found = listed(kind).find((x) => x.id === id);
-    const status = !found ? 'missing' : found.version === version ? 'ok' : 'differs';
-    add({ id: `${kind}-${id}`, label: `${kind} ${id}`, status, found: found?.version, wanted: version }, { blocks: status === 'differs' });
+    let status = !found ? 'missing' : found.version === version ? 'ok' : 'differs';
+    let shown = found?.version;
+    let fix;
+    // A version can stay the same while the files change: compare the installed copy with this repository's.
+    const copy = join(root, '.specify', kind === 'extension' ? 'extensions' : 'presets', id);
+    if (status === 'ok' && existsSync(copy)) {
+      const stale = differing(join(suite, sourceDir), copy);
+      if (stale.length) {
+        status = 'differs';
+        shown = `${found.version}, but ${stale.slice(0, 3).join(', ')}${stale.length > 3 ? ` and ${stale.length - 3} more` : ''} differ from this repository`;
+        fix = `specify ${kind} remove ${id}, then ppc init --apply (check the generated skills afterwards: docs/spike-findings.md, point 5)`;
+      }
+    }
+    add({ id: `${kind}-${id}`, label: `${kind} ${id}`, status, found: shown, wanted: version, fix }, { blocks: status === 'differs' });
     return status === 'ok';
   };
-  const extensionOk = Object.fromEntries(EXTENSIONS.map(({ id, dir }) => [id, piece('extension', id, manifestVersion(suite, `${dir}/extension.yml`, 'extension'))]));
-  const presetOk = piece('preset', PRESET, manifestVersion(suite, `sdd-pp/preset/${PRESET}/preset.yml`, 'preset'));
+  const extensionOk = Object.fromEntries(EXTENSIONS.map(({ id, dir }) => [id, piece('extension', id, manifestVersion(suite, `${dir}/extension.yml`, 'extension'), dir)]));
+  const presetOk = piece('preset', PRESET, manifestVersion(suite, `sdd-pp/preset/${PRESET}/preset.yml`, 'preset'), `sdd-pp/preset/${PRESET}`);
   add({ id: 'guard-script', label: 'the guard script is present (without it the guard fails open)', status: existsSync(join(root, GUARD_SCRIPT)) ? 'ok' : 'missing' });
   let hook = false;
   try {
