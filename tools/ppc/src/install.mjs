@@ -14,7 +14,12 @@ const fail = (message) => {
 
 export const readPins = (suite) => JSON.parse(readFileSync(join(suite, 'install/versions.json'), 'utf8'));
 
-const EXTENSIONS = ['sddpp-guard', 'sddpp-cycle'];
+// Where each extension lives in this repository. Architect.PP comes first: it is the first step of a project.
+const EXTENSIONS = [
+  { id: 'architect-pp', dir: 'architect-pp/extension' },
+  { id: 'sddpp-guard', dir: 'sdd-pp/extension/sddpp-guard' },
+  { id: 'sddpp-cycle', dir: 'sdd-pp/extension/sddpp-cycle' },
+];
 const PRESET = 'sddpp-slices';
 const GUARD_SCRIPT = '.specify/extensions/sddpp-guard/scripts/python/guard.py';
 const HOOK_NAME = 'speckit.sddpp-guard.pre-tool';
@@ -80,7 +85,7 @@ export function plan(root, env, { shim = false, allowUntested = false } = {}) {
     add({ id: `${kind}-${id}`, label: `${kind} ${id}`, status, found: found?.version, wanted: version }, { blocks: status === 'differs' });
     return status === 'ok';
   };
-  const extensionOk = Object.fromEntries(EXTENSIONS.map((id) => [id, piece('extension', id, manifestVersion(suite, `sdd-pp/extension/${id}/extension.yml`, 'extension'))]));
+  const extensionOk = Object.fromEntries(EXTENSIONS.map(({ id, dir }) => [id, piece('extension', id, manifestVersion(suite, `${dir}/extension.yml`, 'extension'))]));
   const presetOk = piece('preset', PRESET, manifestVersion(suite, `sdd-pp/preset/${PRESET}/preset.yml`, 'preset'));
   add({ id: 'guard-script', label: 'the guard script is present (without it the guard fails open)', status: existsSync(join(root, GUARD_SCRIPT)) ? 'ok' : 'missing' });
   let hook = false;
@@ -95,7 +100,7 @@ export function plan(root, env, { shim = false, allowUntested = false } = {}) {
   const steps = [
     { id: 'npm-ci', title: 'Install the dependencies of ppc', command: ['npm', 'ci'], cwd: join(suite, 'tools/ppc'), done: depsOk },
     { id: 'specify-init', title: 'Initialize Spec Kit for Claude Code', command: [specify, 'init', '--here', '--force', '--non-interactive', '--integration', 'claude'], cwd: root, done: hasSpecify },
-    ...EXTENSIONS.map((id) => ({ id: `extension-${id}`, title: `Install the ${id} extension`, command: [specify, 'extension', 'add', join(suite, `sdd-pp/extension/${id}`), '--dev'], cwd: root, done: extensionOk[id] })),
+    ...EXTENSIONS.map(({ id, dir }) => ({ id: `extension-${id}`, title: `Install the ${id} extension`, command: [specify, 'extension', 'add', join(suite, dir), '--dev'], cwd: root, done: extensionOk[id] })),
     { id: `preset-${PRESET}`, title: `Install the ${PRESET} preset`, command: [specify, 'preset', 'add', '--dev', join(suite, `sdd-pp/preset/${PRESET}`)], cwd: root, done: presetOk },
   ];
   if (shim) {

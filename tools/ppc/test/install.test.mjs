@@ -41,7 +41,7 @@ function machine({ specify = `specify ${pins.speckit.version}`, claude = '2.1.31
   return { probe, calls, node };
 }
 const env = (m, extra = {}) => ({ suite: SUITE, probe: m.probe, nodeVersion: m.node, pathDirs: [], ...extra });
-const installed = { extensions: [{ id: 'sddpp-guard', version: '0.1.0' }, { id: 'sddpp-cycle', version: '0.1.0' }], presets: [{ id: 'sddpp-slices', version: '0.1.0' }] };
+const installed = { extensions: [{ id: 'architect-pp', version: '0.1.0' }, { id: 'sddpp-guard', version: '0.1.0' }, { id: 'sddpp-cycle', version: '0.1.0' }], presets: [{ id: 'sddpp-slices', version: '0.1.0' }] };
 const check = (p, id) => p.checks.find((c) => c.id === id);
 const fails = (fn, pattern) => assert.throws(fn, (e) => e instanceof InstallError && pattern.test(e.message));
 
@@ -57,7 +57,7 @@ test('the pins name exact versions and full commits, not ranges', () => {
 // ── checking the machine ─────────────────────────────────────────
 test('plan: a machine with everything in place has every check ok and nothing left to run', (t) => {
   const p = plan(project(t, { specify: true }), env(machine(installed)));
-  for (const id of ['node', 'git', 'git-repo', 'python', 'specify', 'specify-project', 'extension-sddpp-guard', 'extension-sddpp-cycle', 'preset-sddpp-slices']) assert.equal(check(p, id).status, 'ok', id);
+  for (const id of ['node', 'git', 'git-repo', 'python', 'specify', 'specify-project', 'extension-architect-pp', 'extension-sddpp-guard', 'extension-sddpp-cycle', 'preset-sddpp-slices']) assert.equal(check(p, id).status, 'ok', id);
   assert.deepEqual(p.blocked, []);
   assert.deepEqual(p.steps.filter((s) => !s.done), []);
 });
@@ -104,11 +104,13 @@ test('plan: a directory that is not a git repository blocks, since ppc reads git
 test('plan: a fresh project gets specify init, the two extensions and the preset, in that order, none done', (t) => {
   const p = plan(project(t), env(machine()));
   const ids = p.steps.filter((s) => !s.done).map((s) => s.id);
-  assert.deepEqual(ids.filter((id) => id !== 'npm-ci'), ['specify-init', 'extension-sddpp-guard', 'extension-sddpp-cycle', 'preset-sddpp-slices']);
+  assert.deepEqual(ids.filter((id) => id !== 'npm-ci'), ['specify-init', 'extension-architect-pp', 'extension-sddpp-guard', 'extension-sddpp-cycle', 'preset-sddpp-slices']);
   const init = p.steps.find((s) => s.id === 'specify-init');
   assert.deepEqual(init.command.slice(0, 2), ['specify', 'init']);
   for (const flag of ['--here', '--force', '--non-interactive']) assert.ok(init.command.includes(flag), flag);
   assert.ok(init.command.join(' ').includes('--integration claude'));
+  const architect = p.steps.find((s) => s.id === 'extension-architect-pp');
+  assert.deepEqual(architect.command, ['specify', 'extension', 'add', join(SUITE, 'architect-pp/extension'), '--dev']);
   const guard = p.steps.find((s) => s.id === 'extension-sddpp-guard');
   assert.deepEqual(guard.command, ['specify', 'extension', 'add', join(SUITE, 'sdd-pp/extension/sddpp-guard'), '--dev']);
   assert.deepEqual(p.steps.find((s) => s.id === 'preset-sddpp-slices').command, ['specify', 'preset', 'add', '--dev', join(SUITE, 'sdd-pp/preset/sddpp-slices')]);
@@ -189,7 +191,7 @@ test('apply: runs the steps that are not done, in order, inside the project', (t
   const fresh = project(t);
   const log2 = [];
   const r2 = apply(fresh, env(machine()), { run: runner(log2) });
-  assert.deepEqual(r2.ran.filter((id) => id !== 'npm-ci'), ['specify-init', 'extension-sddpp-guard', 'extension-sddpp-cycle', 'preset-sddpp-slices']);
+  assert.deepEqual(r2.ran.filter((id) => id !== 'npm-ci'), ['specify-init', 'extension-architect-pp', 'extension-sddpp-guard', 'extension-sddpp-cycle', 'preset-sddpp-slices']);
   assert.ok(log2.every((l) => l.cwd === fresh || l.command[0] === 'npm'));
 });
 
@@ -237,4 +239,14 @@ test('CLI: init without --apply only reports: it prints the checks and the comma
   assert.match(out.stdout, /would run/i);
   assert.ok(!existsSync(join(dir, '.specify')));
   assert.equal(spawnSync('git', ['status', '--porcelain'], { cwd: dir, encoding: 'utf8' }).stdout, '');
+});
+
+// ── ppc contract: where the contract files are, for prompts that run inside a project ──
+test('CLI: contract prints where the schemas, the contract document and the example are', () => {
+  const out = spawnSync(process.execPath, [CLI, 'contract'], { encoding: 'utf8' });
+  assert.equal(out.status, 0, out.stderr);
+  const lines = Object.fromEntries(out.stdout.trim().split('\n').map((l) => l.split(/:\s+/)));
+  assert.ok(existsSync(join(lines.schemas, 'blueprint.schema.json')), lines.schemas);
+  assert.ok(existsSync(lines.document), lines.document);
+  assert.ok(existsSync(join(lines.example, '.architect/blueprint.yaml')), lines.example);
 });

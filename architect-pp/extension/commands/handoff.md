@@ -38,10 +38,10 @@ the plan**. It is a format conversion, not a redesign: do not improve, add or re
 
 ## Steps
 
-1. Read the blueprint completely. Read the contract so that you follow it exactly:
-   `contract/v0.1/schemas/blueprint.schema.json`, `adr.schema.json`, `evidence.schema.json`, `docs/contract-v0.1.md`
-   (the layout and the id formats), and the worked example `examples/todo-app/.architect/` as a model of each file.
-   The repository that holds them is the one that contains this command; the user may give its path.
+1. Read the blueprint completely. Run `ppc contract`: it prints where the contract files are (`schemas`, `document`,
+   `example`). Read them so that you follow the contract exactly: in `schemas`, `blueprint.schema.json`,
+   `adr.schema.json`, `evidence.schema.json` and `additions.schema.json`; the `document` (the layout and the id formats);
+   and the `.architect/` folder of the `example` as a model of each file.
 2. Write `.architect/blueprint.yaml`:
    - `project`: a short id (kebab-case), name, a `level` (`lite`, `standard` or `full`) that matches the size of
      what the blueprint describes, and a one-sentence summary.
@@ -70,7 +70,7 @@ the plan**. It is a format conversion, not a redesign: do not improve, add or re
 5. Write `.architect/evidence/EV-NNN-<slug>.md` for the checks the blueprint reports (for example, versions verified
    against a package registry), with the source, the date and an expiry date. **Group by source and date**: all the
    package versions verified against one registry on one day are one evidence file, not one per package.
-6. Write `.architect/additions.yaml`, following `contract/v0.1/schemas/additions.schema.json`, with one entry per
+6. Write `.architect/additions.yaml`, following `additions.schema.json` (in the `schemas` folder `ppc contract` printed), with one entry per
    addition you recorded:
    - `what` in words a novice can read, and `origin` (`not_requested`, `stronger_than_asked`, `tool_added` or
      `implied_by_request`);
@@ -86,7 +86,7 @@ the plan**. It is a format conversion, not a redesign: do not improve, add or re
    - `non_goal`: the sentence it would become among the non-goals if cut;
    - `decision: pending`. **Never write `decided_by`, `reason` or any decision**: only a person does.
    If there are no additions, do not create the file.
-7. Run `ppc validate <project> --design` (if you are not allowed to run it, say so in the report; do not claim it passed). Fix every error. Read every warning: fix it if the cause is in your
+7. Run `ppc validate . --design` (the argument is the project directory, not the project id) (if you are not allowed to run it, say so in the report; do not claim it passed). Fix every error. Read every warning: fix it if the cause is in your
    conversion, and report it if the cause is in the blueprint's design.
 8. Report: the files written; the sections dropped; the additions you flagged; the quality attributes you did not
    create because the blueprint gave no measure; every warning left, with its cause. Say plainly what you decided

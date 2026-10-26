@@ -12,8 +12,7 @@ They talk through one versioned [contract](docs/contract-v0.1.md), and neither i
 > exist and are tested. One slice has been taken end to end with real agents, with a stand-in as the
 > human reviewer: see the [M1 report](docs/m1-report.md). Since then: the design checks and the hand-off from The
 > Architect, the scope review, the tests policy, per-task prompts, the light cycle and `ppc init` were built and
-> tested, each tried once or twice on small examples. Not built: packaging Architect.PP's prompts as installable
-> commands, opening change requests from a slice, the experiment that compares whole methods, and any trial with a
+> tested, each tried once or twice on small examples. Architect.PP is now installable as a Spec Kit extension. Not built: opening change requests from a slice, the experiment that compares whole methods, and any trial with a
 > real novice. See the [roadmap](ROADMAP.md).
 >
 > **Does it help? Not shown.** A 45-run experiment found that on thin slices SDD.PP did not produce better

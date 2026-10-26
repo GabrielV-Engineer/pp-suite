@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { join, resolve } from 'node:path';
 import { loadProject } from '../src/load.mjs';
 import { validateModel, designFindings, RULES } from '../src/validate.mjs';
 import { generate, writeGenerated, checkGenerated } from '../src/generate.mjs';
@@ -23,6 +23,7 @@ const USAGE = `ppc — pp-suite contract tool
     ppc rules                            list every rule the checks can emit
 
   Setup
+    ppc contract                         print where the contract's schemas, document and worked example are
     ppc init [dir] [--apply] [--shim] [--allow-untested] [--specify <path>]
                                          check the machine and the project against the pinned versions and print the
                                          commands that would set it up; --apply runs them (needs a clean git tree);
@@ -184,6 +185,11 @@ switch (command) {
       // not a git repository: the phase alone decides, as if no commit had been made yet
     }
     process.stdout.write(renderNext(nextSteps(model, subjects, findings.filter((f) => f.severity === 'error'))));
+    break;
+  }
+  case 'contract': {
+    const suite = resolve(new URL('../../..', import.meta.url).pathname);
+    console.log(`schemas: ${join(suite, 'contract/v0.1/schemas')}\ndocument: ${join(suite, 'docs/contract-v0.1.md')}\nexample: ${join(suite, 'examples/todo-app')}`);
     break;
   }
   case 'init': {

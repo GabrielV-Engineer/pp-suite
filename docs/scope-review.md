@@ -2,7 +2,7 @@
 
 Status: **built and tried once** (2026-10-26). Owner approved the design ("after the hand-off"). What exists: the
 contract file and its rules `X01` to `X05`, the human-only command `ppc decide-addition`, the guard that blocks agents
-from deciding, the hand-off writing the file, and the cut-applying prompt (`architect-pp/commands/apply-cuts.md`).
+from deciding, the hand-off writing the file, and the cut-applying prompt (`architect-pp/extension/commands/apply-cuts.md`).
 See "What the first real try showed" at the end.
 
 ## The problem it solves

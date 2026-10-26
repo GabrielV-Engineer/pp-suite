@@ -1,0 +1,88 @@
+additions:
+  - id: ADD-001
+    what: Deleting a task does not erase it; the task disappears from the list but its row stays in the database file, so a mistake can be fixed by hand.
+    origin: stronger_than_asked
+    cost: One extra column (deleted_at), one extra index, a filter on every read, a rule that a repeated delete changes nothing, extra test cases, and one decision (ADR-0005). Deleted tasks stay in the file for good.
+    if_cut: A deleted task is gone for good; a mistaken delete cannot be recovered from the database file.
+    later:
+      effort: needs_migration
+      revisit_when: The owner deletes something by mistake, or wants a restore screen.
+    recommendation:
+      action: decide
+      reason: It is a matter of values, recoverability against a simpler table. One side effect to weigh, seen by the hand-off and not stated in the blueprint, is that the success-metric query counts rows in the tasks table, so with a hard delete a deleted task would no longer count towards its day.
+    affects: [ADR-0005]
+    non_goal: Recovering deleted tasks; delete removes the task from the database for good.
+    decision: pending
+
+  - id: ADD-002
+    what: The page switches between a light and a dark look to match the computer's own setting, with no button to choose.
+    origin: not_requested
+    cost: A second set of ten color tokens, a media query, contrast checks for both looks, a dark-mode end-to-end case, and one decision.
+    if_cut: The page is always light, whatever the computer's setting.
+    later:
+      effort: easy
+      revisit_when: The owner asks for a dark appearance.
+    recommendation:
+      action: cut
+      reason: Nothing in the owner's stated goals needs it, and the blueprint does not say the owner asked for it. It cannot be decided apart from the accessibility target (ADD-003) because both mention contrast in the dark look.
+    overlaps: [ADD-003]
+    non_goal: A dark appearance; the page has one light look and ignores the computer's dark setting.
+    decision: pending
+
+  - id: ADD-003
+    what: A formal accessibility target (WCAG 2.2 level AA) checked by automated tests for contrast, control size, no sideways scroll and keyboard-only use, plus a skip link and reduced-motion handling.
+    origin: not_requested
+    cost: Three quality targets (QA-003, QA-004, QA-005), a skip link, a unit test that parses the stylesheet for contrast, a keyboard, target-size and reflow end-to-end spec, extra markup (alert role, aria links, minimum button height) and a motion rule.
+    if_cut: No enforced accessibility floor. Native HTML elements still give basic keyboard use and labels, but contrast, control size, reflow and keyboard journeys are no longer tested.
+    later:
+      effort: easy
+      revisit_when: Someone other than the owner uses the app (the hosting trigger in the non-goals), or the owner reports a difficulty with contrast, size or keyboard use.
+    recommendation:
+      action: decide
+      reason: Only the owner knows whether they need it; it costs three quality targets and tests, and it overlaps the dark appearance (ADD-002) and the end-to-end tooling (ADD-006).
+    affects: [QA-003, QA-004, QA-005]
+    overlaps: [ADD-002, ADD-006]
+    non_goal: A formal accessibility target; native HTML elements are used, but contrast, control size, reflow and keyboard journeys are not tested against a standard.
+    decision: pending
+
+  - id: ADD-004
+    what: A health-check address (/api/health) that answers that the server is running, used only by the script that checks the server listens on the owner's computer alone.
+    origin: not_requested
+    cost: One route, one unit test, and the loopback check script that polls it.
+    if_cut: The loopback check script must find another way to know the server is up, for example by polling the page, which needs the database.
+    later:
+      effort: easy
+      revisit_when: Never expected; add it back if a check needs to know the process is up without touching the database.
+    recommendation:
+      action: keep
+      reason: The loopback check that proves QA-001 needs a way to know the server is up, and the route is a single small file.
+    decision: pending
+
+  - id: ADD-005
+    what: A full web framework (Next.js with React and server actions) for a one-page app that needs a text box and three buttons.
+    origin: tool_added
+    cost: A framework with its own build, rendering and caching rules (the list must be rendered on every request), a scaffold with its own pinned dependencies, and two decisions (ADR-0001, ADR-0004).
+    if_cut: The interface and logic layers are designed again around a different, smaller setup; the data layer, the rules and the quality targets stay.
+    later:
+      effort: needs_redesign
+      revisit_when: Decide before building; after the interface and logic are built, changing the framework means rewriting both.
+    recommendation:
+      action: decide
+      reason: Cutting it means a change of framework, which is a redesign. The blueprint compared it only with Python/Flask and a Vite page plus an API, both bigger, so whether a one-page app needs a framework at all is the owner's call.
+    affects: [ADR-0004]
+    non_goal: A web framework; the app is built without Next.js or React.
+    decision: pending
+
+  - id: ADD-006
+    what: End-to-end tests in a real browser (Playwright, which downloads a browser) on top of the unit and integration tests.
+    origin: tool_added
+    cost: A browser download, a second test runner and configuration, a separate test database and port, and five spec files.
+    if_cut: Server actions, the page states and the keyboard journeys would have no automated test, because the blueprint tests actions only end to end.
+    later:
+      effort: easy
+      revisit_when: The owner finds the browser tests slow or hard to keep running, for example when the browser cannot start for missing system libraries.
+    recommendation:
+      action: keep
+      reason: The blueprint covers server actions and the page only through these tests, so the way the system is checked needs them. They are also the runner for the accessibility checks (ADD-003).
+    overlaps: [ADD-003]
+    decision: pending

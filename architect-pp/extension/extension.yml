@@ -1,0 +1,22 @@
+schema_version: "1.0"
+
+extension:
+  id: "architect-pp"
+  name: "Architect.PP"
+  version: "0.1.0"
+  description: "Turns The Architect's blueprint into the design files of the pp-suite contract, and carries out the additions a person decided to cut."
+  author: "GabrielV-Engineer"
+  repository: "https://github.com/GabrielV-Engineer/pp-suite"
+  license: "MIT"
+
+requires:
+  speckit_version: ">=1.2.0"
+
+provides:
+  commands:
+    - name: "speckit.architect-pp.handoff"
+      file: "commands/handoff.md"
+      description: "HAND-OFF: turn The Architect's blueprint into the design files of the contract (.architect/)"
+    - name: "speckit.architect-pp.apply-cuts"
+      file: "commands/apply-cuts.md"
+      description: "APPLY CUTS: carry out, in the design, the additions a person decided to cut"

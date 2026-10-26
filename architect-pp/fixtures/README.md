@@ -42,3 +42,14 @@ One run, one persona (mine), one idea. The persona accepted every proposal; a pe
 steered the result (in an earlier run, pushing back removed most of the additions).
 
 Note (2026-10-26): `additions-example.yaml` illustrates the format. Its ADD-002 points at `QA-005`, which `handoff-output/` does not contain, so `ppc validate --design` reports `X05` if the two are put together. They come from different runs.
+
+## Third run: through the installed skill (2026-10-26)
+
+`handoff-output-run3/.architect/` is the output of `/speckit-architect-pp-handoff blueprint.md`, run with `claude -p` in a
+scratch project set up by `ppc init --apply` (39 turns, about 5 minutes, 1.01 USD). It has 12 files, 5 decisions and 2
+evidence files, writes `default_mode: light`, and flags **6 additions**, with `overlaps` written on its own (the dark
+appearance, the accessibility target and the browser tests overlap). It validates with 0 errors and 6 `X01` warnings
+(every addition undecided). The two earlier runs flagged 5 additions; this one also lists the browser tests, and
+recommends keeping them where the earlier one recommended cutting them: the model's recommendations vary between runs.
+`ppc decide-addition --accept-recommended` decides only 1 of the 6 (the health route) and leaves 5 to the person,
+because several were recommended "decide" and the three overlapping ones were not recommended the same way.

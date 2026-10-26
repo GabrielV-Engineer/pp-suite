@@ -1,0 +1,101 @@
+contract_version: "0.1"
+revision: 1
+
+project:
+  id: task-tracker
+  name: Personal Task Tracker
+  level: lite
+  summary: A tiny task list for one person that runs only on their own computer and stores its data in one SQLite file.
+
+non_goals:
+  - Accounts, login and sessions
+  - Hosting, a deploy pipeline, a domain and CI
+  - Offline mode, sync and multi-device use
+  - Reminders, notifications and due dates
+  - Projects, tags, priorities, search and drag-to-reorder
+  - Editing a task's title
+  - A trash or restore screen
+  - Auto-start at login
+
+constraints:
+  - id: CON-001
+    statement: It runs only on the owner's own computer (Linux or macOS), with no hosting, deploy pipeline, domain or CI, and it starts with one command.
+  - id: CON-002
+    statement: Exactly one person uses it, so there are no accounts or login; the only access boundary is that the server listens on 127.0.0.1.
+  - id: CON-003
+    statement: All data lives in one SQLite file (data/tasks.db) on the owner's machine; nothing is sent to a third party and there is no telemetry.
+  - id: CON-004
+    statement: It costs nothing to run; no paid service is used at any scale.
+
+quality_attributes:
+  - id: QA-001
+    attribute: security
+    scenario: While the server runs, no other computer on the network can reach it, because it accepts connections only on 127.0.0.1.
+    metric: listeners on a wildcard address for port 3000, checked by the loopback script with ss or lsof
+    target: "0"
+  - id: QA-002
+    attribute: reliability
+    scenario: After the database file is closed and opened again, every task that was added earlier is still listed.
+    metric: added tasks missing after the database file is reopened
+    target: "0"
+  - id: QA-003
+    attribute: usability
+    scenario: Every text color and every interface-boundary color stays readable against its background in each appearance.
+    metric: lowest WCAG contrast ratio across the checked color-token pairs
+    target: ">= 4.5:1 for text, >= 3:1 for interface boundaries and the focus ring"
+  - id: QA-004
+    attribute: usability
+    scenario: Every button and the text input is large enough to press, and the page never scrolls sideways on a narrow screen.
+    metric: smallest interactive element in CSS px, and horizontal scroll at 320 px width
+    target: ">= 24 x 24 CSS px; no horizontal scroll at 320 px"
+  - id: QA-005
+    attribute: usability
+    scenario: The owner can add, complete, reopen and delete a task using only the keyboard (Tab, Enter and Space).
+    metric: result of the keyboard-only journey in the end-to-end test
+    target: passes
+
+capabilities:
+  - id: CAP-001
+    name: Add a task
+    description: The owner can add a task with a title of 1 to 200 characters; an empty, blank or too long title shows a message and keeps what was typed.
+    priority: must
+  - id: CAP-002
+    name: See the task list
+    description: The owner sees all their tasks in one list, open tasks first (newest on top) and done tasks below, with a clear message when there are none.
+    priority: must
+  - id: CAP-003
+    name: Mark a task done and undo it
+    description: The owner can mark a task done and later mark it not done again; done tasks are visibly marked.
+    priority: must
+  - id: CAP-004
+    name: Delete a task
+    description: The owner can delete a task and it disappears from the list.
+    priority: should
+
+components:
+  - id: interface
+    code: UI
+    name: Interface
+    kind: frontend
+    responsibility: Renders the page, the add form, the task list with its empty, loading and error states, and the controls, using native HTML elements styled with design tokens.
+    may_depend_on: [logic]
+    justified_by: [CAP-001, CAP-002, CAP-003, CAP-004, QA-003, QA-004, QA-005]
+  - id: logic
+    code: LOG
+    name: Logic
+    kind: backend
+    responsibility: Runs the single server process bound to 127.0.0.1, validates input, applies the task rules and exposes them to the interface as server actions, plus a health check route.
+    may_depend_on: [data]
+    justified_by: [CAP-001, CAP-003, CAP-004, QA-001, CON-002]
+  - id: data
+    code: DB
+    name: Data
+    kind: database
+    responsibility: Defines the task table and its migrations and holds the only connection to the SQLite file where tasks are stored durably.
+    may_depend_on: []
+    justified_by: [QA-002, CON-003]
+
+default_mode: light
+
+budgets:
+  max_slice_production_lines: 200

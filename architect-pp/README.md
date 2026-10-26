@@ -1,16 +1,23 @@
 # Architect.PP
 
-**Status: planned. Nothing is implemented here yet.**
+**Status: built as a Spec Kit extension (`architect-pp`), tried on one real blueprint three times.** Installed by
+`ppc init`, which turns its two commands into Claude Code skills.
 
-The design side of pp-suite. It will be a thin layer over
-[The Architect](https://github.com/Hainrixz/the-architect), which already provides the interview, live
-version verification, brownfield mode and the blueprint. Architect.PP adds what that project does not
-have (see [upstream-analysis](../docs/upstream-analysis.md)):
+The design side of pp-suite. A thin layer over [The Architect](https://github.com/Hainrixz/the-architect), which does
+the interview, live version checks and the blueprint. Architect.PP does not redo that. It adds, after it:
 
-- Quality attributes with numbers, so the design has measurable criteria.
-- A complexity budget: the simplest thing that meets each attribute, nothing without a requirement.
-- Architecture rules turned into tests.
-- The hand-off: the blueprint converted into `.architect/` as defined by the
-  [contract](../docs/contract-v0.1.md).
+| Piece | What it does | Status |
+|---|---|---|
+| `/speckit-architect-pp-handoff <blueprint.md>` | A model converts The Architect's blueprint into the design files of the [contract](../docs/contract-v0.1.md) (`.architect/`), drops its step-by-step build plan, and lists in `additions.yaml` what the person never asked for | Tried 3 times, see [fixtures](fixtures/README.md) |
+| `ppc validate --design` | Rules that judge the design on its own: circles, wrong-way dependencies, complexity budget, no priorities, undecided additions | Tested, each rule broken on purpose |
+| `ppc decide-addition` | A person keeps or cuts each addition, with overlapping ones decided together | Tested; decisions in the fixtures are not human |
+| `/speckit-architect-pp-apply-cuts` | A model carries out the cuts in the design and reports leftovers | Tried twice |
 
-Before building any of it, The Architect must be **run** on a real idea. So far it has only been read.
+What Architect.PP does **not** do: slice the work (SDD.PP owns the plan), and judge whether The Architect's interview
+guided the person well. That has not been evaluated here.
+
+Not built: opening a *change request* from a slice and revising the design in response, deriving Spec Kit's project
+constitution from the design, and architecture rules turned into tests.
+
+Files: `extension/` is what `ppc init` installs (the manifest and the two commands); `fixtures/` is a real blueprint and
+the outputs of the runs on it, and is not installed.
