@@ -31,5 +31,7 @@ are the same every time and cannot contradict the skills: they never restate how
    person's step (an approval, a decision), say so and offer the prompts for the task after it.
 2. Run `ppc prompt <slice> --task <task> .`. It writes `.sddpp/prompts/<slice>/<task>.system.md`, `.negative.md` and, only
    when the slice touches an interface, builds the skeleton or is bound by a decision, `.design.md`.
-3. Tell the person which files were written and what each is for, in one line each. Remind them that the how-to of the
+3. Tell the person which files were written and what each is for, in one line each: `system` lists what to read and points at the
+   task's skill; `negative` holds this slice's limits (out of scope, non-goals, component boundaries, the size budget, what only a
+   person decides); `design`, when present, holds the components, quality targets and decisions that bind it. Remind them that the how-to of the
    task is in its skill and the prompts hold only this slice's limits.
