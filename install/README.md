@@ -12,7 +12,7 @@ node tools/ppc/bin/ppc.mjs init <project> --apply --shim  # also write ~/.local/
 What it checks: Node (minimum and tested version), git and that the project is a git repository, Python 3 (for the
 guard), Spec Kit at the pinned commit, Claude Code (informs only), the dependencies of ppc, `ppc` on the PATH, and, in the
 project, Spec Kit initialized, the three extensions (`architect-pp`, `sddpp-guard`, `sddpp-cycle`) at the version in this repository, the guard script
-(without it the guard fails open) and the guard hook in `.claude/settings.json`.
+(without it the guard fails open), the guard hook and the session-start hook in `.claude/settings.json`.
 
 What `--apply` does, in order, skipping what is already done: `npm ci` for ppc; `specify init --here --force
 --non-interactive --integration claude`; `specify extension add <path> --dev` for `architect-pp`, `sddpp-guard` and `sddpp-cycle`;
