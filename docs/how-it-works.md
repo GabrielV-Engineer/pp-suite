@@ -80,7 +80,7 @@ cooperates; it is not a security boundary.
 
 ## Where things live
 
-Everything is files in the repository, so a session can end and the next one picks up from `wbs.md`
+Everything is files in the repository, so a session can end and the next one picks up from `ppc next`
 and the slice files. See [contract-v0.1.md](contract-v0.1.md) for the layout.
 
 ## Other kinds of work

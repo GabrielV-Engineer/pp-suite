@@ -17,10 +17,7 @@ Status key: **done** has tests in CI · **spiked** tried once by hand, not autom
 | Slice cycle commands in `ppc`: `start`, `approve-red`, `refactor`, `finish`, `status`; each is all-or-nothing and `finish` measures the diff from git | done, tested against real temporary repositories |
 | Guard also locks tests in the refactor phase and keeps approvals human-only | done (unit tests) |
 | `ppc approve-slice`, and a guard rule against agents writing decision fields (`approved_by` and similar) into `.sddpp/` | done, each rule broken on purpose to confirm a test fails |
-| Planning with Spec Kit on one capability: constitution, `specify`, `plan`, `tasks` with the preset; slices came out contract-valid. [Findings](docs/slices-in-sdd.md) | observed once |
 | Guard registered into Claude Code through Spec Kit and honored | spiked — [findings](docs/spike-findings.md) |
-| `sddpp-slices` preset: template override and command wrap | spiked, then **removed** (2026-10-26): `/speckit-sddpp-cycle-slices` plans the slices from the design instead |
-| Spec Kit's `lean` preset adopted below ours; measured once: 3 files and 358 lines against 8 and 555, same slices, 24% cheaper | done, n = 1: [slices-in-sdd](docs/slices-in-sdd.md) |
 | Budget and mutation exceptions are recorded by a human with `ppc finish --budget-reason` / `--mutation-reason`, which the guard refuses to an agent | done, each part broken on purpose |
 | **Mutation testing**: `ppc mutation`, an optional gate in `ppc finish` (`budgets.min_mutation_score`), rule `M01`, and the guard blocking `mutation_override_reason`. First measurement on the demo: [mutation testing](docs/mutation-testing.md) | done (tests; each part broken on purpose); measured once on the demo |
 | `ppc approve-debt`: a human decides on debt the AI proposed (open, accepted with a reason, or dropped) | done, each part broken on purpose to confirm a test fails |

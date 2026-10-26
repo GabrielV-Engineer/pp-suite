@@ -45,3 +45,5 @@ jobs:
       - uses: actions/checkout@v4
       - name: Test-lock guard unit tests
         run: python3 -m unittest discover -s sdd-pp/extension/sddpp-guard/tests -v
+      - name: Session-start hook unit tests
+        run: python3 -m unittest discover -s sdd-pp/extension/sddpp-cycle/tests -v

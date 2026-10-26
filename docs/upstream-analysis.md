@@ -30,8 +30,8 @@ This is what pp-suite adds. Everything else is inherited.
 - Workflows have approval gates (`type: gate`) between phases (read, not executed).
 - Tasks are already grouped by user story, the closest built-in notion to a slice.
 - The cost: it is heavy (many artifacts per feature), multi-agent (more than 40 integrations) and
-  moves fast (a release two days before this analysis), so versions must be pinned. Its `lean` preset
-  and our own preset mitigate the weight.
+  moves fast (a release two days before this analysis), so versions must be pinned. We lighten it by
+  removing the skills our flow does not use (`ppc init`).
 
 OpenSpec is lighter and stronger on living specs (capabilities and deltas). It has no hooks (no
 `PreToolUse` anywhere in the repository) and I did not find an approval-gate step. Mixing two spec
