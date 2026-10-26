@@ -35,13 +35,14 @@ blueprint `revision` is bumped when Architect.PP applies it. The life of a reque
 Slices planned against the older revision are flagged (`W03`, and listed by `ppc next`); nothing updates their
 `blueprint_revision` automatically, since that is the reader saying "I read what changed".
 
-**The project rules.** `ppc constitution` writes one block into `CLAUDE.md`, which Claude Code reads at the start of every
-session, between `<!-- pp-suite:begin -->` and `<!-- pp-suite:end -->` markers. It holds how to work here (`ppc next`, what only
-a person decides), and the design as rules: the decisions in force, the non-goals, the component boundaries, the quality
-targets, the slice budget, the default cycle and the test policy. It is the same text every time and its version is the
-blueprint revision. Text a person wrote in the same file is never touched; only the block is replaced. It refuses while
-additions are undecided (it would bind the work to things the person may cut). `ppc constitution --check` verifies it
-is current. Spec Kit's own `.specify/memory/constitution.md` is not written: nothing in this flow reads it.
+**The project rules.** `ppc constitution` writes one short block (about 1,300 characters) into `CLAUDE.md`, which Claude Code reads at
+the start of every session, between `<!-- pp-suite:begin -->` and `<!-- pp-suite:end -->` markers. It says how to work here
+(`ppc next`, what only a person decides, the change request), where the design is (`.architect/`, read-only for the build),
+the default cycle, the test policy and the slice budget. It **copies nothing from the design**: decisions, components, quality
+targets and non-goals stay in `.architect/`, which the skills read when they work. It is the same text every time and its
+version is the blueprint revision. Text a person wrote in the same file is never touched; only the block is replaced.
+`ppc constitution --check` verifies it is current. Spec Kit's own `.specify/memory/constitution.md` is not written: nothing in
+this flow reads it.
 
 Spec Kit's own folders (`.specify/`, `specs/`) coexist with these and are not governed by the contract.
 

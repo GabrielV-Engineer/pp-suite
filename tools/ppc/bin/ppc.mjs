@@ -11,6 +11,7 @@ import { apply, plan as installPlan, renderPlan, InstallError } from '../src/ins
 import { spawnSync } from 'node:child_process';
 import { homedir } from 'node:os';
 import { applyChange, decideChange, openChange } from '../src/changes.mjs';
+import { sessionContext, gitSubjects } from '../src/session.mjs';
 import { buildPrompts, resolveTarget, writePrompts } from '../src/prompts.mjs';
 import { start, approveSlice, approveRed, approveDebt, scheduleDebt, decideAddition, toRefactor, finish, mutate, status, LifecycleError } from '../src/lifecycle.mjs';
 
@@ -23,9 +24,8 @@ const USAGE = `ppc — pp-suite contract tool
     ppc rules                            list every rule the checks can emit
 
   Setup
-    ppc constitution [dir] [--check] [--force]
-                                         write Spec Kit's constitution from the design (.specify/memory/constitution.md);
-                                         --check only verifies it is current
+    ppc session [dir]                    print the state for the start of a session (a hook shows it to the agent); silent outside a project
+    ppc constitution [dir] [--check]     write the short block of project rules into CLAUDE.md; --check only verifies it is current
     ppc contract                         print where the contract's schemas, document and worked example are
     ppc init [dir] [--apply] [--shim] [--update] [--allow-untested] [--specify <path>]
                                          check the machine and the project against the pinned versions and print the
@@ -197,12 +197,8 @@ switch (command) {
       process.stdout.write(overview(model, findings));
       break;
     }
-    let subjects = [];
-    try {
-      subjects = execFileSync('git', ['log', '--format=%s'], { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).split('\n').filter(Boolean);
-    } catch {
-      // not a git repository: the phase alone decides, as if no commit had been made yet
-    }
+    // not a git repository: the phase alone decides, as if no commit had been made yet
+    const subjects = gitSubjects(root);
     process.stdout.write(renderNext(nextSteps(model, subjects, findings.filter((f) => f.severity === 'error'))));
     break;
   }
@@ -214,7 +210,7 @@ switch (command) {
         problems.forEach((p) => console.error(p));
         process.exit(problems.length ? 1 : 0);
       }
-      const { file, status } = writeConstitution(root, { force: flags.has('--force') });
+      const { file, status } = writeConstitution(root);
       console.log(`${file}: ${status}`);
     } catch (error) {
       if (!(error instanceof ConstitutionError)) throw error;
@@ -223,6 +219,9 @@ switch (command) {
     }
     break;
   }
+  case 'session':
+    process.stdout.write(sessionContext(dirAt(0)));
+    break;
   case 'contract': {
     const suite = resolve(new URL('../../..', import.meta.url).pathname);
     console.log(`schemas: ${join(suite, 'contract/v0.1/schemas')}\ndocument: ${join(suite, 'docs/contract-v0.1.md')}\nexample: ${join(suite, 'examples/todo-app')}`);

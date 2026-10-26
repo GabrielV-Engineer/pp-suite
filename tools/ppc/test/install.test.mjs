@@ -188,6 +188,18 @@ test('plan: the preset this repository used to ship is reported if it is still i
   assert.equal(check(plan(dir, env(machine(installed))), 'preset-sddpp-slices'), undefined);
 });
 
+test('plan: the session-start hook and its script are verified', (t) => {
+  const dir = project(t, { specify: true });
+  mkdirSync(join(dir, '.claude'), { recursive: true });
+  mkdirSync(join(dir, '.specify/extensions/sddpp-cycle/scripts/python'), { recursive: true });
+  const status = () => check(plan(dir, env(machine(installed))), 'session-hook').status;
+  assert.equal(status(), 'missing');
+  writeFileSync(join(dir, '.claude/settings.json'), JSON.stringify({ hooks: { SessionStart: [{ hooks: [{ command: 'python3 .specify/events.py speckit.sddpp-cycle.session-start session_start 60' }] }] } }));
+  assert.equal(status(), 'missing', 'the hook alone is not enough: its script must be there');
+  writeFileSync(join(dir, '.specify/extensions/sddpp-cycle/scripts/python/session.py'), '#');
+  assert.equal(status(), 'ok');
+});
+
 // ── the shim ─────────────────────────────────────────────────────
 function shimEnv(t) {
   const home = mkdtempSync(join(tmpdir(), 'ppc-home-'));

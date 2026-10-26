@@ -28,6 +28,8 @@ export const DROPPED_SKILLS = ['speckit-specify', 'speckit-plan', 'speckit-tasks
 const OLD_PRESET = 'sddpp-slices';
 const GUARD_SCRIPT = '.specify/extensions/sddpp-guard/scripts/python/guard.py';
 const HOOK_NAME = 'speckit.sddpp-guard.pre-tool';
+const SESSION_SCRIPT = '.specify/extensions/sddpp-cycle/scripts/python/session.py';
+const SESSION_HOOK_NAME = 'speckit.sddpp-cycle.session-start';
 
 const manifestVersion = (suite, file, key) => String(parseYaml(readFileSync(join(suite, file), 'utf8'))[key].version);
 const shimText = (suite) => `#!/bin/sh\nexec node "${join(suite, 'tools/ppc/bin/ppc.mjs')}" "$@"\n`;
@@ -127,6 +129,13 @@ export function plan(root, env, { shim = false, allowUntested = false, update = 
     // no settings file: no hook
   }
   add({ id: 'guard-hook', label: 'the guard is registered as a Claude Code hook', status: hook ? 'ok' : 'missing' });
+  let sessionHook = false;
+  try {
+    sessionHook = readFileSync(join(root, '.claude/settings.json'), 'utf8').includes(SESSION_HOOK_NAME);
+  } catch {
+    // no settings file: no hook
+  }
+  add({ id: 'session-hook', label: 'the session-start hook is registered (shows whose turn it is when a session begins)', status: sessionHook && existsSync(join(root, SESSION_SCRIPT)) ? 'ok' : 'missing', fix: 'ppc init --apply --update' });
 
   // ── the steps that would fix what is missing ──
   const steps = [

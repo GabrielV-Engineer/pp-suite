@@ -37,8 +37,7 @@ being built: SDD.PP never edits `.architect/`, and nobody edits it without a req
    it names). Check `status: accepted`.
 2. Make the revision. Raise `revision` in `blueprint.yaml` by exactly one.
 3. Run `ppc validate . --design` (the argument is the project directory) and fix every error your edit caused.
-4. Run `ppc constitution` so the project rules in `CLAUDE.md` follow the revised design. If it refuses (for example
-   because additions are undecided), say so in the report; do not use `--force`.
+4. Run `ppc constitution` so the project rules in `CLAUDE.md` carry the new revision.
 5. Run `ppc apply-change <id> .`. It checks that the revision rose and that the project rules are current, then marks the
    request applied. If it refuses, fix the cause; never edit the request by hand.
 6. Run `ppc next` and copy the slices it lists as planned against an older design.

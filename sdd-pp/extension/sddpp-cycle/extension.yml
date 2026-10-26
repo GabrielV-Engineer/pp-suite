@@ -17,6 +17,9 @@ provides:
     - name: "speckit.sddpp-cycle.red"
       file: "commands/red.md"
       description: "RED: write the failing tests for the slice in progress, commit them, stop for human approval"
+    - name: "speckit.sddpp-cycle.session-start"
+      file: "commands/session-start.md"
+      description: "Runtime event handler: at the start of a session, tell the agent whose turn it is in this project"
     - name: "speckit.sddpp-cycle.slices"
       file: "commands/slices.md"
       description: "SLICES: plan thin vertical slices from the design (the person approves the list before it is written)"
@@ -44,3 +47,7 @@ provides:
     - name: "speckit.sddpp-cycle.audit"
       file: "commands/audit.md"
       description: "AUDIT: record debt and deviations, then close the slice with ppc finish"
+
+events:
+  session_start:
+    command: speckit.sddpp-cycle.session-start

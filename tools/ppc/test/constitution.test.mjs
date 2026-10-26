@@ -13,55 +13,55 @@ const BEGIN = /^<!-- pp-suite:begin/;
 const END = '<!-- pp-suite:end -->';
 
 // ── what it says ─────────────────────────────────────────────────
-test('the rules carry the design: every non-goal, every component with its limits, every quality target', () => {
+test('the block points at the design instead of copying it: no non-goals, components, targets or decisions are pasted', () => {
   const m = model();
   const bp = m.blueprint.data;
   const out = renderConstitution(m);
-  for (const goal of bp.non_goals) assert.ok(out.includes(goal), goal);
-  for (const c of bp.components) {
-    assert.ok(out.includes(c.responsibility), c.id);
-    assert.ok(out.includes(c.may_depend_on.length ? `May depend only on: ${c.may_depend_on.join(', ')}` : 'May depend on nothing'), c.id);
-  }
-  for (const q of bp.quality_attributes) assert.ok(out.includes(q.id) && out.includes(q.metric) && out.includes(q.target), q.id);
-  for (const a of m.adrs) {
-    const inForce = a.data.status === 'accepted';
-    assert.equal(out.includes(a.data.id), inForce, `${a.data.id} (${a.data.status}): only decisions in force are listed`);
-    if (inForce) assert.ok(out.includes(a.data.title));
-  }
-  assert.ok(m.adrs.some((a) => a.data.status !== 'accepted'), 'the example has a decision that is not in force');
-  assert.ok(out.includes(String(bp.budgets.max_slice_production_lines)));
+  for (const goal of bp.non_goals) assert.ok(!out.includes(goal), `non-goal copied: ${goal}`);
+  for (const c of bp.components) assert.ok(!out.includes(c.responsibility), `component copied: ${c.id}`);
+  for (const q of bp.quality_attributes) assert.ok(!out.includes(q.metric), `quality target copied: ${q.id}`);
+  for (const a of m.adrs) assert.ok(!out.includes(a.data.title), `decision copied: ${a.data.id}`);
+  assert.match(out, /`\.architect\/`/);
+  assert.match(out, /non-goals/i, 'it says not to build what the non-goals exclude');
 });
 
-test('the block is delimited by markers, and holds how to work here, then seven numbered principles and the version', () => {
+test('the block is short: well under what Claude Code asks of a CLAUDE.md, and it must stay that way', () => {
   const out = text();
+  assert.ok(out.length < 2000, `the block is ${out.length} characters`);
+  assert.ok(out.split('\n').length < 20);
+});
+
+test('the block is delimited by markers and holds how to work here, the cycle, the policy, the budget and the version', () => {
+  const m = model();
+  const out = renderConstitution(m);
   assert.match(out, BEGIN);
   assert.ok(out.trimEnd().endsWith(END));
   assert.match(out, /^## Project rules \(pp-suite\): Todo App$/m);
   assert.match(out, /^### How to work here$/m);
-  assert.deepEqual(out.match(/^### [IVX]+\. /gm).map((s) => s.trim()), ['### I.', '### II.', '### III.', '### IV.', '### V.', '### VI.', '### VII.']);
+  assert.ok(out.includes(String(m.blueprint.data.budgets.max_slice_production_lines)));
   assert.match(out, /\*\*Version\*\*: blueprint revision 1/);
   assert.ok(!/\[[A-Z_]+\]/.test(out), 'no template placeholder is left');
 });
 
 test('it orients an agent that has never seen the project: ppc next first, what only a person decides, the change request', () => {
   const out = text();
-  assert.match(out, /run `ppc next`/);
+  assert.match(out, /`ppc next`/);
   assert.match(out, /ppc overview/);
   assert.match(out, /`ppc approve-\*`/);
   assert.match(out, /ppc change-request/);
   assert.match(out, /speckit-sddpp-cycle-slices/);
   assert.match(out, /speckit-sddpp-cycle-build/);
-  for (const review of ['clarify', 'analyze', 'converge']) assert.match(out, new RegExp(`speckit-sddpp-cycle-${review}|-${review}`), review);
+  for (const review of ['clarify', 'analyze', 'converge']) assert.match(out, new RegExp(`-${review}`), review);
 });
 
 test('it states the cycle and the test policy that apply, and changes with them', () => {
   const m = model();
-  assert.match(renderConstitution(m), /strict cycle/i);
+  assert.match(renderConstitution(m), /Default cycle: strict/);
   assert.match(renderConstitution(m), /Test policy: optional/);
   m.blueprint.data.default_mode = 'light';
   m.blueprint.data.test_policy = 'required';
   const out = renderConstitution(m);
-  assert.match(out, /light cycle/i);
+  assert.match(out, /Default cycle: light/);
   assert.match(out, /Test policy: required/);
 });
 
@@ -135,16 +135,13 @@ test('write: works on a project that only has its design, before any slice is pl
   assert.deepEqual(checkConstitution(dir), []);
 });
 
-test('write: waits until the additions are decided, because it would bind the plan to things the person may cut', (t) => {
+test('write: undecided additions do not hold it back, since the block copies nothing from the design', (t) => {
   const r = repo(t);
-  rmSync(join(r.dir, '.sddpp'), { recursive: true }); // before planning, an undecided addition is a warning, not an error
+  rmSync(join(r.dir, '.sddpp'), { recursive: true });
   const addition = { id: 'ADD-001', what: 'Soft delete of tasks', origin: 'tool_added', cost: 'A column and a filter', if_cut: 'No recovery', later: { effort: 'easy', revisit_when: 'After a mistake' }, recommendation: { action: 'cut', reason: 'Not asked' }, decision: 'pending' };
   r.write({ '.architect/additions.yaml': `additions:\n  - ${JSON.stringify(addition)}\n` });
-  assert.throws(() => writeConstitution(r.dir), (e) => e instanceof ConstitutionError && /ADD-001/.test(e.message));
-  assert.ok(!existsSync(join(r.dir, CONSTITUTION_FILE)));
-  assert.equal(writeConstitution(r.dir, { force: true }).status, 'written');
-  r.write({ '.architect/additions.yaml': `additions:\n  - ${JSON.stringify({ ...addition, decision: 'keep', decided_by: 'owner', reason: 'I want to undo mistakes' })}\n` });
-  assert.equal(writeConstitution(r.dir).status, 'unchanged');
+  assert.equal(writeConstitution(r.dir).status, 'written');
+  assert.ok(!readFileSync(join(r.dir, CONSTITUTION_FILE), 'utf8').includes('Soft delete'));
 });
 
 // ── check ────────────────────────────────────────────────────────
@@ -158,7 +155,7 @@ test('check: missing (no file, or a file without the block), current, out of dat
   assert.equal(hasConstitution(r.dir), true);
   assert.deepEqual(checkConstitution(r.dir), []);
   const file = join(r.dir, 'CLAUDE.md');
-  writeFileSync(file, readFileSync(file, 'utf8').replace('Metric', 'Metrik'));
+  writeFileSync(file, readFileSync(file, 'utf8').replace('Run `ppc next`', 'Run `ppc nxt`'));
   assert.match(checkConstitution(r.dir)[0], /out of date/);
   writeConstitution(r.dir);
   const bp = readFileSync(join(r.dir, '.architect/blueprint.yaml'), 'utf8');
