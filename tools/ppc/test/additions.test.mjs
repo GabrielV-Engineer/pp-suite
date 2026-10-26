@@ -255,7 +255,9 @@ test('CLI: decide-addition takes several ids and --alone', (t) => {
   const refused = cli('ADD-001', '--cut', '--by', 'o', dir);
   assert.equal(refused.status, 1);
   assert.match(refused.stderr, /ADD-002/);
-  assert.equal(cli('ADD-001', 'ADD-002', '--cut', '--by', 'o', dir).status, 0);
+  const last = cli('ADD-001', 'ADD-002', '--cut', '--by', 'o', dir);
+  assert.equal(last.status, 0);
+  assert.match(last.stderr, /ppc constitution/, 'after the last decision it says what comes next');
   assert.deepEqual(decidedOf(dir), { 'ADD-001': 'cut', 'ADD-002': 'cut' });
   writeFileSync(join(dir, '.architect/additions.yaml'), yamlOf(pair()));
   assert.equal(cli('ADD-001', '--cut', '--alone', '--by', 'o', dir).status, 0);

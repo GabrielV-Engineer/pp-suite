@@ -7,6 +7,7 @@ import { generate, writeGenerated, checkGenerated } from '../src/generate.mjs';
 import { checkGit } from '../src/gitcheck.mjs';
 import { nextSteps, overview, renderNext } from '../src/next.mjs';
 import { execFileSync } from 'node:child_process';
+import { checkConstitution, writeConstitution, ConstitutionError } from '../src/constitution.mjs';
 import { apply, plan as installPlan, renderPlan, InstallError } from '../src/install.mjs';
 import { spawnSync } from 'node:child_process';
 import { homedir } from 'node:os';
@@ -23,6 +24,9 @@ const USAGE = `ppc — pp-suite contract tool
     ppc rules                            list every rule the checks can emit
 
   Setup
+    ppc constitution [dir] [--check] [--force]
+                                         write Spec Kit's constitution from the design (.specify/memory/constitution.md);
+                                         --check only verifies it is current
     ppc contract                         print where the contract's schemas, document and worked example are
     ppc init [dir] [--apply] [--shim] [--allow-untested] [--specify <path>]
                                          check the machine and the project against the pinned versions and print the
@@ -137,7 +141,13 @@ switch (command) {
       const ids = positionals.filter((p) => /^ADD-\d{3}$/.test(p));
       const root = resolve(positionals.find((p) => !/^ADD-\d{3}$/.test(p)) ?? '.');
       if (flags.has('--accept-recommended')) return decideAddition(root, null, { acceptRecommended: true, by: options.get('by') });
-      return decideAddition(root, ids.length === 1 ? ids[0] : ids, { decision: flags.has('--cut') ? 'cut' : flags.has('--keep') ? 'keep' : undefined, by: options.get('by'), reason: options.get('reason'), alone: flags.has('--alone') });
+      const hint = () => {
+        const left = (loadProject(root).additions?.data.additions ?? []).filter((a) => a.decision === 'pending').length;
+        if (!left) console.error('Every addition is decided. Next: apply the cuts (/speckit-architect-pp-apply-cuts) if any were cut, then write the constitution with `ppc constitution`.');
+      };
+      const done = decideAddition(root, ids.length === 1 ? ids[0] : ids, { decision: flags.has('--cut') ? 'cut' : flags.has('--keep') ? 'keep' : undefined, by: options.get('by'), reason: options.get('reason'), alone: flags.has('--alone') });
+      hint();
+      return done;
     });
     break;
   case 'approve-red':
@@ -185,6 +195,23 @@ switch (command) {
       // not a git repository: the phase alone decides, as if no commit had been made yet
     }
     process.stdout.write(renderNext(nextSteps(model, subjects, findings.filter((f) => f.severity === 'error'))));
+    break;
+  }
+  case 'constitution': {
+    const root = dirAt(0);
+    try {
+      if (flags.has('--check')) {
+        const problems = checkConstitution(root);
+        problems.forEach((p) => console.error(p));
+        process.exit(problems.length ? 1 : 0);
+      }
+      const { file, status } = writeConstitution(root, { force: flags.has('--force') });
+      console.log(`${file}: ${status}`);
+    } catch (error) {
+      if (!(error instanceof ConstitutionError)) throw error;
+      console.error(error.message);
+      process.exit(1);
+    }
     break;
   }
   case 'contract': {
