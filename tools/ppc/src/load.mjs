@@ -63,11 +63,12 @@ export function loadProject(root) {
   markdown('.architect/decisions', 'adrs');
   markdown('.architect/evidence', 'evidence');
 
-  for (const file of listFiles(root, '.sddpp/debt', '.yaml')) {
+  // One register for the whole project; no file means no debt yet.
+  if (existsSync(join(root, '.sddpp/debt.yaml'))) {
     try {
-      model.debt.push({ file, data: parseYaml(read(file)) });
+      model.debt.push({ file: '.sddpp/debt.yaml', data: parseYaml(read('.sddpp/debt.yaml')) });
     } catch (e) {
-      fail(file, `invalid YAML: ${e.message}`);
+      fail('.sddpp/debt.yaml', `invalid YAML: ${e.message}`);
     }
   }
 

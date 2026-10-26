@@ -161,7 +161,7 @@ class GuardTest(unittest.TestCase):
         for tool, args in (
             ("Edit", {"file_path": ".sddpp/slices/SL-002-x.md", "old_string": "status: planned", "new_string": "status: ready\napproved_by: me"}),
             ("Write", {"file_path": ".sddpp/slices/SL-002-x.md", "content": "---\nid: SL-002\nred_approved_by: me\n---\n"}),
-            ("MultiEdit", {"file_path": ".sddpp/debt/backend.yaml", "edits": [{"old_string": "proposed", "new_string": "open\n    approved_by: me"}]}),
+            ("MultiEdit", {"file_path": ".sddpp/debt.yaml", "edits": [{"old_string": "proposed", "new_string": "open\n    approved_by: me"}]}),
             ("Edit", {"file_path": ".sddpp/slices/SL-002-x.md", "old_string": "a", "new_string": "budget_override_reason: because"}),
             ("Write", {"file_path": ".sddpp/audit-input.json", "content": "{\"mutation_override_reason\": \"survivors are fine\"}"}),
             ("Edit", {"file_path": ".sddpp/change-requests/CR-0001-x.md", "old_string": "a", "new_string": "decided_by: me"}),
@@ -174,30 +174,30 @@ class GuardTest(unittest.TestCase):
     def test_an_edit_that_leaves_an_existing_decision_untouched_is_allowed(self):
         # Editing the status of a debt entry shows its approved_by line as context; that is not a new decision.
         root = self.project(None)
-        register = root / ".sddpp" / "debt"
-        register.mkdir()
+        register = root / ".sddpp"
+        register.mkdir(exist_ok=True)
         existing = "  - id: DEBT-BE-002\n    status: scheduled\n    approved_by: reviewer\n    paid_by: SL-009\n"
-        (register / "backend.yaml").write_text(existing)
+        (register / "debt.yaml").write_text(existing)
         context = "    status: scheduled\n    approved_by: reviewer\n"
         for tool, args in (
-            ("Edit", {"file_path": ".sddpp/debt/backend.yaml", "old_string": context, "new_string": context.replace("scheduled", "paid")}),
-            ("MultiEdit", {"file_path": ".sddpp/debt/backend.yaml", "edits": [{"old_string": context, "new_string": context.replace("scheduled", "paid")}]}),
-            ("Write", {"file_path": ".sddpp/debt/backend.yaml", "content": existing.replace("scheduled", "paid")}),
+            ("Edit", {"file_path": ".sddpp/debt.yaml", "old_string": context, "new_string": context.replace("scheduled", "paid")}),
+            ("MultiEdit", {"file_path": ".sddpp/debt.yaml", "edits": [{"old_string": context, "new_string": context.replace("scheduled", "paid")}]}),
+            ("Write", {"file_path": ".sddpp/debt.yaml", "content": existing.replace("scheduled", "paid")}),
         ):
             with self.subTest(tool=tool):
                 self.assertEqual(self.code(root, payload(tool, **args)), 0)
 
     def test_an_edit_that_adds_or_changes_a_decision_is_still_blocked(self):
         root = self.project(None)
-        register = root / ".sddpp" / "debt"
-        register.mkdir()
+        register = root / ".sddpp"
+        register.mkdir(exist_ok=True)
         existing = "  - id: DEBT-BE-002\n    status: scheduled\n    approved_by: reviewer\n"
-        (register / "backend.yaml").write_text(existing)
+        (register / "debt.yaml").write_text(existing)
         for tool, args in (
-            ("Edit", {"file_path": ".sddpp/debt/backend.yaml", "old_string": "approved_by: reviewer", "new_string": "approved_by: me"}),
-            ("Edit", {"file_path": ".sddpp/debt/backend.yaml", "old_string": "status: scheduled", "new_string": "status: paid\n    decided_by: me"}),
-            ("Write", {"file_path": ".sddpp/debt/backend.yaml", "content": existing + "    accepted_reason: because I said so\n"}),
-            ("Write", {"file_path": ".sddpp/debt/new.yaml", "content": "approved_by: me\n"}),
+            ("Edit", {"file_path": ".sddpp/debt.yaml", "old_string": "approved_by: reviewer", "new_string": "approved_by: me"}),
+            ("Edit", {"file_path": ".sddpp/debt.yaml", "old_string": "status: scheduled", "new_string": "status: paid\n    decided_by: me"}),
+            ("Write", {"file_path": ".sddpp/debt.yaml", "content": existing + "    accepted_reason: because I said so\n"}),
+            ("Write", {"file_path": ".sddpp/other.yaml", "content": "approved_by: me\n"}),
         ):
             with self.subTest(tool=tool, args=args):
                 self.assertEqual(self.code(root, payload(tool, **args)), 2)
@@ -216,7 +216,7 @@ class GuardTest(unittest.TestCase):
         root = self.project(None)
         for path, text in (
             (".sddpp/slices/SL-002-x.md", "title: A clearer title"),
-            (".sddpp/debt/backend.yaml", "status: proposed"),
+            (".sddpp/debt.yaml", "status: proposed"),
             (".sddpp/slices/SL-002-x.md", "scenario: Given a user approved by nobody"),
             ("src/app.ts", "const approved_by = 'x'"),  # outside .sddpp/: not a contract file
         ):

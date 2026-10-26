@@ -1,22 +1,22 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:pp-suite:contract:0.1:debt",
-  "title": "Technical debt register of one component (.sddpp/debt/<component>.yaml)",
-  "description": "One file per component. A debt entry lives in exactly one file: the owning component's.",
+  "title": "Technical debt register (.sddpp/debt.yaml)",
+  "description": "One file for the whole project. Each entry names the component that owns it.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["component", "entries"],
+  "required": ["entries"],
   "properties": {
-    "component": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
     "entries": { "type": "array", "items": { "$ref": "#/$defs/entry" } }
   },
   "$defs": {
     "entry": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "title", "description", "kind", "origin", "created", "proposed_by", "cost_of_delay", "trigger", "status"],
+      "required": ["id", "component", "title", "description", "kind", "origin", "created", "proposed_by", "cost_of_delay", "trigger", "status"],
       "properties": {
         "id": { "type": "string", "pattern": "^DEBT-[A-Z]{2,5}-\\d{3,}$" },
+        "component": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$", "description": "The component that owns this debt; the id prefix is that component's code." },
         "title": { "type": "string", "minLength": 5 },
         "description": { "type": "string", "minLength": 15 },
         "kind": { "enum": ["duplication", "design", "test", "performance", "security", "dependency", "documentation", "accessibility", "other"] },

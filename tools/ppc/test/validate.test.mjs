@@ -10,7 +10,7 @@ const EXAMPLE = fileURLToPath(new URL('../../../examples/todo-app/', import.meta
 
 const base = () => loadProject(EXAMPLE);
 const slice = (m, id) => m.slices.find((s) => s.data.id === id);
-const debtOf = (m, component) => m.debt.find((d) => d.data.component === component).data;
+const debtEntryOf = (m, component) => m.debt[0].data.entries.find((e) => e.component === component);
 
 /** Validate and make sure every emitted rule is part of the published catalog. */
 function run(model, options) {
@@ -58,12 +58,6 @@ test('R00: a missing required file is an error, and brief, glossary and evidence
   assert.ok(has(run(m), 'R00', 'error'));
 });
 
-test('R01: a component without a debt register is an error', () => {
-  const m = base();
-  m.debt = m.debt.filter((d) => d.data.component !== 'backend');
-  assert.ok(has(run(m), 'R01', 'error'));
-});
-
 test('SCHEMA: unknown fields are rejected', () => {
   const m = base();
   slice(m, 'SL-002').data.surprise = true;
@@ -83,9 +77,9 @@ const conditionals = {
     delete s.capability;
   },
   'green phase needs the human-approved red tests': (m) => Object.assign(slice(m, 'SL-001').data, { status: 'in_progress', phase: 'green' }),
-  'accepted debt needs a reason': (m) => delete debtOf(m, 'database').entries[0].accepted_reason,
-  'scheduled debt needs paid_by': (m) => delete debtOf(m, 'frontend').entries[0].paid_by,
-  'non-proposed debt needs approved_by': (m) => delete debtOf(m, 'frontend').entries[0].approved_by,
+  'accepted debt needs a reason': (m) => delete debtEntryOf(m, 'database').accepted_reason,
+  'scheduled debt needs paid_by': (m) => delete debtEntryOf(m, 'frontend').paid_by,
+  'non-proposed debt needs approved_by': (m) => delete debtEntryOf(m, 'frontend').approved_by,
   'an accepted ADR needs drivers': (m) => (m.adrs[0].data.drivers = []),
   'a decided change request needs decided_by': (m) => (m.changeRequests[0].data.status = 'accepted'),
 };
@@ -107,7 +101,7 @@ const traceability = {
   T06: ['a capability without slices', (m) => (m.slices = m.slices.filter((s) => s.data.capability !== 'CAP-004'))],
   T07: ['a component justified by an unknown requirement', (m) => (m.blueprint.data.components[0].justified_by = ['CAP-099'])],
   T08: ['an ADR driven by an unknown requirement', (m) => (m.adrs[0].data.drivers = ['QA-099'])],
-  T09: ['debt with the wrong component prefix', (m) => (debtOf(m, 'frontend').entries[0].id = 'DEBT-BE-001')],
+  T09: ['debt with the wrong component prefix', (m) => (debtEntryOf(m, 'frontend').id = 'DEBT-BE-001')],
   T10: ['a refactor paying debt that does not point back at it', (m) => (slice(m, 'SL-008').data.pays = ['DEBT-BE-001'])],
   T11: ['a change request raised by an unknown slice', (m) => (m.changeRequests[0].data.raised_by = 'SL-099')],
   T12: ['a slice file whose name does not match its id', (m) => (slice(m, 'SL-006').file = '.sddpp/slices/wrong-name.md')],
@@ -124,7 +118,7 @@ for (const [rule, [name, mutate]] of Object.entries(traceability)) {
 
 test('T09: debt must be paid by a refactor slice', () => {
   const m = base();
-  debtOf(m, 'frontend').entries[0].paid_by = 'SL-002';
+  debtEntryOf(m, 'frontend').paid_by = 'SL-002';
   assert.ok(has(run(m), 'T09', 'error'));
 });
 
@@ -179,7 +173,7 @@ test('L04: only one slice may be in progress', () => {
 
 test('L05: debt cannot be paid by a slice that is not done', () => {
   const m = base();
-  debtOf(m, 'frontend').entries[0].status = 'paid';
+  debtEntryOf(m, 'frontend').status = 'paid';
   assert.ok(has(run(m), 'L05', 'error'));
 });
 
@@ -318,9 +312,9 @@ test('D04: when every capability is a must, nothing was prioritized', () => {
 test('designFindings: a design with no plan yet is judged only by the rules that concern the design', () => {
   const m = base();
   m.slices = []; // nothing planned: T06 fires for every capability
-  m.debt = []; // no registers yet: R01 fires for every component
+  m.debt = [];
   const all = run(m);
-  assert.ok(has(all, 'T06') && has(all, 'R01'));
+  assert.ok(has(all, 'T06'));
   assert.deepEqual(errors(designFindings(all)), []);
 });
 

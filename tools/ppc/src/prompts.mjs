@@ -127,7 +127,7 @@ export function buildPrompts(model, id, task) {
     '- `.architect/architecture.md`: how the components are structured and what they may do',
     ...(s.spec ? [`- \`${s.spec.file}\` ("${s.spec.story}"): the user story this slice delivers`] : []),
     ...adrs.map((a) => `- \`${a.file}\`: ${a.data.title}`),
-    ...s.components.map((c) => `- \`.sddpp/debt/${c}.yaml\`: known debt in ${c}`),
+    '- `.sddpp/debt.yaml`: known technical debt (entries of this slice\'s components first)',
   ];
   const system = join2([
     `# System prompt: ${title}`,

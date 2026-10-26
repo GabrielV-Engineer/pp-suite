@@ -18,7 +18,7 @@ Status: **v0.1, unstable.** Expect breaking changes until v1.0.
   evidence/EV-001-*.md           optional: sourced claims behind recommendations, with an expiry date
 .sddpp/                          written by SDD.PP
   slices/SL-001-*.md             one file per slice: the leaves of the WBS
-  debt/<component>.yaml          one register per component (the source of truth)
+  debt.yaml                      one register of technical debt for the project; each entry names its component
   change-requests/CR-0001-*.md   how SDD.PP asks for a blueprint change
   active.json                    {slice, phase}: machine state read by the test-lock guard
 ```
@@ -89,8 +89,8 @@ Status flow: `planned` → `ready` → `in_progress` → `done` (or `dropped`).
 
 ## Technical debt
 
-One YAML register per component; an entry lives only in its owner's file, and `also_affects` links the
-others. Status flow: `proposed` → `open` → `scheduled` → `paid` (or `accepted` / `dropped`).
+One YAML register for the project (`.sddpp/debt.yaml`). Each entry names the component that owns it (and its id carries
+that component's code), and `also_affects` links the others. Status flow: `proposed` → `open` → `scheduled` → `paid` (or `accepted` / `dropped`).
 
 - Anything beyond `proposed` needs `approved_by`: the AI proposes, a human decides (`ppc approve-debt`).
 - `accepted` needs `accepted_reason`; `scheduled` and `paid` need `paid_by` (a refactor slice that lists
@@ -110,7 +110,6 @@ Errors fail validation; warnings fail only with `--strict`. `ppc rules` prints t
 | `D02` | error | A dependency between components points the wrong way for their kind (a frontend reaching the database, or a database depending on the layers above it). |
 | `D03` | warning | The design is larger than the complexity budget of its declared level (lite: 4 components, 8 capabilities, 5 quality attributes; standard: 8, 20, 8). The limits are heuristics I chose, not the result of a study. |
 | `D04` | warning | Every capability is a must (with four or more capabilities), so nothing was prioritized. |
-| `R01` | error | A component has no debt register file. |
 | `T01` | error | A slice references a capability that does not exist. |
 | `T02` | error | A slice references a component that does not exist. |
 | `T03` | error | A slice references a quality attribute that does not exist. |

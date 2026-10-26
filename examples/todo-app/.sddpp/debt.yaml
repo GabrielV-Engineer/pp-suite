@@ -1,0 +1,51 @@
+entries:
+  - id: DEBT-BE-001
+    component: backend
+    title: The task list is returned in full, without pagination
+    description: SL-002 returns every task in one response. That is fine up to the size QA-001 assumes and wasteful beyond it.
+    kind: performance
+    origin:
+      type: slice
+      ref: SL-002
+    created: 2026-10-24
+    proposed_by: ai
+    cost_of_delay:
+      level: low
+      rationale: QA-001 assumes at most 1000 tasks, which a full response handles comfortably.
+    trigger: When the stored task count passes 1000, or p95 latency of create-then-list exceeds 200 ms.
+    status: proposed
+  - id: DEBT-DB-001
+    component: database
+    title: SQLite allows one writer at a time, which blocks multi-user use
+    description: ADR-0001 chose SQLite knowing it supports one writer at a time per database file. Multi-user collaboration would need a client/server engine.
+    kind: design
+    origin:
+      type: decision
+      ref: ADR-0001
+    created: 2026-10-24
+    proposed_by: human
+    cost_of_delay:
+      level: low
+      rationale: Multi-user collaboration is an explicit non-goal, so the limit has no cost today.
+    trigger: If multi-user collaboration is ever added to the scope.
+    status: accepted
+    approved_by: example-owner
+    accepted_reason: Multi-user use is a non-goal, and migrating a single-owner dataset later is cheap.
+  - id: DEBT-FE-001
+    component: frontend
+    title: Title validation rules are duplicated in the form and the API
+    description: SL-004 needs the same title rules in the form (for quick feedback) and in the API (for safety). Writing them twice is faster now and drifts later.
+    kind: duplication
+    origin:
+      type: slice
+      ref: SL-004
+    created: 2026-10-24
+    proposed_by: ai
+    cost_of_delay:
+      level: medium
+      rationale: Every later slice that edits titles must change both copies, and one of them will be forgotten.
+    trigger: Before SL-005 (edit a title) starts, which adds a third place that validates titles.
+    status: scheduled
+    approved_by: example-owner
+    paid_by: SL-008
+    also_affects: [backend]

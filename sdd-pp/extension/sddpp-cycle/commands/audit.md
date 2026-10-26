@@ -34,11 +34,12 @@ $ARGUMENTS
 2. Identify the slice's commits with `git log --oneline` and their message prefixes: `red(<id>)`,
    `green(<id>)`, `refactor(<id>)` or, in the light cycle, `build(<id>)`. Use the full sha you see in `git log`.
 3. **Debt.** For every shortcut, compromise or known weakness you introduced or noticed, add an entry to
-   the owning component's register `.sddpp/debt/<component>.yaml`. Use the next free id
-   (`DEBT-<code>-NNN`, the code is in `.architect/blueprint.yaml`):
+   the debt register `.sddpp/debt.yaml` (create it with `entries:` if it does not exist). Name the owning component in
+   `component:`, and use the next free id for it (`DEBT-<code>-NNN`, the code is in `.architect/blueprint.yaml`):
 
    ```yaml
    - id: DEBT-BE-002
+     component: backend
      title: <short title>
      description: <what is compromised and why>
      kind: design   # duplication | design | test | performance | security | dependency | documentation | accessibility | other

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { readFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { loadProject } from '../src/load.mjs';
 import { validateModel, RULES } from '../src/validate.mjs';
@@ -88,7 +88,7 @@ test('W06: a closed work slice with no tests and no test debt about it is a warn
   assert.ok(!has(validateModel(audited('optional', 4).m), 'W06'));
   // a test debt entry whose origin is the slice answers it, whatever its status (even a dropped one is a decision)
   const register = m.debt[0];
-  register.data.entries.push({ id: `DEBT-${register.data.component === 'backend' ? 'BE' : 'XX'}-900`, title: 'No tests', description: 'The slice added no tests', kind: 'test', origin: { type: 'slice', ref: s.data.id }, created: '2026-10-26', proposed_by: 'ai', cost_of_delay: { level: 'low', rationale: 'Nothing depends on it yet.' }, trigger: 'Before the next change', status: 'proposed' });
+  register.data.entries.push({ id: 'DEBT-BE-900', component: 'backend', title: 'No tests', description: 'The slice added no tests', kind: 'test', origin: { type: 'slice', ref: s.data.id }, created: '2026-10-26', proposed_by: 'ai', cost_of_delay: { level: 'low', rationale: 'Nothing depends on it yet.' }, trigger: 'Before the next change', status: 'proposed' });
   assert.ok(!has(validateModel(m), 'W06'));
 });
 
@@ -132,22 +132,22 @@ test('finish: under the optional policy it closes, and proposes a test debt entr
   assert.ok(!has(validateModel(loadProject(r.dir)), 'W06'));
 });
 
-test('finish: the proposed debt goes in the register of the slice component, with the next free id', (t) => {
+test('finish: the proposed debt belongs to the slice component, with the next free id for that component', (t) => {
   const r = throughGreenWithoutTests(t);
   finish(r.dir, 'SL-001', r.audit);
   const component = slice(r.dir, 'SL-001').components[0];
-  const register = loadProject(r.dir).debt.find((d) => d.data.component === component);
+  const all = loadProject(r.dir).debt.flatMap((d) => d.data.entries);
   const code = loadProject(r.dir).blueprint.data.components.find((c) => c.id === component).code;
-  const mine = register.data.entries.find((e) => e.kind === 'test' && e.origin.ref === 'SL-001');
-  const numbers = register.data.entries.map((e) => Number(e.id.split('-')[2]));
+  const mine = all.find((e) => e.kind === 'test' && e.origin.ref === 'SL-001');
+  assert.equal(mine.component, component);
+  const numbers = all.filter((e) => e.component === component).map((e) => Number(e.id.split('-')[2]));
   assert.match(mine.id, new RegExp(`^DEBT-${code}-\\d{3}$`));
   assert.equal(Number(mine.id.split('-')[2]), Math.max(...numbers.filter((n) => n !== Number(mine.id.split('-')[2]))) + 1);
 });
 
 test('finish: the register keeps the spacing its author used for the entries already there', (t) => {
   const r = throughGreenWithoutTests(t);
-  const component = slice(r.dir, 'SL-001').components[0];
-  const file = `.sddpp/debt/${component}.yaml`;
+  const file = '.sddpp/debt.yaml';
   const before = read(r.dir, file).split('\n');
   finish(r.dir, 'SL-001', r.audit);
   const after = read(r.dir, file).split('\n');
@@ -188,4 +188,17 @@ test('CLI: overview shows the verification line', () => {
   const out = spawnSync('node', [CLI, 'overview', EXAMPLE], { encoding: 'utf8' });
   assert.equal(out.status, 0);
   assert.match(out.stdout, /Verification:/);
+});
+
+test('finish: with no register yet, the first proposed debt creates it', (t) => {
+  const r = throughGreenWithoutTests(t);
+  rmSync(join(r.dir, '.sddpp/debt.yaml'));
+  rmSync(join(r.dir, '.sddpp/slices/SL-008-share-validation-rules.md')); // the only slice that pays debt
+  r.git('add', '-A');
+  r.git('commit', '-q', '-m', 'no debt yet');
+  finish(r.dir, 'SL-001', r.audit);
+  const mine = entries(r.dir).filter((e) => e.kind === 'test');
+  assert.equal(mine.length, 1);
+  assert.match(mine[0].id, /^DEBT-[A-Z]+-001$/);
+  assert.deepEqual(validateModel(loadProject(r.dir)).filter((f) => f.severity === 'error'), []);
 });

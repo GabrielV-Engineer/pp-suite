@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { Document, parseDocument } from 'yaml';
+import { Document, parseDocument, stringify } from 'yaml';
 import { loadProject } from './load.mjs';
 import { validateModel } from './validate.mjs';
 import { checkGit, dirtyPaths, measure } from './gitcheck.mjs';
@@ -136,13 +136,30 @@ export function approveSlice(root, id, by) {
   });
 }
 
-/** Edit one entry of a component's debt register in place, keeping the file's formatting. */
-function editDebtEntry(root, register, id, change) {
+/**
+ * Set fields of one entry of the debt register, changing only that entry's lines. Re-serializing the file would
+ * restyle everything else in it (`[a]` becomes `[ a ]`), so the lines are edited as text: an existing field is
+ * replaced where it stands, a new one is added at the end of the entry.
+ */
+function setDebtFields(root, register, id, fields) {
   const abs = join(root, register.file);
-  const doc = parseDocument(readFileSync(abs, 'utf8'));
-  change(doc.get('entries').items.find((i) => i.get('id') === id));
-  // Debt registers are written with `{ a: b }`; keep that spacing so untouched entries are not rewritten.
-  writeFileSync(abs, doc.toString({ lineWidth: 0 }));
+  const lines = readFileSync(abs, 'utf8').split('\n');
+  const start = lines.findIndex((l) => new RegExp(`^\\s*- id:\\s*${id}\\s*$`).test(l));
+  if (start === -1) fail(`${id} could not be located in ${register.file} to edit it`);
+  const indent = /^(\s*)-/.exec(lines[start])[1];
+  const pad = `${indent}  `;
+  let end = start + 1;
+  while (end < lines.length && !new RegExp(`^${indent}- `).test(lines[end]) && (lines[end].trim() === '' || lines[end].startsWith(pad))) end++;
+  while (end > start + 1 && lines[end - 1].trim() === '') end--;
+  for (const [key, value] of Object.entries(fields)) {
+    const text = `${pad}${key}: ${stringify(value).trim()}`;
+    const at = lines.slice(start, end).findIndex((l) => l.startsWith(`${pad}${key}:`));
+    if (at === -1) {
+      lines.splice(end, 0, text);
+      end++;
+    } else lines[start + at] = text;
+  }
+  writeFileSync(abs, lines.join('\n'));
 }
 
 /**
@@ -244,11 +261,7 @@ export function approveDebt(root, id, { by, accept, drop } = {}) {
     if (entry.status !== 'proposed') fail(`${id} is ${entry.status}; only a proposed entry can be decided`);
     const status = accept !== undefined ? 'accepted' : drop ? 'dropped' : 'open';
 
-    editDebtEntry(root, register, id, (item) => {
-      item.set('status', status);
-      item.set('approved_by', by.trim());
-      if (status === 'accepted') item.set('accepted_reason', accept.trim());
-    });
+    setDebtFields(root, register, id, { status, approved_by: by.trim(), ...(status === 'accepted' ? { accepted_reason: accept.trim() } : {}) });
     ensureValid(root);
     return { debt: id, status };
   });
@@ -288,20 +301,21 @@ export function toRefactor(root) {
   });
 }
 
+const DEBT_FILE = '.sddpp/debt.yaml';
+
 /**
  * Under an optional test policy a slice may close without tests, but not silently: a debt entry of kind
- * `test` is proposed in the register of the slice's first component, for a person to decide. Returns its id.
+ * `test` is proposed, owned by the slice's first component, for a person to decide. Returns its id.
  */
 function proposeTestDebt(root, model, slice, today) {
   const component = slice.components[0];
-  const register = model.debt.find((d) => d.data.component === component) ?? fail(`${component} has no debt register`);
   const code = model.blueprint.data.components.find((c) => c.id === component).code;
-  const last = Math.max(0, ...register.data.entries.map((e) => Number(e.id.split('-')[2])));
+  const existing = model.debt.flatMap((d) => d.data.entries).filter((e) => e.component === component);
+  const last = Math.max(0, ...existing.map((e) => Number(e.id.split('-')[2])));
   const id = `DEBT-${code}-${String(last + 1).padStart(3, '0')}`;
-  const abs = join(root, register.file);
-  const text = readFileSync(abs, 'utf8');
   const fields = {
     id,
+    component,
     title: `${slice.id} closed without tests`,
     description: `${slice.id} "${slice.title}" changed no test files, so nothing checks its behavior automatically and a later change can break it unnoticed.`,
     kind: 'test',
@@ -312,13 +326,18 @@ function proposeTestDebt(root, model, slice, today) {
     trigger: `Before a later slice changes the behavior of ${slice.id}.`,
     status: 'proposed',
   };
+  const abs = join(root, DEBT_FILE);
+  if (!existsSync(abs)) {
+    writeFileSync(abs, new Document({ entries: [fields] }).toString({ lineWidth: 0 }));
+    return id;
+  }
+  const text = readFileSync(abs, 'utf8');
   // Follow the register's own style: some are written with `{ a: b }` maps.
   const flow = /^\s+origin: \{/m.test(text);
   const rendered = new Document([fields]);
   if (flow) for (const key of ['origin', 'cost_of_delay']) rendered.getIn([0, key], true).flow = true;
-  // `entries` is the last key, so the new entry is appended as text: nothing already written is reformatted.
-  const afterEntries = text.slice(text.indexOf('\nentries:') + 1);
-  if (register.data.entries.length && !/\n[A-Za-z]/.test(afterEntries)) {
+  // `entries` is the only key, so the new entry is appended as text: nothing already written is reformatted.
+  if (model.debt[0].data.entries.length && !/\n[A-Za-z]/.test(text.slice(text.indexOf('entries:')))) {
     const block = rendered.toString({ lineWidth: 0 }).trimEnd().split('\n').map((line) => `  ${line}`).join('\n');
     writeFileSync(abs, `${text.trimEnd()}\n${block}\n`);
   } else {
@@ -407,7 +426,7 @@ export function finish(root, id, input, { mutationRunner, now = new Date() } = {
       for (const id of s.pays ?? []) {
         const register = model.debt.find((d) => d.data.entries.some((e) => e.id === id));
         const entry = register?.data.entries.find((e) => e.id === id);
-        if (entry?.status === 'scheduled' && entry.paid_by === s.id) editDebtEntry(root, register, id, (item) => item.set('status', 'paid'));
+        if (entry?.status === 'scheduled' && entry.paid_by === s.id) setDebtFields(root, register, id, { status: 'paid' });
       }
     }
     writeActive(root, null, null);

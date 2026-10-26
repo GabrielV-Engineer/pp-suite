@@ -27,7 +27,7 @@ $ARGUMENTS
 
 1. Run `ppc status`. A slice must be **in progress in the refactor phase**. A work slice gets there with
    `ppc refactor` after its green commit; a refactor slice starts there. If not, stop.
-2. Read the slice, the debt entries it pays (`.sddpp/debt/<component>.yaml`), the code involved and the
+2. Read the slice, the debt entries it pays (`.sddpp/debt.yaml`), the code involved and the
    tests that cover it. Say which tests protect the code you are about to change. If none does, stop and
    report it: refactoring unprotected code is guessing.
 3. Run the tests and the type check first, so you know they pass before you touch anything.

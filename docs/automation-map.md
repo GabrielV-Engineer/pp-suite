@@ -24,7 +24,7 @@ last column is what is **not built yet**. Nothing below has been measured as tim
 | 9 | Track the state of the project | Checkboxes in tasks.md | **Auto**: state machine, generated WBS, `ppc overview`, debt tables | |
 | 10 | Keep the work inside its scope | Person | **Auto**: size budget (`B01`) checked from git; optional guard that locks tests | Check that a slice does not touch what a non-goal forbids |
 | 11 | Check what was built | Model (`analyze` for consistency of documents); tests only if requested | **Auto**: contract rules, `check-git` against real history; optional mutation gate; test policy (`required`, `optional`, `none`) measured from git, with a test debt proposed when a slice closes without tests (`T16`, `W06`) | |
-| 12 | Track technical debt | None | Model proposes, Person decides (`approve-debt`), one register per component | |
+| 12 | Track technical debt | None | Model proposes, Person decides (`approve-debt`), one register for the project, with the owning component on each entry | |
 | 13 | Trace a requirement to a test and a commit | Coverage notes by hand | **Auto-checked**: ids (CAP, QA, SL, DEBT, ADR), rules `T01` to `T15`, `W05`; spec link `T15` | A check that criteria agree across spec, slice and tests |
 | 14 | Design the interface (UI/UX) | None | None | A design field in the contract and a design step |
 | 15 | Install and start | `specify init` | **Auto, on request**: `ppc init` checks the machine and project against pinned versions (`install/versions.json`) and runs the missing project-level steps; it prints, and does not run, the command that installs Spec Kit. Tried once | Updating installed extensions; other operating systems |

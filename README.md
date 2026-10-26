@@ -31,7 +31,7 @@ few weeks. pp-suite attacks those with rules a tool can check, not only advice.
 
 | Piece | Built on | pp-suite adds |
 |---|---|---|
-| SDD.PP | [Spec Kit](https://github.com/github/spec-kit) (extension, preset, workflow) | Slices, a test lock, debt register per component, audit pack |
+| SDD.PP | [Spec Kit](https://github.com/github/spec-kit) (extension, preset, workflow) | Slices, a test lock, a technical-debt register, audit pack |
 | Architect.PP | [The Architect](https://github.com/Hainrixz/the-architect) | Quality targets, complexity budget, architecture tests, hand-off *(planned)* |
 
 No upstream code is copied. Why these bases and not others: [upstream-analysis](docs/upstream-analysis.md).

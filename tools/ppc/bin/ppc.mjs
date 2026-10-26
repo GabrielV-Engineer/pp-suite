@@ -10,7 +10,6 @@ import { checkConstitution, writeConstitution, ConstitutionError } from '../src/
 import { apply, plan as installPlan, renderPlan, InstallError } from '../src/install.mjs';
 import { spawnSync } from 'node:child_process';
 import { homedir } from 'node:os';
-import { scaffold } from '../src/scaffold.mjs';
 import { applyChange, decideChange, openChange } from '../src/changes.mjs';
 import { buildPrompts, resolveTarget, writePrompts } from '../src/prompts.mjs';
 import { start, approveSlice, approveRed, approveDebt, decideAddition, toRefactor, finish, mutate, status, LifecycleError } from '../src/lifecycle.mjs';
@@ -24,7 +23,6 @@ const USAGE = `ppc — pp-suite contract tool
     ppc rules                            list every rule the checks can emit
 
   Setup
-    ppc scaffold [dir]                   write an empty debt register for each component that has none (rule R01)
     ppc constitution [dir] [--check] [--force]
                                          write Spec Kit's constitution from the design (.specify/memory/constitution.md);
                                          --check only verifies it is current
@@ -219,12 +217,6 @@ switch (command) {
     }
     break;
   }
-  case 'scaffold':
-    transition(() => {
-      const { created } = scaffold(dirAt(0));
-      return { text: created.length ? `created:\n${created.map((f) => `  ${f}`).join('\n')}` : 'nothing to create: every component has a debt register' };
-    });
-    break;
   case 'contract': {
     const suite = resolve(new URL('../../..', import.meta.url).pathname);
     console.log(`schemas: ${join(suite, 'contract/v0.1/schemas')}\ndocument: ${join(suite, 'docs/contract-v0.1.md')}\nexample: ${join(suite, 'examples/todo-app')}`);

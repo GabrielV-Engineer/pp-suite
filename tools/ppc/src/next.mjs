@@ -143,10 +143,11 @@ export function overview(model, findings = []) {
   const untested = closed.filter((s) => s.audit.test_lines === 0);
   out.push('', `Verification: ${closed.length - untested.length} of ${closed.length} closed work slices changed tests (policy ${bp.test_policy ?? 'optional'})${untested.length ? `; no tests: ${untested.map((s) => s.id).join(', ')}` : ''}`);
   out.push('', 'Technical debt by component:');
-  for (const register of model.debt) {
-    const entries = register.data.entries;
+  const debt = model.debt.flatMap((d) => d.data.entries);
+  for (const component of bp.components.map((c) => c.id)) {
+    const entries = debt.filter((e) => e.component === component);
     const n = (status) => entries.filter((e) => e.status === status).length;
-    out.push(`  ${register.data.component}: proposed ${n('proposed')} · open ${n('open')} · scheduled ${n('scheduled')} · paid ${n('paid')}`);
+    out.push(`  ${component}: proposed ${n('proposed')} · open ${n('open')} · scheduled ${n('scheduled')} · paid ${n('paid')}`);
   }
   const errors = findings.filter((f) => f.severity === 'error').length;
   out.push('', `Contract: ${errors} error(s), ${findings.length - errors} warning(s)`);

@@ -19,7 +19,7 @@ command names are provisional.
 | **3. Slices** (per capability) | **Approve** the spec, the plan and the slice list | Writes them; splits the work into vertical slices that fit the production-code budget |
 | **4. Red** (per slice) | **Read and approve the tests.** This is the one thing to read carefully | A separate subagent writes failing tests only; one `red` commit |
 | **5. Green** | Nothing | The guard locks the tests; production code only, as little as it takes; one `green` commit |
-| **6. Close** | Review the audit pack; approve or reject proposed debt | Refactors in its own commit, runs mutation testing, records debt in the component's register, regenerates the WBS |
+| **6. Close** | Review the audit pack; approve or reject proposed debt | Refactors in its own commit, runs mutation testing, records debt in the debt register |
 | **7. Design changes** | Decide | If a slice finds the design wrong, it opens a change request back to step 1 |
 
 ## Two cycles: light and strict
@@ -63,7 +63,6 @@ Each command either changes the project or refuses and leaves it untouched.
 | `ppc change-request --slice ... --problem ... --proposal ...` | anyone | A slice asks for a design change. Records the revision it was opened at |
 | `ppc decide-change CR-NNNN --accept \| --reject --reason ... --by <name>` | **a human** | Accepts or rejects it |
 | `ppc apply-change CR-NNNN` | anyone | Marks an accepted request applied, once the design revision rose and the constitution is current |
-| `ppc scaffold` | anyone | Writes the empty debt register of each component that has none (rule `R01`). Run by the planning step |
 | `ppc constitution [--check]` | anyone | Writes Spec Kit's constitution from the design |
 | `ppc init [--apply] [--shim]` | anyone | Checks the machine and project against pinned versions; sets them up |
 | `ppc prompt [<slice>] [--task <t>]` | anyone | Writes the system, negative and (when it applies) design prompt for one task under `.sddpp/prompts/`. Offered files: edit or ignore them; it will not overwrite without `--force` |

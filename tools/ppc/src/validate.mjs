@@ -19,7 +19,6 @@ export const RULES = {
   PARSE: 'A file could not be parsed.',
   SCHEMA: 'An artifact does not match its JSON Schema.',
   R00: 'A required file is missing.',
-  R01: 'A component has no debt register file.',
   T01: 'A slice references a capability that does not exist.',
   T02: 'A slice references a component that does not exist.',
   T03: 'A slice references a quality attribute that does not exist.',
@@ -139,7 +138,7 @@ export function validateModel(model, { now = new Date() } = {}) {
   const adrIds = new Set(adrs.map((a) => a.data.id));
   const evidenceIds = new Set(evidence.map((e) => e.data.id));
   const debtById = new Map();
-  for (const df of debtFiles) for (const entry of df.data.entries) debtById.set(entry.id, { entry, component: df.data.component, file: df.file });
+  for (const df of debtFiles) for (const entry of df.data.entries) debtById.set(entry.id, { entry, component: entry.component, file: df.file });
 
   // ── T12: ids unique, file names match ids ─────────────────────
   const checkIds = (items, kind, idOf) => {
@@ -158,7 +157,6 @@ export function validateModel(model, { now = new Date() } = {}) {
   checkIds(crs, 'change request', (c) => c.data.id);
   const seenDebt = new Map();
   for (const df of debtFiles) {
-    if (basename(df.file) !== `${df.data.component}.yaml`) error('T12', df.file, `file name must be ${df.data.component}.yaml`);
     for (const e of df.data.entries) {
       if (seenDebt.has(e.id)) error('T12', df.file, `duplicate debt id ${e.id} (also in ${seenDebt.get(e.id)})`);
       seenDebt.set(e.id, df.file);
@@ -208,12 +206,6 @@ export function validateModel(model, { now = new Date() } = {}) {
   }
   if (bp.capabilities.length >= 4 && bp.capabilities.every((c) => c.priority === 'must')) {
     warn('D04', model.blueprint.file, `all ${bp.capabilities.length} capabilities are a must; decide what is only a should or a could`);
-  }
-
-  // ── R01: one debt file per component ──────────────────────────
-  const debtComponents = new Set(debtFiles.map((d) => d.data.component));
-  for (const c of bp.components) {
-    if (!debtComponents.has(c.id)) error('R01', `.sddpp/debt/${c.id}.yaml`, `component ${c.id} has no debt register (an empty one is fine)`);
   }
 
   // ── slices: T01-T06, T14, L01, W01, W03, W04 ──────────────────
@@ -283,13 +275,13 @@ export function validateModel(model, { now = new Date() } = {}) {
   // ── debt: T09, L05 ────────────────────────────────────────────
   const originOk = { slice: (r) => sliceById.has(r), decision: (r) => adrIds.has(r), blueprint: (r) => requirementIds.has(r), audit: () => true };
   for (const df of debtFiles) {
-    const comp = comps.get(df.data.component);
-    if (!comp) {
-      error('T09', df.file, `unknown component ${df.data.component}`);
-      continue;
-    }
     for (const e of df.data.entries) {
-      if (!new RegExp(`^DEBT-${comp.code}-\\d{3,}$`).test(e.id)) error('T09', df.file, `${e.id} must use prefix DEBT-${comp.code}- in ${comp.id}'s register`);
+      const comp = comps.get(e.component);
+      if (!comp) {
+        error('T09', df.file, `${e.id} belongs to unknown component ${e.component}`);
+        continue;
+      }
+      if (!new RegExp(`^DEBT-${comp.code}-\\d{3,}$`).test(e.id)) error('T09', df.file, `${e.id} must use prefix DEBT-${comp.code}-, the code of its component ${comp.id}`);
       if (!originOk[e.origin.type](e.origin.ref)) error('T09', df.file, `${e.id} has unknown ${e.origin.type} origin "${e.origin.ref}"`);
       for (const other of e.also_affects ?? []) if (!comps.has(other) || other === comp.id) error('T09', df.file, `${e.id} also_affects invalid component ${other}`);
       if (e.paid_by) {

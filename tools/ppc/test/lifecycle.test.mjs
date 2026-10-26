@@ -141,18 +141,20 @@ test('approve-debt: refuses without a name, for unknown or already decided entri
 
 test('approve-debt keeps the register as its author wrote it, including the spacing inside { } maps', (t) => {
   const { dir, write } = repo(t);
-  const text = read(dir, '.sddpp/debt/backend.yaml').replace('origin:\n      type: slice\n      ref: SL-002', 'origin: { type: slice, ref: SL-002 }');
+  const text = read(dir, '.sddpp/debt.yaml').replace('origin:\n      type: slice\n      ref: SL-002', 'origin: { type: slice, ref: SL-002 }');
   assert.match(text, /origin: \{ type: slice, ref: SL-002 \}/);
-  write({ '.sddpp/debt/backend.yaml': text });
+  write({ '.sddpp/debt.yaml': text });
   approveDebt(dir, 'DEBT-BE-001', { by: 'reviewer' });
-  assert.match(read(dir, '.sddpp/debt/backend.yaml'), /origin: \{ type: slice, ref: SL-002 \}/);
+  assert.match(read(dir, '.sddpp/debt.yaml'), /origin: \{ type: slice, ref: SL-002 \}/);
 });
 
-test('approve-debt keeps the register readable: other entries and comments are untouched', (t) => {
+test('approve-debt keeps the register readable: only the lines of the decided entry change', (t) => {
   const { dir } = repo(t);
-  const before = read(dir, '.sddpp/debt/frontend.yaml');
+  const before = read(dir, '.sddpp/debt.yaml').split('\n');
   approveDebt(dir, 'DEBT-BE-001', { by: 'reviewer' });
-  assert.equal(read(dir, '.sddpp/debt/frontend.yaml'), before);
+  const after = read(dir, '.sddpp/debt.yaml').split('\n');
+  assert.deepEqual(before.filter((l) => !after.includes(l)), ['    status: proposed']);
+  assert.deepEqual(after.filter((l) => !before.includes(l)).sort(), ['    approved_by: reviewer', '    status: open']);
 });
 
 // ── approve-red ──────────────────────────────────────────────────
@@ -229,22 +231,24 @@ test('finish: a refactor slice marks the debt it pays as paid, and nothing else'
   const file = '.sddpp/slices/SL-008-share-validation-rules.md';
   const original = read(r.dir, file);
   r.write({ [file]: original.replace('status: planned', 'status: ready\napproved_by: reviewer').replace('depends_on: [SL-004]', 'depends_on: []') });
-  const debtBefore = read(r.dir, '.sddpp/debt/backend.yaml');
+  const debtBefore = read(r.dir, '.sddpp/debt.yaml').split('\n');
   assert.equal(start(r.dir, 'SL-008').phase, 'refactor');
   const sha = r.commit('refactor(SL-008): share the rules', { 'src/rules.js': lines(4) });
   finish(r.dir, 'SL-008', { commits: [{ sha, kind: 'refactor' }], tests_added: 0 });
   assert.equal(debtEntry(r.dir, 'DEBT-FE-001').status, 'paid');
   assert.equal(debtEntry(r.dir, 'DEBT-FE-001').paid_by, 'SL-008');
-  assert.equal(read(r.dir, '.sddpp/debt/backend.yaml'), debtBefore); // other registers are untouched
+  const debtAfter = read(r.dir, '.sddpp/debt.yaml').split('\n');
+  assert.deepEqual(debtBefore.filter((l) => !debtAfter.includes(l)), ['    status: scheduled']); // only the paid entry changes
+  assert.deepEqual(debtAfter.filter((l) => !debtBefore.includes(l)), ['    status: paid']);
   assertConsistent(r.dir);
   assert.deepEqual(checkGit(loadProject(r.dir), r.dir), []);
 });
 
-test('finish: a feature slice leaves the debt registers alone', (t) => {
+test('finish: a feature slice leaves the debt register alone', (t) => {
   const { dir, audit } = throughGreen(t);
-  const before = ['backend', 'frontend', 'database'].map((c) => read(dir, `.sddpp/debt/${c}.yaml`));
+  const before = read(dir, '.sddpp/debt.yaml');
   finish(dir, 'SL-001', audit);
-  assert.deepEqual(['backend', 'frontend', 'database'].map((c) => read(dir, `.sddpp/debt/${c}.yaml`)), before);
+  assert.equal(read(dir, '.sddpp/debt.yaml'), before);
 });
 
 test('finish: the sizes are never taken from the caller', (t) => {
