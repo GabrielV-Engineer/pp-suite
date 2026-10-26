@@ -87,6 +87,7 @@
         }
       }
     },
+    "test_policy": { "enum": ["required", "optional", "none"], "description": "Whether work slices must leave tests behind. Default optional: a slice may close without tests and the audit proposes a test debt entry. A slice may override it." },
     "budgets": {
       "type": "object",
       "additionalProperties": false,

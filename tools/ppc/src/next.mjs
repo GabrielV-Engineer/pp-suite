@@ -115,6 +115,9 @@ export function overview(model, findings = []) {
     const own = slices.filter((s) => s.capability === cap.id && s.status !== 'dropped');
     out.push(`  ${cap.id} ${cap.name} (${cap.priority}): ${own.filter((s) => s.status === 'done').length}/${own.length} done`);
   }
+  const closed = slices.filter((s) => s.status === 'done' && ['skeleton', 'feature', 'fix'].includes(s.type) && s.audit);
+  const untested = closed.filter((s) => s.audit.test_lines === 0);
+  out.push('', `Verification: ${closed.length - untested.length} of ${closed.length} closed work slices changed tests (policy ${bp.test_policy ?? 'optional'})${untested.length ? `; no tests: ${untested.map((s) => s.id).join(', ')}` : ''}`);
   out.push('', 'Technical debt by component:');
   for (const register of model.debt) {
     const entries = register.data.entries;

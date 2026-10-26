@@ -2,6 +2,7 @@ import Ajv2020 from 'ajv/dist/2020.js';
 import addFormats from 'ajv-formats';
 import { readFileSync } from 'node:fs';
 import { basename } from 'node:path';
+import { testPolicy } from './policy.mjs';
 
 const SCHEMA_DIR = new URL('../../../contract/v0.1/schemas/', import.meta.url);
 const SCHEMA_NAMES = ['blueprint', 'slice', 'debt', 'adr', 'evidence', 'change-request', 'active', 'additions'];
@@ -38,6 +39,7 @@ export const RULES = {
   T13: 'A slice audit references unknown decisions or debt, or debt with the wrong origin.',
   T14: 'A slice was planned against a blueprint revision that does not exist yet.',
   T15: 'A slice points at a spec file or a user story that does not exist.',
+  T16: 'A closed work slice changed no test files although its test policy is required.',
   L01: 'A slice has a phase while it is not in progress.',
   L02: 'The audit commits are not ordered red before green.',
   L03: 'active.json is missing or does not match the slice in progress.',
@@ -58,6 +60,7 @@ export const RULES = {
   W03: 'An unfinished slice was planned against an older blueprint revision.',
   W04: 'A slice has many acceptance criteria and probably needs splitting.',
   W05: 'A quality attribute is not referenced by any live slice, so nothing plans to deliver or verify it.',
+  W06: 'A closed work slice changed no test files and no test debt entry is open about it, under an optional test policy.',
   X01: 'An addition is still undecided (a warning while the design is drafted, an error once slices exist).',
   X02: 'A cut addition was applied but something that only it justified is still in the design.',
   X03: 'A cut addition was applied but the non-goal it becomes is not among the non-goals.',
@@ -312,7 +315,9 @@ export function validateModel(model, { now = new Date() } = {}) {
     for (const x of c.affects.quality_attributes ?? []) if (!qas.has(x)) error('T11', file, `${c.id} affects unknown quality attribute ${x}`);
   }
 
-  // ── audits: T13, L02, B01 ─────────────────────────────────────
+  const testDebtAbout = new Set([...debtById.values()].filter(({ entry: e }) => e.kind === 'test' && e.origin.type === 'slice').map(({ entry: e }) => e.origin.ref));
+
+  // ── audits: T13, L02, B01, T16, W06 ─────────────────────────────────────
   for (const { file, data: s } of slices) {
     const audit = s.audit;
     if (!audit) continue;
@@ -330,6 +335,11 @@ export function validateModel(model, { now = new Date() } = {}) {
     const gate = bp.budgets.min_mutation_score;
     if (gate !== undefined && audit.mutation_score !== null && audit.mutation_score < gate && !audit.mutation_override_reason) {
       error('M01', file, `${s.id} has a mutation score of ${audit.mutation_score}, the gate is ${gate}, and no mutation_override_reason is recorded`);
+    }
+    if (WORK_TYPES.includes(s.type) && audit.test_lines === 0) {
+      const policy = testPolicy(bp, s);
+      if (policy === 'required') error('T16', file, `${s.id} changed no test files, and the test policy for it is required`);
+      else if (policy === 'optional' && !testDebtAbout.has(s.id)) warn('W06', file, `${s.id} changed no test files and no test debt is recorded for it (policy optional: it should at least be visible)`);
     }
     if (audit.production_lines > bp.budgets.max_slice_production_lines && !audit.budget_override_reason) {
       error('B01', file, `${s.id} changed ${audit.production_lines} production lines, budget is ${bp.budgets.max_slice_production_lines}, and no budget_override_reason is recorded`);

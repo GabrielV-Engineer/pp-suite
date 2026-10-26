@@ -1,11 +1,12 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { parseDocument } from 'yaml';
+import { Document, parseDocument } from 'yaml';
 import { loadProject } from './load.mjs';
 import { validateModel } from './validate.mjs';
 import { checkGit, dirtyPaths, measure } from './gitcheck.mjs';
 import { generate, writeGenerated } from './generate.mjs';
 import { runMutation, sliceProductionFiles } from './mutation.mjs';
+import { testPolicy } from './policy.mjs';
 
 /** A refused transition. The message says why; nothing was changed. */
 export class LifecycleError extends Error {}
@@ -246,12 +247,53 @@ export function toRefactor(root) {
 }
 
 /**
+ * Under an optional test policy a slice may close without tests, but not silently: a debt entry of kind
+ * `test` is proposed in the register of the slice's first component, for a person to decide. Returns its id.
+ */
+function proposeTestDebt(root, model, slice, today) {
+  const component = slice.components[0];
+  const register = model.debt.find((d) => d.data.component === component) ?? fail(`${component} has no debt register`);
+  const code = model.blueprint.data.components.find((c) => c.id === component).code;
+  const last = Math.max(0, ...register.data.entries.map((e) => Number(e.id.split('-')[2])));
+  const id = `DEBT-${code}-${String(last + 1).padStart(3, '0')}`;
+  const abs = join(root, register.file);
+  const text = readFileSync(abs, 'utf8');
+  const fields = {
+    id,
+    title: `${slice.id} closed without tests`,
+    description: `${slice.id} "${slice.title}" changed no test files, so nothing checks its behavior automatically and a later change can break it unnoticed.`,
+    kind: 'test',
+    origin: { type: 'slice', ref: slice.id },
+    created: today,
+    proposed_by: 'ai',
+    cost_of_delay: { level: 'medium', rationale: 'Grows with every later slice that touches the same behavior.' },
+    trigger: `Before a later slice changes the behavior of ${slice.id}.`,
+    status: 'proposed',
+  };
+  // Follow the register's own style: some are written with `{ a: b }` maps.
+  const flow = /^\s+origin: \{/m.test(text);
+  const rendered = new Document([fields]);
+  if (flow) for (const key of ['origin', 'cost_of_delay']) rendered.getIn([0, key], true).flow = true;
+  // `entries` is the last key, so the new entry is appended as text: nothing already written is reformatted.
+  const afterEntries = text.slice(text.indexOf('\nentries:') + 1);
+  if (register.data.entries.length && !/\n[A-Za-z]/.test(afterEntries)) {
+    const block = rendered.toString({ lineWidth: 0 }).trimEnd().split('\n').map((line) => `  ${line}`).join('\n');
+    writeFileSync(abs, `${text.trimEnd()}\n${block}\n`);
+  } else {
+    const doc = parseDocument(text);
+    doc.get('entries').add(doc.createNode(fields));
+    writeFileSync(abs, doc.toString({ lineWidth: 0 }));
+  }
+  return id;
+}
+
+/**
  * Close a slice. The sizes are measured from git here, never taken from the caller, and the result
  * is validated and checked against git before it is kept: if it would be wrong, nothing changes.
  * When the blueprint sets a mutation gate, the score is measured here too (`mutationRunner` replaces
  * Stryker in tests).
  */
-export function finish(root, id, input, { mutationRunner } = {}) {
+export function finish(root, id, input, { mutationRunner, now = new Date() } = {}) {
   return transact(root, () => {
     const model = loadValid(root);
     const entry = model.slices.find((s) => s.data.id === id) ?? fail(`unknown slice ${id}`);
@@ -282,6 +324,11 @@ export function finish(root, id, input, { mutationRunner } = {}) {
         production_lines += m.production_lines;
         test_lines += m.test_lines;
       }
+      const policy = testPolicy(model.blueprint.data, s);
+      const withoutTests = WORK_TYPES.includes(s.type) && test_lines === 0;
+      if (withoutTests && policy === 'required') {
+        fail(`the test policy for ${id} is required, but its commits changed no test files. Add tests, or a person changes the policy (test_policy) for this slice.`);
+      }
       let mutation_score = null;
       const gate = model.blueprint.data.budgets.min_mutation_score;
       if (gate !== undefined && WORK_TYPES.includes(s.type)) {
@@ -293,6 +340,8 @@ export function finish(root, id, input, { mutationRunner } = {}) {
           fail(`mutation score ${mutation_score} is below the gate ${gate}. Mutants the tests did not detect:\n${[...shown, ...more].join('\n')}\nThe tests must detect them (a human decides whether to reopen the tests) or a human records mutation_override_reason.`);
         }
       }
+      const debt_created = [...(input.debt_created ?? [])];
+      if (withoutTests && policy === 'optional') debt_created.push(proposeTestDebt(root, model, s, now.toISOString().slice(0, 10)));
       const audit = {
         commits: input.commits,
         production_lines,
@@ -300,7 +349,7 @@ export function finish(root, id, input, { mutationRunner } = {}) {
         tests_added: input.tests_added,
         mutation_score,
         decisions: input.decisions ?? [],
-        debt_created: input.debt_created ?? [],
+        debt_created,
         deviations: input.deviations ?? [],
         ...(input.budget_override_reason ? { budget_override_reason: input.budget_override_reason } : {}),
         ...(input.mutation_override_reason ? { mutation_override_reason: input.mutation_override_reason } : {}),

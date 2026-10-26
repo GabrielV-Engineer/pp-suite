@@ -22,6 +22,9 @@ $ARGUMENTS
 - If `ppc finish` refuses because the slice exceeded the production-code budget (`B01`), do **not** write
   `budget_override_reason` yourself and never pass `--budget-reason` (the guard blocks it). An exception to the budget is the human's decision. Stop and report
   the measured size, what it is made of, and the options (record an exception, or split the slice).
+- Tests are measured from git, not reported. If the slice changed no test files, `ppc finish` refuses it when the test policy
+  is `required`, and otherwise proposes a debt entry of kind `test` itself: do not write that entry yourself, and do not
+  claim tests that are not in the commits. A person decides on the proposal with `ppc approve-debt`.
 - Say what you verified and what you did not. Run the project's tests and type check before finishing; if
   a command is refused, write that in the deviations instead of implying it passed.
 

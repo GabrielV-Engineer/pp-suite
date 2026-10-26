@@ -67,6 +67,8 @@ Status flow: `planned` → `ready` → `in_progress` → `done` (or `dropped`).
   debt created, deviations). A spike instead records its `outcome`.
 - A slice may carry `spec: { file, story }`, the Markdown file and the heading of the user story it delivers
   (`T15` checks that both exist). It is optional: it is the contract's link from a slice to its story.
+- A slice may carry `test_policy` (`required`, `optional` or `none`), which overrides the blueprint's. See
+  "Test policy" below.
 - Only one slice may be in progress at a time, and `.sddpp/active.json` must match it.
 - Transitions are made with `ppc approve-slice`, `start`, `approve-red`, `refactor` and `finish` (see
   [how-it-works](how-it-works.md)); each one changes the project or, if the result would be invalid, nothing.
@@ -110,6 +112,7 @@ Errors fail validation; warnings fail only with `--strict`. `ppc rules` prints t
 | `T13` | error | A slice audit references unknown decisions or debt, or debt with the wrong origin. |
 | `T14` | error | A slice was planned against a blueprint revision that does not exist yet. |
 | `T15` | error | A slice points at a spec file or a user story that does not exist. |
+| `T16` | error | A closed work slice changed no test files although its test policy is required. |
 | `L01` | error | A slice has a phase while it is not in progress. |
 | `L02` | error | The audit commits are not ordered red before green. |
 | `L03` | error | `active.json` is missing or does not match the slice in progress. |
@@ -130,6 +133,7 @@ Errors fail validation; warnings fail only with `--strict`. `ppc rules` prints t
 | `W03` | warning | An unfinished slice was planned against an older blueprint revision. |
 | `W04` | warning | A slice has many acceptance criteria and probably needs splitting. |
 | `W05` | warning | A quality attribute is not referenced by any live slice, so nothing plans to deliver or verify it. |
+| `W06` | warning | A closed work slice changed no test files and no test debt entry is recorded about it, under an optional test policy. |
 | `X01` | warning / error | An addition is still undecided (a warning while the design is drafted, an error once slices exist). |
 | `X02` | error | A cut addition was applied but something that only it justified is still in the design. |
 | `X03` | error | A cut addition was applied but the non-goal it becomes is not among the non-goals. |
@@ -154,6 +158,21 @@ of the repository the project lives in, for every slice that has an audit:
   checked. **Only `production_lines` counts against the budget** (`max_slice_production_lines` in the
   blueprint): a slice may carry large tests, but then `test_lines` tells the reviewer how much there is to read;
 - the first `red` commit is an ancestor of the first `green` commit (`C05`).
+
+### Test policy
+
+The blueprint may set `test_policy`, and a slice may override it. Default: `optional`, as in Spec Kit.
+
+| Policy | A work slice closed with no test files |
+|---|---|
+| `required` | `ppc finish` refuses it, and `T16` is an error if the audit says so anyway. |
+| `optional` | It closes, and `ppc finish` **proposes a debt entry of kind `test`** in the register of the slice's first component, for a person to decide with `ppc approve-debt`. `W06` warns if the audit shows no tests and no such entry exists, whatever its status. |
+| `none` | It closes and nothing is proposed. |
+
+"No tests" is measured from git (`test_lines` in the audit), never taken from the agent's own count. The policy
+applies to skeleton, feature and fix slices; a refactor changes no behavior and a spike leaves no code. `ppc overview`
+shows how many closed slices changed tests. The strict cycle (red tests first, approval, lock) always produces tests, so
+the policy decides what happens in the light mode, where that cycle is not used.
 
 ### Mutation gate (optional)
 
