@@ -60,9 +60,16 @@ Decided with the owner:
   the blueprint's non-goals, the component boundaries) and, only when the work touches an interface or an
   architectural choice, a **design prompt**.
 - **Offered, not imposed.** Saved as files the person can use as they are, edit, or ignore.
-- Generated from the contract by a script, so it is the same every time. Not built.
+- Generated from the contract by a script, so it is the same every time.
 
-## Tests (decided 2026-10-26; not built)
+**Built (2026-10-26):** `ppc prompt [<slice>] [--task red|green|refactor|audit|explore] [--stdout] [--force]`, in
+`tools/ppc/src/prompts.mjs`. It writes `.sddpp/prompts/<slice>/<task>.{system,negative,design}.md`. The design file is written
+only when the slice has a frontend component, is the skeleton, or is bound by a decision (an ADR driven by its capability or
+quality attributes). It never overwrites a file without `--force`, since a person may have edited it. On the demo project the
+three parts for one task come to about 3,100 characters. What is not shown: that an agent given these prompts behaves better
+than one given the generic phase command. That would need a measurement.
+
+## Tests (decided 2026-10-26; built the same day, points 1 to 4)
 
 The owner works with tests and wants the experiment to use them. The method's default leaves them optional, as Spec
 Kit does, but optional must not mean invisible:
@@ -72,7 +79,8 @@ Kit does, but optional must not mean invisible:
 2. The audit **always records** whether the slice added tests, and its mutation score, without blocking (in light mode).
 3. Closing a slice **with no tests** proposes a technical debt entry of kind `test`, for a person to accept or not.
 4. `ppc overview` shows how many closed slices have no verification.
-5. The strict cycle (tests first, human approval, test lock, mutation gate) stays as an option per slice.
+5. The strict cycle (tests first, human approval, test lock, mutation gate) stays as an option per slice. (Today the
+   cycle is always strict; the light mode that would skip it is not built, so the policy is enforced at closing time.)
 6. In the experiment both arms build with tests, requested explicitly.
 
 Evidence behind the default: in the 33 runs where nobody asked for tests (only "run the project's tests"), the

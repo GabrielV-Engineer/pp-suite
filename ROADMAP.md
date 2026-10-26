@@ -40,7 +40,7 @@ Architect.PP on hold until the second experiment ([evaluation plan](docs/evaluat
 ## Architect.PP (started 2026-10-26)
 
 Scope and ownership decided: [architect-pp-scope](docs/architect-pp-scope.md). Architect.PP guides the design and checks it; SDD.PP
-owns the plan. Done: the design linter rules `D01` to `D04` (tests, each broken on purpose); `ppc validate --design`; the hand-off command, tried twice on one real blueprint ([fixtures](architect-pp/fixtures/README.md)). Done too: the scope review (the person keeps or cuts each addition the tool made): `additions.yaml`, rules `X01` to `X05`, `ppc decide-addition`, the guard, the cut-applying prompt; tried once on the real fixture ([scope review](docs/scope-review.md)). Not built: the per-task prompts, the tests policy, the install command, grouping overlapping additions.
+owns the plan. Done: the design linter rules `D01` to `D04` (tests, each broken on purpose); `ppc validate --design`; the hand-off command, tried twice on one real blueprint ([fixtures](architect-pp/fixtures/README.md)). Done too: the scope review (the person keeps or cuts each addition the tool made): `additions.yaml`, rules `X01` to `X05`, `ppc decide-addition`, the guard, the cut-applying prompt; tried once on the real fixture ([scope review](docs/scope-review.md)). Done too (2026-10-26): the tests policy (`test_policy` in the blueprint and per slice; rules `T16`, `W06`; a test debt is proposed when a slice closes without tests; `ppc overview` shows the verification line) and the per-task prompts (`ppc prompt`); both tested, neither measured against a control. Not built: the light mode itself, the install command, grouping overlapping additions.
 
 ## Next
 

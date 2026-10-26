@@ -39,6 +39,7 @@ Each command either changes the project or refuses and leaves it untouched.
 | `ppc validate --design` | anyone | Judges only the design (`.architect/`) with the rules that concern it, before any slice or debt register exists. Used to check the hand-off |
 | `ppc status` | anyone | What is in progress |
 | `ppc next` | anyone | Whose turn it is (human, agent or anyone) and the exact command to run, from the slice's phase and the git history. Also lists what else waits for a person and which slices are blocked |
+| `ppc prompt [<slice>] [--task <t>]` | anyone | Writes the system, negative and (when it applies) design prompt for one task under `.sddpp/prompts/`. Offered files: edit or ignore them; it will not overwrite without `--force` |
 | `ppc overview` | anyone | One screen: slices by status, progress per capability, debt per component, contract problems |
 
 Approvals are human-only. The guard blocks the agent from running `ppc approve-*` and from writing any

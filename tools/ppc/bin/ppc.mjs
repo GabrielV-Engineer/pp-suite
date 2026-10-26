@@ -7,6 +7,7 @@ import { generate, writeGenerated, checkGenerated } from '../src/generate.mjs';
 import { checkGit } from '../src/gitcheck.mjs';
 import { nextSteps, overview, renderNext } from '../src/next.mjs';
 import { execFileSync } from 'node:child_process';
+import { buildPrompts, resolveTarget, writePrompts } from '../src/prompts.mjs';
 import { start, approveSlice, approveRed, approveDebt, decideAddition, toRefactor, finish, mutate, status, LifecycleError } from '../src/lifecycle.mjs';
 
 const USAGE = `ppc — pp-suite contract tool
@@ -34,12 +35,15 @@ const USAGE = `ppc — pp-suite contract tool
                                          The reason flags record an exception: HUMAN ONLY
     ppc mutation (--files a,b | --slice <id>) [dir]
                                          run mutation testing and print the score and the surviving mutants
+    ppc prompt [<slice>] [--task red|green|refactor|audit|explore] [--stdout] [--force] [dir]
+                                         write the system, negative and (when it applies) design prompt for one task
+                                         under .sddpp/prompts/; without a slice or task, the one in progress
     ppc status [dir]                     what is in progress
     ppc next [dir]                       whose turn it is and the exact command to run
     ppc overview [dir]                   where the project stands: slices, capabilities, debt, contract
 `;
 
-const VALUE_OPTIONS = new Set(['--by', '--audit', '--files', '--slice', '--accept', '--budget-reason', '--mutation-reason', '--reason']);
+const VALUE_OPTIONS = new Set(['--by', '--audit', '--files', '--slice', '--accept', '--budget-reason', '--mutation-reason', '--reason', '--task']);
 const [command, ...rest] = process.argv.slice(2);
 const positionals = [];
 const flags = new Set();
@@ -170,6 +174,20 @@ switch (command) {
     process.stdout.write(renderNext(nextSteps(model, subjects, findings.filter((f) => f.severity === 'error'))));
     break;
   }
+  case 'prompt':
+    transition(() => {
+      const [first] = positionals;
+      const named = /^SL-\d{3,}$/.test(first ?? '') ? first : undefined;
+      const root = resolve(positionals[named ? 1 : 0] ?? '.');
+      const { slice, task } = resolveTarget(loadProject(root), named, options.get('task'));
+      if (flags.has('--stdout')) {
+        const parts = buildPrompts(loadProject(root), slice, task);
+        return { text: Object.values(parts).filter(Boolean).join('\n---\n\n').trimEnd() };
+      }
+      const { files } = writePrompts(root, slice, task, { force: flags.has('--force') });
+      return { text: `${slice} ${task}: wrote\n${files.map((f) => `  ${f}`).join('\n')}\nThey are yours to edit or ignore.` };
+    });
+    break;
   case 'status':
     console.log(status(dirAt(0)).text);
     break;
