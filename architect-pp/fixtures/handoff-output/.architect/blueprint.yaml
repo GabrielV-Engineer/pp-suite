@@ -1,0 +1,94 @@
+contract_version: "0.1"
+revision: 1
+
+project:
+  id: personal-task-tracker
+  name: Personal Task Tracker
+  level: lite
+  summary: A tiny task list for one person that runs only on the owner's own computer and stores everything in one SQLite file.
+
+non_goals:
+  - Accounts, login and sessions
+  - Hosting, deploy pipeline, domain and CI
+  - Offline mode, sync and multi-device use
+  - Reminders, notifications and due dates
+  - Projects, tags, priorities, search and drag-to-reorder
+  - Editing a task's title
+  - A trash or restore screen
+  - Auto-start at login
+
+constraints:
+  - id: CON-001
+    statement: Runs only on the owner's own computer (Linux or macOS) for exactly one user, started with one command; there is no hosting, deploy pipeline, CI or running cost.
+  - id: CON-002
+    statement: There is no authentication; the only access boundary is that the server listens on 127.0.0.1, and anyone able to open that address on the same computer can use the app (accepted residual risk).
+  - id: CON-003
+    statement: All task data lives in one SQLite file on the owner's machine (data/tasks.db); nothing is sent to third parties and no telemetry leaves the machine.
+  - id: CON-004
+    statement: Light and dark appearance follow the operating system automatically; there is no manual theme toggle.
+
+quality_attributes:
+  - id: QA-001
+    attribute: security
+    scenario: While the app is running, no other machine on the network can reach it, because the server listens only on the loopback address 127.0.0.1.
+    metric: listeners on the app's port bound to a wildcard or non-loopback address, checked by a start-up check of the listening sockets
+    target: "0"
+  - id: QA-002
+    attribute: usability
+    scenario: Every text and background color pair is readable in both light and dark appearance.
+    metric: color pairs below 4.5:1 for text or below 3:1 for UI boundaries and the focus ring, reported by the contrast unit test
+    target: "0"
+  - id: QA-003
+    attribute: usability
+    scenario: The owner can use the page at a width of 320 px and with the keyboard alone, and every interactive element is large enough to hit.
+    metric: failing checks in the keyboard, target-size (at least 24 by 24 CSS px) and reflow (no horizontal scroll at 320 px) end-to-end tests
+    target: "0"
+  - id: QA-004
+    attribute: reliability
+    scenario: After the database file is closed and opened again, or the page is reloaded, every task that was added is still listed.
+    metric: tasks missing after reopening the database file or reloading the page
+    target: "0"
+
+capabilities:
+  - id: CAP-001
+    name: Add a task
+    description: The owner can add a task by typing a title of 1 to 200 characters after trimming; an empty or too long title is refused with a message and the typed text is kept.
+    priority: must
+  - id: CAP-002
+    name: See the task list
+    description: The owner sees all tasks that are not deleted in one list, open tasks first with the newest on top and done tasks below; an empty list shows a message that there are no tasks yet.
+    priority: must
+  - id: CAP-003
+    name: Mark a task done and undo it
+    description: The owner can mark a task done and later mark it not done again, any number of times.
+    priority: must
+  - id: CAP-004
+    name: Delete a task
+    description: The owner can delete a task; it disappears from the list while its row stays in the database file.
+    priority: should
+
+components:
+  - id: frontend
+    code: FE
+    name: Interface
+    kind: frontend
+    responsibility: Renders the page, the add form, the task list with its empty, loading and error states, and the light and dark styling; it reads and changes tasks only through the backend.
+    may_depend_on: [backend]
+    justified_by: [CAP-001, CAP-002, CAP-003, CAP-004, QA-002, QA-003, CON-004]
+  - id: backend
+    code: BE
+    name: Task logic
+    kind: backend
+    responsibility: Validates input, applies the task rules (ordering, done and reopen, soft delete) and exposes them to the interface as server actions and query functions; it is also the process that listens on 127.0.0.1 only.
+    may_depend_on: [database]
+    justified_by: [CAP-001, CAP-002, CAP-003, CAP-004, QA-001, CON-001, CON-002]
+  - id: database
+    code: DB
+    name: Data store
+    kind: database
+    responsibility: Defines the task table, opens the only database connection, applies the migrations and keeps the tasks durably in one SQLite file on the owner's machine.
+    may_depend_on: []
+    justified_by: [CAP-004, QA-004, CON-003]
+
+budgets:
+  max_slice_production_lines: 200

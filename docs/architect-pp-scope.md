@@ -35,7 +35,12 @@ The Architect (upstream, MIT), not a rebuild. Three jobs:
    decisions and evidence.
 3. **Hand the design to the contract.** Turn The Architect's output into the files of `.architect/`, validated by
    the same rules. This is a format conversion done by a model and checked by the validator; it keeps the design and
-   drops the step plan and the literal code. Not built: today it is done by hand.
+   drops the step plan and the literal code. **Built and tried:** `architect-pp/commands/handoff.md`. On a real
+   1,975-line blueprint from The Architect (idea: a task list) it produced a contract that passes
+   `ppc validate --design --strict` with no findings: 11 files, 5 decisions, 2 evidence files, and a list of five
+   additions it kept but flagged. A first version of the prompt produced 26 files with 11 decisions and 11 evidence
+   files and missed one addition; the second, tighter version fixed both. Two runs on one blueprint show it can work,
+   not that it is reliable.
 
 ## The loop that keeps the plan alive
 

@@ -40,8 +40,7 @@ Architect.PP on hold until the second experiment ([evaluation plan](docs/evaluat
 ## Architect.PP (started 2026-10-26)
 
 Scope and ownership decided: [architect-pp-scope](docs/architect-pp-scope.md). Architect.PP guides the design and checks it; SDD.PP
-owns the plan. Done: the design linter rules `D01` to `D04` (tests, each broken on purpose). Not built: the scope-diet
-step, the hand-off from The Architect's output to `.architect/`, the per-task prompts.
+owns the plan. Done: the design linter rules `D01` to `D04` (tests, each broken on purpose); `ppc validate --design`; the hand-off command, tried twice on one real blueprint ([fixtures](architect-pp/fixtures/README.md)). Not built: the scope-diet step (the person accepts or cuts each flagged addition), the per-task prompts.
 
 ## Next
 
