@@ -1,5 +1,7 @@
 # SDD.PP
 
+*Pragmatic and oPtimized **S**pec-**D**riven **D**evelopment: the build side of [pp-suite](../README.md).*
+
 The build side of pp-suite: spec-driven development in thin vertical slices, test-first, with a human
 approving at the key points. It is a set of **Spec Kit** add-ons, not a fork.
 

@@ -1,5 +1,7 @@
 # Architect.PP
 
+*The **P**ragmatic and o**P**timized **Architect**: the design side of [pp-suite](../README.md).*
+
 **Status: built as a Spec Kit extension (`architect-pp`), tried on one real blueprint three times.** Installed by
 `ppc init`, which turns its two commands into Claude Code skills.
 
