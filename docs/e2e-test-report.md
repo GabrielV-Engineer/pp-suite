@@ -127,15 +127,17 @@ one that leaves a short, specific record to read.
 **For the code itself, not yet.** The existing ones (type check, tests, mutation) were at the ceiling in every arm, so a fourth one
 (lint, complexity, duplication) would not have changed any verdict on this feature, and the sample is too small to say where it would.
 
-**For design integrity, yes, two cheap ones**, because that is where the arms really differed and nothing deterministic saw it. The fixed
+**For design integrity, yes, two cheap ones (added after this test as rules `C08` and `C09`)**, because that is where the arms really differed and nothing deterministic saw it. The fixed
 out-of-scope markers gave K a clean 0 while it rewrote the design and a migration.
 
-1. **A build must not edit `.architect/`.** A git check, like the existing `C` rules: any commit of a slice that changes a file under
-   `.architect/` is an error unless it comes from a change request. This alone would have flagged K.
-2. **A slice should touch only its components' files.** Needs an optional `paths` list on each component in the blueprint (for example
-   `migrations/**` for `database`); a commit that changes files outside the paths of the slice's components (tests and docs allowed) is
-   an error or a warning. This would have flagged K's migration, and would let `ppc` say "this slice says it does not touch the
-   database layer" with a check instead of a promise.
+1. **A build must not edit `.architect/`** (`C08`). A git check, like the existing `C` rules: a commit the slice lists in its audit that
+   changes a file under `.architect/` is an error; a design change is made through a change request, whose own commit is not the slice's.
+   This alone would have flagged K. (A commit the audit does not list is not examined, the same limit `C02` has.)
+2. **A slice should touch only its components' files** (`C09`). An optional `paths` list on each component in the blueprint (for example
+   `migrations/**` for `database`); a commit that changes files owned by a component the slice does not list is an error. Tests,
+   documentation and files no component claims are free, and a blueprint without `paths` is not checked. This would have flagged K's
+   migration, and lets `ppc` check "this slice does not touch the database layer" instead of taking it on trust. Replayed on a copy of the
+   P arm with a design edit and a migration added, both rules fire; on the real P slice neither does.
 
 Not proposed: more metrics on the quality of tests (K had six times the tests of V at the same mutation score, so volume says nothing), a
 coverage figure (the first experiment already showed it does not measure verification), or a deterministic measure of "edge cases handled",

@@ -7,14 +7,70 @@ It is for any engineer who wants to work in an organized, organic and controlled
 (spec-driven and test-driven development) and avoiding the waterfall model: a design that is decided once and never
 revisited, and built all at once.
 
-> **Status: pre-alpha, and not yet shown to help.** Everything below exists and is tested, but each piece was tried
-> only once or twice, on small examples, with a stand-in for the human reviewer. See [Status and honesty](#status-and-honesty).
+> **Status: pre-alpha.** Everything below exists and is tested, and a first small comparison against vibecoding and Spec Kit
+> alone is in [How it compares](#how-it-compares). Each piece was tried only once or twice, on small examples, with a stand-in
+> for the human reviewer. See [Status and honesty](#status-and-honesty).
 
 ## The problem
 
 AI agents write code fast. The problems that follow are known: over-engineered designs, a stack picked without criteria,
 1,000-line commits, tests rewritten until they pass, features nobody asked for, and no overview of the code after a few
 weeks. pp-suite attacks those with rules a tool can check, not only with advice to the model.
+
+## How it compares
+
+We made the same small change (reject empty and over-long task titles) in the demo project three ways, starting from the same code
+and the same one-paragraph request: **vibecoding** (just ask the AI, no method), **Spec Kit alone** (its standard flow), and **pp-suite**.
+Every result was checked from the outside with the same tests, plus eight extra edge-case checks nobody had seen.
+
+| | Vibecoding | Spec Kit alone | pp-suite |
+|---|---|---|---|
+| Does the code work and pass its checks? | yes | yes | yes |
+| Time a person needs to review one feature (estimate) | 20 to 30 min | 2 to 3 hours | 40 to 60 min |
+| How much code changed | small | about 3 times more | the smallest |
+| Did it change the design or the database on its own? | no | **yes** | no, and a check now catches it |
+| Are the decisions written down? | no | yes, in nine long documents | yes, short, next to the work |
+| Edge cases handled (8 checks) | 8 | 8 | 7: one left out on purpose and said so |
+
+In plain words:
+
+- **On a change this small, all three write code that works.** The AI is already good at small things, so no method made the
+  code better here. Nobody should expect it to.
+- **Vibecoding is the quickest to review and leaves no trail.** Nothing says why anything was done, which is where it starts to hurt.
+- **Spec Kit alone leaves the biggest pile to read.** It also rewrote the design document and removed a rule from the database
+  without anyone deciding it.
+- **pp-suite keeps what each does well and drops the rest.** From vibecoding, one quick build session. From Spec Kit, written
+  decisions, but short and attached to the feature instead of nine documents. On top, it will not let a build quietly rewrite the
+  design or reach into another part of the system. That is what *pragmatic and optimized* means here: the smallest process that
+  keeps the work under control, not the biggest.
+
+Times are estimates from the size of what each way produced, not measurements of a person. Details: [the full test](docs/e2e-test-report.md).
+
+## What two weeks would look like (an estimate)
+
+One small test cannot show how a method behaves over weeks, so this is arithmetic on the numbers above, plus the problems each approach is
+already known for. It is not a measurement. Say 20 features in two weeks.
+
+| For about 20 features | Vibecoding | Spec Kit alone | pp-suite |
+|---|---|---|---|
+| A person's time to review and decide | 6 to 9 hours | 36 to 64 hours | 13 to 19 hours |
+| Written records to keep in step with the code | none | about 150,000 words | about 16,000 words |
+| Quiet changes to the design or the database | none seen | seen in the one feature we tried | none seen, and checked automatically |
+
+What usually goes wrong, and where each way would be expected to end up:
+
+- **Vibecoding:** after a week nobody remembers why things are the way they are; tests get weakened without anyone noticing
+  ([Kent Beck reports agents deleting them](https://www.kentbeck.com/summaries/augmented-coding-beyond-the-vibes/)); and an open request
+  grows (our second experiment saw 4.6 times the code). Time to review stays low and the risk piles up unseen.
+- **Spec Kit alone:** the documents drift away from the code, and they are heavy even for small changes
+  ([one team got 1,300 lines of spec to show the current date](https://marmelab.com/blog/2025/11/12/spec-driven-development-waterfall-strikes-back.html)).
+  Reviews also get too big to be effective: past a few hundred lines
+  [reviewers stop finding problems](https://smartbear.com/learn/code-review/best-practices-for-peer-code-review/).
+- **pp-suite:** each feature is small and stands alone, so the cost of one does not grow as the project grows; the design is protected
+  from drifting; the record is short enough to be kept. The price is that a person decides something on every feature (about
+  50 minutes), and a narrow feature can leave a small gap that someone has to schedule.
+
+Whether that pays back over many weeks is the open question. The way to find out is to use it on a long, real project.
 
 ## The names, spelled out
 
@@ -116,21 +172,23 @@ protected by a hook, sizes measured from git, and a contract with a validator.
 **Built and tested** (hundreds of unit tests; each rule is broken on purpose to check a test fails): the contract and its
 validator; the slice cycle (light and strict) and its guard; the test policy; technical debt in one register; mutation
 testing as an optional gate; the hand-off from The Architect; the scope review; change requests; the project rules in
-`CLAUDE.md`; the per-slice prompts; the install command with pinned versions; and the three optional model reviews.
+`CLAUDE.md`; the per-slice prompts; the install command with pinned versions; the three optional model reviews; and two checks
+that a build does not edit the design or change the files of a part of the system it did not say it would touch.
 
 **Tried with real agents, once or twice each:** the hand-off (three runs on one real design), cutting additions, applying a
 design change, planning slices from a design, and the three reviews.
 
-**Does it help? Not shown.**
+**What is shown so far, and how far**
 - A 45-run experiment found that on thin slices the strict cycle did not produce better tested or more focused code than a
   plain prompt, and cost 2.5 times as much: [experiment report](docs/experiment-report.md).
 - A second one found that a written, narrow slice does keep an agent from building what an ambitious request invites
   (4.6 times the code, soft delete, paging, search): [report 2](docs/experiment-report-2.md).
-- Nothing built since then has been measured against an alternative. A first check that a project's rules in `CLAUDE.md`
-  orient an agent: [orientation-check](docs/orientation-check.md).
+- A small three-way test on the demo project (above): the same quality of working code, a smaller change, the design left alone and
+  a short written record, with an estimated review time between the other two:
+  [the full test](docs/e2e-test-report.md). A first check that a project's rules in `CLAUDE.md` orient an agent:
+  [orientation-check](docs/orientation-check.md).
 
-**Not yet done:** the experiment that compares whole methods; any trial with a real novice or a long project; macOS and
-Windows. Decisions in the tests and fixtures were made under a test name, not by a person. See the [roadmap](ROADMAP.md).
+**Not yet done:** a long real project (the two-week picture above is an estimate); any trial with a real novice; macOS and Windows. Decisions in the tests and fixtures were made under a test name, not by a person. See the [roadmap](ROADMAP.md).
 
 ## Try it
 
