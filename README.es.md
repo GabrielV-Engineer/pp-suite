@@ -104,6 +104,17 @@ como estimación a partir de estas cifras: unas **6 a 9 horas** de revisión con
 con pp-suite, con unas 16.000 palabras de registros que mantener al día en lugar de 150.000. La prueba completa está en
 [docs/e2e-test-report.md](docs/e2e-test-report.md) (en inglés).
 
+## Sobre qué está construido, y por qué
+
+No copiamos nada de su código, y cada pieza se puede actualizar por separado.
+
+| Construido sobre | Para qué lo usamos | Por qué |
+|---|---|---|
+| **[Claude Code](https://code.claude.com)** | Donde corre todo: sus skills llevan cada paso y sus hooks hacen cumplir las reglas | Un hook se ejecuta siempre; una petición en un prompt se puede olvidar. Es la única forma de *mantener* a la IA dentro de las reglas, así que construimos solo para Claude Code |
+| **[Spec Kit](https://github.com/github/spec-kit)** (GitHub) | El instalador: pone nuestras skills y hooks en un proyecto | Es muy usado y ya hace ese trabajo, así que le añadimos cosas en vez de reconstruirlo. Fijamos una versión probada |
+| **[The Architect](https://github.com/Hainrixz/the-architect)** | La entrevista de diseño | Ya hace las preguntas correctas y comprueba versiones en vivo. Convertimos su resultado en un diseño comprobado y descartamos su plan de construcción paso a paso, que está ordenado por capas |
+| **Node y git** (`ppc`) | Las comprobaciones, los tamaños, de quién es el turno | Las reglas deben responder igual siempre, así que son código normal y no el criterio de la IA; git es el registro de lo que realmente pasó |
+
 ## De dónde vienen las ideas
 
 - **[The Architect](https://github.com/Hainrixz/the-architect)**: la entrevista que convierte una idea vaga en un diseño.

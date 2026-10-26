@@ -99,6 +99,17 @@ what moved without you knowing, and whether anything was written down. Over two 
 from these numbers: roughly **6 to 9 hours** of review with vibecoding, **36 to 64** with Spec Kit alone and **13 to 19** with pp-suite,
 with about 16,000 words of records to keep in step instead of 150,000. [The full test](docs/e2e-test-report.md).
 
+## What it is built on, and why
+
+We copy none of their code, and each can be upgraded on its own.
+
+| Built on | What we use it for | Why |
+|---|---|---|
+| **[Claude Code](https://code.claude.com)** | Where everything runs: its skills carry each step and its hooks enforce the rules | A hook runs every time; a request in a prompt can be forgotten. It is the only way to *keep* the AI inside the rules, so we build for Claude Code alone |
+| **[Spec Kit](https://github.com/github/spec-kit)** (GitHub) | The installer: it puts our skills and hooks into a project | It is widely used and already does this job, so we add to it instead of rebuilding it. We pin one tested version |
+| **[The Architect](https://github.com/Hainrixz/the-architect)** | The design interview | It already asks the right questions and checks versions live. We turn its output into a checked design and drop its step-by-step build plan, which is ordered by layers |
+| **Plain Node and git** (`ppc`) | The checks, the sizes, whose turn it is | Rules must answer the same way every time, so they are ordinary code and not the AI's judgment; git is the record of what really happened |
+
 ## Where the ideas come from
 
 - **[The Architect](https://github.com/Hainrixz/the-architect)**: the interview that turns a vague idea into a design.
