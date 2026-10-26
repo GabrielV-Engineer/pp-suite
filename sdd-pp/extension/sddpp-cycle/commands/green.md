@@ -33,3 +33,4 @@ $ARGUMENTS
 5. Optional cleanup: run `ppc refactor`, improve the structure without changing behavior, run the tests
    again, and commit with `refactor(<id>): <what changed>`. Tests stay locked.
 6. Tell the human the slice is ready for the audit (`/speckit-sddpp-cycle-audit`).
+7. Ask the person whether they want the prompts for the next task prepared (`/speckit-sddpp-cycle-prompts`; the next task is the one `ppc next` names). Do it only if they say yes.

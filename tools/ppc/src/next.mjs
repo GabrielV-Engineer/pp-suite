@@ -11,6 +11,7 @@ const GREEN = '/speckit-sddpp-cycle-green';
 const BUILD = '/speckit-sddpp-cycle-build';
 const REFACTOR = '/speckit-sddpp-cycle-refactor';
 const AUDIT = '/speckit-sddpp-cycle-audit';
+const SLICES = '/speckit-sddpp-cycle-slices';
 
 const unfinished = (s, byId) => (s.depends_on ?? []).filter((d) => byId.get(d)?.status !== 'done');
 const committed = (subjects, kind, id) => subjects.some((line) => line.startsWith(`${kind}(${id})`));
@@ -82,10 +83,24 @@ export function nextSteps(model, subjects, errors = []) {
   const staleNote = stale.length ? [{ who: 'anyone', what: `Slices planned against an older design (now revision ${revision}): ${stale.map((s) => `${s.id} (revision ${s.blueprint_revision})`).join(', ')}. Read what changed, then update their blueprint_revision` }] : [];
   const result = (headline, actions, paused) => ({ headline, actions, waiting, blocked, changes: [...pending.filter((c) => c !== paused).map(changeAction), ...staleNote] });
 
-  if (errors.length) {
-    return result(`The contract has ${errors.length} error(s); fix them first, because every other step assumes a valid project.`, [
+  // Before any slice exists the rule "every capability has a slice" fires for all of them: that is not a fault, it is
+  // the next step. Everything else is still an error.
+  const unplanned = slices.length === 0;
+  const blocking = unplanned ? errors.filter((e) => e.rule !== 'T06') : errors;
+  if (blocking.length) {
+    return result(`The contract has ${blocking.length} error(s); fix them first, because every other step assumes a valid project.`, [
       { who: 'anyone', what: 'See the errors', command: 'ppc validate' },
     ]);
+  }
+
+  if (unplanned) {
+    const undecided = (model.additions?.data.additions ?? []).filter((a) => a.decision === 'pending');
+    if (undecided.length) {
+      return result('The design has additions nobody decided; decide them before planning slices, or the plan would be built on things you may cut.', [
+        { who: 'human', what: `Decide on ${undecided.map((a) => a.id).join(', ')}: keep or cut each (overlapping ones together)`, command: 'ppc decide-addition <ADD-ID>... (--keep --reason <why> | --cut) --by <your name>' },
+      ]);
+    }
+    return result('The design is ready and no slices are planned yet.', [{ who: 'agent', what: 'Plan the thin vertical slices from the design; the person approves the list before it is written', command: SLICES }]);
   }
 
   const open = live.find((s) => s.status === 'in_progress');

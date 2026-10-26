@@ -34,3 +34,4 @@ $ARGUMENTS
 6. **Stop.** Tell the human: the tests are committed; they should read them and approve by running
    `ppc approve-red --by <their name>` themselves (in Claude Code, prefix it with `!`). Do not run it
    yourself; the guard blocks it on purpose.
+7. Ask the person whether they want the prompts for the next task prepared (`/speckit-sddpp-cycle-prompts`; the next task is the one `ppc next` names). Do it only if they say yes.

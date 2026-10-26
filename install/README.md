@@ -11,12 +11,12 @@ node tools/ppc/bin/ppc.mjs init <project> --apply --shim  # also write ~/.local/
 
 What it checks: Node (minimum and tested version), git and that the project is a git repository, Python 3 (for the
 guard), Spec Kit at the pinned commit, Claude Code (informs only), the dependencies of ppc, `ppc` on the PATH, and, in the
-project, Spec Kit initialized, the three extensions (`architect-pp`, `sddpp-guard`, `sddpp-cycle`) and the preset at the version in this repository, the guard script
+project, Spec Kit initialized, the three extensions (`architect-pp`, `sddpp-guard`, `sddpp-cycle`) at the version in this repository, the guard script
 (without it the guard fails open) and the guard hook in `.claude/settings.json`.
 
 What `--apply` does, in order, skipping what is already done: `npm ci` for ppc; `specify init --here --force
 --non-interactive --integration claude`; `specify extension add <path> --dev` for `architect-pp`, `sddpp-guard` and `sddpp-cycle`;
-`specify preset add --dev <path>` for `sddpp-slices`; and, only with `--shim`, a two-line shell script that runs this
+the removal of the `speckit-specify` and `speckit-plan` skills, which this flow replaces (the design already exists and the slices come from it; the change shows in git); and, only with `--shim`, a two-line shell script that runs this
 checkout of ppc.
 
 What it does not do, on purpose:
@@ -26,7 +26,7 @@ What it does not do, on purpose:
 - **It does not overwrite another program called `ppc`**, and it refuses to run on a project with uncommitted changes, so
   everything it does shows up as a diff you can review and revert.
 - It does not clone The Architect. `versions.json` records the commit the design step was tried with.
-- It does not replace a different version of an extension or the preset: it reports the difference and stops. It compares the
+- It does not replace a different version of an extension: it reports the difference and stops. It compares the
   installed files with this repository's too, because a version number can stay the same while the files change (the demo project
   had `0.1.0` installed with older content). The fix it prints is to remove the piece and run `ppc init --apply` again.
 

@@ -231,7 +231,7 @@ test('prompts: a light slice has a build task instead of red and green', () => {
   const m = model();
   m.blueprint.data.default_mode = 'light';
   const { system, negative } = buildPrompts(m, 'SL-002', 'build');
-  assert.match(system, /build\(SL-002\)/);
+  assert.match(system, /speckit-sddpp-cycle-build/);
   assert.match(system, /Tests are expected/, 'it states the test policy');
   assert.match(negative, /Exceed 200 lines/);
   assert.throws(() => buildPrompts(m, 'SL-002', 'red'), /light slice.*no red/i);

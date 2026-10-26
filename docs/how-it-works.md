@@ -14,13 +14,14 @@ command names are provisional.
 
 | Step | You | The AI |
 |---|---|---|
-| **1. Design** (`/architect`) | Answer the interview, confirm the architecture | Proposes stack, data model, API, what is out of scope, risks |
-| **2. Hand-off** | Review `.architect/` | Extracts capabilities, components, decisions and rules; derives the project constitution |
-| **3. Slices** (per capability) | **Approve** the spec, the plan and the slice list | Writes them; splits the work into vertical slices that fit the production-code budget |
-| **4. Red** (per slice) | **Read and approve the tests.** This is the one thing to read carefully | A separate subagent writes failing tests only; one `red` commit |
-| **5. Green** | Nothing | The guard locks the tests; production code only, as little as it takes; one `green` commit |
-| **6. Close** | Review the audit pack; approve or reject proposed debt | Refactors in its own commit, runs mutation testing, records debt in the debt register |
-| **7. Design changes** | Decide | If a slice finds the design wrong, it opens a change request back to step 1 |
+| **1. Design** (The Architect) | Answer the interview, confirm the architecture | Proposes stack, data model, API, what is out of scope, risks |
+| **2. Hand-off** (`/speckit-architect-pp-handoff`) | Review `.architect/`; decide each addition the tool made (`ppc decide-addition`) | Converts the blueprint to the contract, drops its step plan, flags additions; `ppc constitution` then writes the project rules into `CLAUDE.md` |
+| **3. Slices** (`/speckit-sddpp-cycle-slices`) | **Approve the list** of slices before it is written, then approve each slice to start (`ppc approve-slice`) | Splits the design into thin vertical slices that fit the production-code budget, each with its "out of scope" |
+| **4. Build** (per slice, `/speckit-sddpp-cycle-build`) | Nothing (optionally, read the tests) | Tests and code together in one session, small commits. The strict cycle (red tests you approve, then locked green) is an option per slice |
+| **5. Close** (`/speckit-sddpp-cycle-audit`) | Review the audit; decide the proposed debt (`ppc approve-debt`) and when to pay it (`ppc schedule-debt`) | Records debt and deviations; `ppc finish` measures the size from git |
+| **6. Design changes** | Decide (`ppc decide-change`) | If a slice finds the design wrong, it opens a change request; Architect.PP revises the design |
+
+Before each task the agent offers to prepare its prompts (`/speckit-sddpp-cycle-prompts`): the limits of that slice, from the design.
 
 ## Two cycles: light and strict
 

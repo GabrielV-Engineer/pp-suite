@@ -39,7 +39,8 @@ An experiment between the two can say which bundle works better. It cannot say w
   for these exist (`tools/eval/neutral-acceptance/`), fixed from the criteria before any run.
 - **Arm S: Spec Kit as shipped.** `specify`, `plan`, `tasks`, `implement`, fed the same product brief. No preset, no
   `lean`, no extension.
-- **Arm P: SDD.PP.** Spec Kit with the `sddpp-slices` preset (vertical slices with budget and "out of scope"), `lean`,
+- **Arm P: SDD.PP.** The design documents, then `/speckit-sddpp-cycle-slices` (vertical slices with budget and "out of scope"; the
+  preset this plan was written for no longer exists, and `specify` and `plan` are not part of the flow),
   then each slice run in **light mode** (one session per slice, in the order `ppc next` gives), with the harness
   recording the approvals under a non-human name. The strict cycle is not used: the earlier experiment found it
   added cost and no measured quality.

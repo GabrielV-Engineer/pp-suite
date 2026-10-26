@@ -38,3 +38,4 @@ $ARGUMENTS
    closes the slice (setting `paid` earlier is refused, because the slice is not done yet).
 7. Tell the human what changed and what was **not** verified, then continue with the audit
    (`/speckit-sddpp-cycle-audit`).
+8. Ask the person whether they want the prompts for the next task prepared (`/speckit-sddpp-cycle-prompts`; the next task is the one `ppc next` names). Do it only if they say yes.

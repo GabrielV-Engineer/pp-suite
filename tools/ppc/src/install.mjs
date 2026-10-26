@@ -1,4 +1,4 @@
-import { chmodSync, existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parse as parseYaml } from 'yaml';
 
@@ -20,7 +20,10 @@ const EXTENSIONS = [
   { id: 'sddpp-guard', dir: 'sdd-pp/extension/sddpp-guard' },
   { id: 'sddpp-cycle', dir: 'sdd-pp/extension/sddpp-cycle' },
 ];
-const PRESET = 'sddpp-slices';
+// Skills of Spec Kit that this flow replaces (the design already exists, and the slices come from it). They are
+// removed from the project, not from Spec Kit; the change shows in git.
+const DROPPED_SKILLS = ['speckit-specify', 'speckit-plan'];
+const OLD_PRESET = 'sddpp-slices';
 const GUARD_SCRIPT = '.specify/extensions/sddpp-guard/scripts/python/guard.py';
 const HOOK_NAME = 'speckit.sddpp-guard.pre-tool';
 
@@ -109,7 +112,8 @@ export function plan(root, env, { shim = false, allowUntested = false } = {}) {
     return status === 'ok';
   };
   const extensionOk = Object.fromEntries(EXTENSIONS.map(({ id, dir }) => [id, piece('extension', id, manifestVersion(suite, `${dir}/extension.yml`, 'extension'), dir)]));
-  const presetOk = piece('preset', PRESET, manifestVersion(suite, `sdd-pp/preset/${PRESET}/preset.yml`, 'preset'), `sdd-pp/preset/${PRESET}`);
+  // The preset this repository used to ship is gone (the slices skill replaced it). If it is still installed, say so.
+  if (listed('preset').some((x) => x.id === OLD_PRESET)) add({ id: `preset-${OLD_PRESET}`, label: `preset ${OLD_PRESET} (no longer part of pp-suite)`, status: 'differs', found: 'still installed', fix: `specify preset remove ${OLD_PRESET}` });
   add({ id: 'guard-script', label: 'the guard script is present (without it the guard fails open)', status: existsSync(join(root, GUARD_SCRIPT)) ? 'ok' : 'missing' });
   let hook = false;
   try {
@@ -124,7 +128,7 @@ export function plan(root, env, { shim = false, allowUntested = false } = {}) {
     { id: 'npm-ci', title: 'Install the dependencies of ppc', command: ['npm', 'ci'], cwd: join(suite, 'tools/ppc'), done: depsOk },
     { id: 'specify-init', title: 'Initialize Spec Kit for Claude Code', command: [specify, 'init', '--here', '--force', '--non-interactive', '--integration', 'claude'], cwd: root, done: hasSpecify },
     ...EXTENSIONS.map(({ id, dir }) => ({ id: `extension-${id}`, title: `Install the ${id} extension`, command: [specify, 'extension', 'add', join(suite, dir), '--dev'], cwd: root, done: extensionOk[id] })),
-    { id: `preset-${PRESET}`, title: `Install the ${PRESET} preset`, command: [specify, 'preset', 'add', '--dev', join(suite, `sdd-pp/preset/${PRESET}`)], cwd: root, done: presetOk },
+    ...DROPPED_SKILLS.map((name) => ({ id: `drop-${name}`, title: `Remove the ${name} skill, which this flow replaces`, remove: join(root, '.claude/skills', name), done: hasSpecify && !existsSync(join(root, '.claude/skills', name)) })),
   ];
   if (shim) {
     const dir = pathDirs.find((d) => d === join(home, '.local/bin'));
@@ -150,7 +154,9 @@ export function apply(root, env, { run, shim = false, allowUntested = false } = 
   }
   const ran = [];
   for (const step of pending) {
-    if (step.target) {
+    if (step.remove) {
+      rmSync(step.remove, { recursive: true, force: true });
+    } else if (step.target) {
       mkdirSync(join(step.target, '..'), { recursive: true });
       writeFileSync(step.target, step.content);
       chmodSync(step.target, 0o755);
@@ -177,7 +183,7 @@ export function renderPlan(p, { applied = false } = {}) {
   const pending = p.steps.filter((s) => !s.done);
   out.push('', applied ? 'Steps still pending:' : 'Steps:');
   if (!pending.length) out.push('  none: the project is set up');
-  for (const s of pending) out.push(`  ${applied ? 'pending' : 'would run'}: ${s.target ? `write ${s.target}` : s.command.join(' ')}${s.cwd ? `   (in ${s.cwd})` : ''}`);
+  for (const s of pending) out.push(`  ${applied ? 'pending' : 'would run'}: ${s.remove ? `remove ${s.remove}` : s.target ? `write ${s.target}` : s.command.join(' ')}${s.cwd ? `   (in ${s.cwd})` : ''}`);
   if (!applied && pending.length && !p.blocked.length) out.push('', 'Nothing was changed. `ppc init --apply` runs the steps above (`--shim` also writes ~/.local/bin/ppc).');
   return `${out.join('\n')}\n`;
 }

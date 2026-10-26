@@ -41,7 +41,7 @@ function machine({ specify = `specify ${pins.speckit.version}`, claude = '2.1.31
   return { probe, calls, node };
 }
 const env = (m, extra = {}) => ({ suite: SUITE, probe: m.probe, nodeVersion: m.node, pathDirs: [], ...extra });
-const installed = { extensions: [{ id: 'architect-pp', version: '0.1.0' }, { id: 'sddpp-guard', version: '0.1.0' }, { id: 'sddpp-cycle', version: '0.1.0' }], presets: [{ id: 'sddpp-slices', version: '0.1.0' }] };
+const installed = { extensions: [{ id: 'architect-pp', version: '0.1.0' }, { id: 'sddpp-guard', version: '0.1.0' }, { id: 'sddpp-cycle', version: '0.1.0' }] };
 const check = (p, id) => p.checks.find((c) => c.id === id);
 const fails = (fn, pattern) => assert.throws(fn, (e) => e instanceof InstallError && pattern.test(e.message));
 
@@ -57,7 +57,7 @@ test('the pins name exact versions and full commits, not ranges', () => {
 // ── checking the machine ─────────────────────────────────────────
 test('plan: a machine with everything in place has every check ok and nothing left to run', (t) => {
   const p = plan(project(t, { specify: true }), env(machine(installed)));
-  for (const id of ['node', 'git', 'git-repo', 'python', 'specify', 'specify-project', 'extension-architect-pp', 'extension-sddpp-guard', 'extension-sddpp-cycle', 'preset-sddpp-slices']) assert.equal(check(p, id).status, 'ok', id);
+  for (const id of ['node', 'git', 'git-repo', 'python', 'specify', 'specify-project', 'extension-architect-pp', 'extension-sddpp-guard', 'extension-sddpp-cycle']) assert.equal(check(p, id).status, 'ok', id);
   assert.deepEqual(p.blocked, []);
   assert.deepEqual(p.steps.filter((s) => !s.done), []);
 });
@@ -101,10 +101,10 @@ test('plan: a directory that is not a git repository blocks, since ppc reads git
 });
 
 // ── the steps ────────────────────────────────────────────────────
-test('plan: a fresh project gets specify init, the two extensions and the preset, in that order, none done', (t) => {
+test('plan: a fresh project gets specify init, the three extensions and the removal of the two skills this flow replaces, in that order, none done', (t) => {
   const p = plan(project(t), env(machine()));
   const ids = p.steps.filter((s) => !s.done).map((s) => s.id);
-  assert.deepEqual(ids.filter((id) => id !== 'npm-ci'), ['specify-init', 'extension-architect-pp', 'extension-sddpp-guard', 'extension-sddpp-cycle', 'preset-sddpp-slices']);
+  assert.deepEqual(ids.filter((id) => id !== 'npm-ci'), ['specify-init', 'extension-architect-pp', 'extension-sddpp-guard', 'extension-sddpp-cycle', 'drop-speckit-specify', 'drop-speckit-plan']);
   const init = p.steps.find((s) => s.id === 'specify-init');
   assert.deepEqual(init.command.slice(0, 2), ['specify', 'init']);
   for (const flag of ['--here', '--force', '--non-interactive']) assert.ok(init.command.includes(flag), flag);
@@ -113,7 +113,7 @@ test('plan: a fresh project gets specify init, the two extensions and the preset
   assert.deepEqual(architect.command, ['specify', 'extension', 'add', join(SUITE, 'architect-pp/extension'), '--dev']);
   const guard = p.steps.find((s) => s.id === 'extension-sddpp-guard');
   assert.deepEqual(guard.command, ['specify', 'extension', 'add', join(SUITE, 'sdd-pp/extension/sddpp-guard'), '--dev']);
-  assert.deepEqual(p.steps.find((s) => s.id === 'preset-sddpp-slices').command, ['specify', 'preset', 'add', '--dev', join(SUITE, 'sdd-pp/preset/sddpp-slices')]);
+  assert.equal(p.steps.find((s) => s.id === 'drop-speckit-plan').remove, join(p.steps.find((x) => x.id === 'specify-init').cwd, '.claude/skills/speckit-plan'));
 });
 
 test('plan: what is already installed at the right version is marked done, and the rest still runs', (t) => {
@@ -166,13 +166,26 @@ test('plan: an installed extension with the right version but other content is r
   assert.match(status().found, /build\.md/, 'a file that is missing counts too');
 });
 
-test('plan: the same holds for the preset', (t) => {
+test('plan: the skills this flow replaces are removed after Spec Kit is initialized, and not again once gone', (t) => {
+  const fresh = plan(project(t), env(machine()));
+  assert.equal(fresh.steps.find((s) => s.id === 'drop-speckit-specify').done, false, 'pending until init has run');
   const dir = project(t, { specify: true });
-  const copy = join(dir, '.specify/presets/sddpp-slices');
-  cpSync(join(SUITE, 'sdd-pp/preset/sddpp-slices'), copy, { recursive: true });
-  assert.equal(check(plan(dir, env(machine(installed))), 'preset-sddpp-slices').status, 'ok');
-  writeFileSync(join(copy, 'templates/tasks-template.md'), 'older\n');
-  assert.equal(check(plan(dir, env(machine(installed))), 'preset-sddpp-slices').status, 'differs');
+  mkdirSync(join(dir, '.claude/skills/speckit-specify'), { recursive: true });
+  mkdirSync(join(dir, '.claude/skills/speckit-plan'), { recursive: true });
+  const p = plan(dir, env(machine(installed)));
+  assert.equal(p.steps.find((s) => s.id === 'drop-speckit-specify').done, false);
+  rmSync(join(dir, '.claude/skills/speckit-specify'), { recursive: true });
+  rmSync(join(dir, '.claude/skills/speckit-plan'), { recursive: true });
+  assert.ok(plan(dir, env(machine(installed))).steps.every((s) => s.done));
+});
+
+test('plan: the preset this repository used to ship is reported if it is still installed, without blocking', (t) => {
+  const dir = project(t, { specify: true });
+  const p = plan(dir, env(machine({ ...installed, presets: [{ id: 'sddpp-slices', version: '0.1.0' }] })));
+  assert.equal(check(p, 'preset-sddpp-slices').status, 'differs');
+  assert.match(check(p, 'preset-sddpp-slices').fix, /specify preset remove sddpp-slices/);
+  assert.ok(!p.blocked.some((b) => b.id === 'preset-sddpp-slices'));
+  assert.equal(check(plan(dir, env(machine(installed))), 'preset-sddpp-slices'), undefined);
 });
 
 // ── the shim ─────────────────────────────────────────────────────
@@ -223,7 +236,7 @@ test('apply: runs the steps that are not done, in order, inside the project', (t
   const fresh = project(t);
   const log2 = [];
   const r2 = apply(fresh, env(machine()), { run: runner(log2) });
-  assert.deepEqual(r2.ran.filter((id) => id !== 'npm-ci'), ['specify-init', 'extension-architect-pp', 'extension-sddpp-guard', 'extension-sddpp-cycle', 'preset-sddpp-slices']);
+  assert.deepEqual(r2.ran.filter((id) => id !== 'npm-ci'), ['specify-init', 'extension-architect-pp', 'extension-sddpp-guard', 'extension-sddpp-cycle', 'drop-speckit-specify', 'drop-speckit-plan']);
   assert.ok(log2.every((l) => l.cwd === fresh || l.command[0] === 'npm'));
 });
 
@@ -231,7 +244,7 @@ test('apply: stops at the first step that fails and says which', (t) => {
   const dir = project(t);
   const log = [];
   fails(() => apply(dir, env(machine()), { run: runner(log, { failOn: 'extension add' }) }), /extension-sddpp-guard.*boom|boom/s);
-  assert.ok(!log.some((l) => l.command.join(' ').includes('preset add')), 'nothing runs after the failure');
+  assert.ok(!log.some((l) => l.command.join(' ').includes('sddpp-cycle')), 'nothing runs after the failure');
 });
 
 test('apply: refuses a blocked machine and changes nothing', (t) => {
@@ -281,4 +294,19 @@ test('CLI: contract prints where the schemas, the contract document and the exam
   assert.ok(existsSync(join(lines.schemas, 'blueprint.schema.json')), lines.schemas);
   assert.ok(existsSync(lines.document), lines.document);
   assert.ok(existsSync(join(lines.example, '.architect/blueprint.yaml')), lines.example);
+});
+
+test('apply: removes the skills Spec Kit just installed that this flow replaces, and nothing else', (t) => {
+  const dir = project(t, { specify: true });
+  for (const name of ['speckit-specify', 'speckit-plan', 'speckit-tasks']) {
+    mkdirSync(join(dir, '.claude/skills', name), { recursive: true });
+    writeFileSync(join(dir, '.claude/skills', name, 'SKILL.md'), 'x');
+  }
+  spawnSync('git', ['add', '-A'], { cwd: dir });
+  spawnSync('git', ['commit', '-q', '-m', 'skills'], { cwd: dir });
+  const result = apply(dir, env(machine(installed)), { run: runner([]) });
+  assert.deepEqual(result.ran, ['drop-speckit-specify', 'drop-speckit-plan']);
+  assert.ok(!existsSync(join(dir, '.claude/skills/speckit-specify')));
+  assert.ok(!existsSync(join(dir, '.claude/skills/speckit-plan')));
+  assert.ok(existsSync(join(dir, '.claude/skills/speckit-tasks')), 'only the two named skills go');
 });

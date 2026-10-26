@@ -1,5 +1,9 @@
 # How slices fit inside Spec Kit
 
+> **Historical (2026-10-24).** This records an early run through Spec Kit's `specify`, `plan` and `tasks` with a preset. That path
+> was dropped on 2026-10-26: the design comes first (The Architect), so `/speckit-sddpp-cycle-slices` plans the slices from it and
+> the preset no longer exists. Kept as the evidence behind that decision.
+
 What follows was **observed** by running Spec Kit's constitution, `specify`, `plan` and `tasks` commands
 on one capability of a small project (a personal task list), with SDD.PP's preset installed. Where
 something is a proposal and not an observation, it says so.

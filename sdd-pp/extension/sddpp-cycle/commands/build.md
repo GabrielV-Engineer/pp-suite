@@ -37,3 +37,4 @@ $ARGUMENTS
 5. When every criterion works, run the project's tests and type check, then go on to the audit
    (`/speckit-sddpp-cycle-audit`) in the same session. In the audit, say plainly which tests you changed after first
    writing them.
+6. Ask the person whether they want the prompts for the next task prepared (`/speckit-sddpp-cycle-prompts`; the next task is the one `ppc next` names). Do it only if they say yes.

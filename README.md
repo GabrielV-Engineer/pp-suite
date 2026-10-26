@@ -31,7 +31,7 @@ few weeks. pp-suite attacks those with rules a tool can check, not only advice.
 
 | Piece | Built on | pp-suite adds |
 |---|---|---|
-| SDD.PP | [Spec Kit](https://github.com/github/spec-kit) (extension, preset, workflow) | Slices, a test lock, a technical-debt register, audit pack |
+| SDD.PP | [Spec Kit](https://github.com/github/spec-kit) (extensions and skills) | Slices, a test lock, a technical-debt register, audit pack |
 | Architect.PP | [The Architect](https://github.com/Hainrixz/the-architect) | Quality targets, complexity budget, architecture tests, hand-off *(planned)* |
 
 No upstream code is copied. Why these bases and not others: [upstream-analysis](docs/upstream-analysis.md).
@@ -43,7 +43,7 @@ The experiment, with every number: [experiment-report](docs/experiment-report.md
 ```
 contract/v0.1/schemas/   the contract, as JSON Schemas
 tools/ppc/               validator and generator for the contract (Node)
-sdd-pp/                  Spec Kit extension (test-lock guard) and preset (slices)
+sdd-pp/                  Spec Kit extensions: the guard, the slice cycle (slices, prompts, build, audit)
 architect-pp/            planned
 install/                 planned
 examples/todo-app/       a worked example of every artifact

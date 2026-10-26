@@ -8,9 +8,9 @@ approving at the key points. It is a set of **Spec Kit** add-ons, not a fork.
 | Piece | Path | Status |
 |---|---|---|
 | Test-lock guard (extension) | `extension/sddpp-guard/` | Unit-tested, including its known limitations. Registered into Claude Code through Spec Kit and honored in a manual spike. |
-| Slices preset | `preset/sddpp-slices/` | Template override and command wrap verified by hand. Not run end to end. |
+| Slices skill | `extension/sddpp-cycle/commands/slices.md` | Plans the slices from the design, the person approves the list first. Replaces Spec Kit's `specify`, `plan` and `tasks`, and the preset this repository used to ship. |
 | Slice cycle transitions (`ppc start`, `approve-red`, `refactor`, `finish`) | `tools/ppc/` | Tested against real temporary git repositories. |
-| Agent prompts for red, green and audit | `extension/sddpp-cycle/` | Drafted. Verified so far: invoked by slash command in a non-interactive session, `ppc status` runs, and with no slice in progress the agent stops and says which command to run. The full cycle is being exercised in M1. |
+| Agent prompts: slices, prompts, build, red, green, refactor, audit | `extension/sddpp-cycle/` | Drafted. Verified so far: invoked by slash command in a non-interactive session, `ppc status` runs, and with no slice in progress the agent stops and says which command to run. The full cycle is being exercised in M1. |
 | Workflow with approval gates | — | planned |
 
 ## The guard
@@ -34,9 +34,9 @@ python3 -m unittest discover -s extension/sddpp-guard/tests -v
 With `ppc init <project> --apply` (see [install](../install/README.md)). The manual steps it runs are:
 
 ```bash
+specify extension add /path/to/pp-suite/architect-pp/extension --dev
 specify extension add /path/to/pp-suite/sdd-pp/extension/sddpp-guard --dev
 specify extension add /path/to/pp-suite/sdd-pp/extension/sddpp-cycle --dev
-specify preset add --dev /path/to/pp-suite/sdd-pp/preset/sddpp-slices
 ```
 
 Tested against Spec Kit at commit `67e0f72` (`1.2.4.dev0`). Pin the version you use. Read the guard

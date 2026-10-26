@@ -139,3 +139,39 @@ test('overview: says which slice is in progress and in which phase', () => {
   const text = overview(inProgress(base(), 'SL-002', 'green'), []);
   assert.match(text, /SL-002[^\n]*green/);
 });
+
+// ── a design with no slices yet ──────────────────────────────────
+const designOnly = () => {
+  const m = base();
+  m.slices = [];
+  m.debt = [];
+  m.changeRequests = []; // the example's request was raised by a slice that is gone
+  return m;
+};
+
+test('next: a design with no slices is not a contract error: the next step is to plan the slices', () => {
+  const m = designOnly();
+  const r = nextSteps(m, [], errorsOf(m)); // T06 fires for every capability, because nothing is planned
+  assert.ok(errorsOf(m).some((e) => e.rule === 'T06'));
+  assert.match(r.headline, /no slices/i);
+  assert.equal(first(r).who, 'agent');
+  assert.match(first(r).command, /speckit-sddpp-cycle-slices/);
+});
+
+test('next: but a real error in a design with no slices still comes first', () => {
+  const m = designOnly();
+  m.blueprint.data.capabilities[0].priority = 'urgent'; // not allowed by the schema
+  const r = nextSteps(m, [], errorsOf(m));
+  assert.match(r.headline, /error/i);
+});
+
+test('next: additions nobody decided come before planning slices, and are a person\'s turn', () => {
+  const m = designOnly();
+  const add = (id, what, extra) => ({ id, what, origin: 'tool_added', cost: 'A column and a filter', if_cut: 'Nothing is lost', later: { effort: 'easy', revisit_when: 'After a mistake' }, recommendation: { action: 'cut', reason: 'Not asked for' }, ...extra });
+  m.additions = { file: '.architect/additions.yaml', data: { additions: [add('ADD-001', 'Soft delete of tasks', { decision: 'pending' }), add('ADD-002', 'Dark theme', { decision: 'keep', decided_by: 'owner', reason: 'I like it' })] } };
+  const r = nextSteps(m, [], errorsOf(m));
+  assert.equal(first(r).who, 'human');
+  assert.match(first(r).command, /decide-addition/);
+  assert.match(first(r).what, /ADD-001/);
+  assert.doesNotMatch(first(r).what, /ADD-002/);
+});

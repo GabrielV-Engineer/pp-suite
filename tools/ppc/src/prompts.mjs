@@ -47,48 +47,7 @@ const POLICY_TEXT = {
   none: 'Tests are not asked for in this project. Add one only where a behavior is easy to get wrong.',
 };
 
-const RULES = {
-  build: (s, policy) => [
-    `Build the slice: for each acceptance criterion (${(s.acceptance ?? []).map((a) => a.id).join(', ')}) write a test and the code that passes it, in small steps.`,
-    POLICY_TEXT[policy],
-    'No one locks the tests in this cycle, so changing a test to make it pass is invisible until review: change the code, and tell the reader if you must change a test.',
-    `Commit in small steps as \`build(${s.id}): <summary>\`, keeping tests and code that belong together in the same commit.`,
-    'When it works, stop and run the audit task.',
-  ],
-  red: (s) => [
-    `Write the failing tests only: one per acceptance criterion (${(s.acceptance ?? []).map((a) => a.id).join(', ')}), named after the criterion.`,
-    'Write no production code.',
-    'Run them and see each fail for the right reason (the behavior is missing, not a typo).',
-    `Commit as \`red(${s.id}): <summary>\`, then stop: a person reads the tests and runs \`ppc approve-red --by <name>\`.`,
-  ],
-  green: (s) => [
-    'Write the least production code that makes the approved tests pass.',
-    'The tests are locked. If one looks wrong, stop and say so; do not change it.',
-    `Commit as \`green(${s.id}): <summary>\`.`,
-  ],
-  refactor: (s) => [
-    'Improve the structure without changing behavior. The tests are locked and must pass before and after.',
-    `Commit as \`refactor(${s.id}): <summary>\`, apart from any behavior change.`,
-  ],
-  audit: (s) => [
-    'Record the debt and the deviations honestly, then close the slice with `ppc finish`. Never supply sizes or the mutation score: they are measured.',
-    `Debt you propose is \`status: proposed\`; a person decides. Commit the bookkeeping as \`chore(${s.id}): close slice\`.`,
-  ],
-  explore: (s) => [
-    `Explore within the timebox (${s.timebox_hours ?? 'a few'} hours). The code is disposable; what matters is what you learn.`,
-    'Finish by recording the outcome: what was learned, in a few sentences.',
-  ],
-};
-
-const FORBIDDEN = {
-  build: ['Weaken, delete or skip a test to get a green result.', 'Add behavior no acceptance criterion asks for.'],
-  red: ['Write or change production code in this task.'],
-  green: ['Edit, delete, skip or weaken any test.', 'Add behavior no approved test asks for.'],
-  refactor: ['Change behavior, or edit any test.'],
-  audit: ['Edit tests or production code; this task only records and closes.', 'Set `approved_by`, or write an exception reason for a budget or a mutation gate.'],
-  explore: ['Treat the exploration as the implementation: it is thrown away.'],
-};
-
+// How to do each task lives in its skill. The prompts below never restate it, so the two cannot disagree.
 const COMMANDS = { build: '/speckit-sddpp-cycle-build', red: '/speckit-sddpp-cycle-red', green: '/speckit-sddpp-cycle-green', refactor: '/speckit-sddpp-cycle-refactor', audit: '/speckit-sddpp-cycle-audit' };
 
 function find(model, id, task) {
@@ -139,9 +98,10 @@ export function buildPrompts(model, id, task) {
     ...reads,
     '',
     `## This task: ${task}`,
-    ...list(RULES[task](s, testPolicy(bp, s))),
+    COMMANDS[task] ? `How to do it is in \`${COMMANDS[task]}\`: follow it. This file adds only what is specific to this slice.` : `Explore within the timebox (${s.timebox_hours ?? 'a few'} hours); the code is disposable. Finish by recording what was learned.`,
+    ...(['red', 'green', 'build'].includes(task) && s.acceptance?.length ? [`- Acceptance criteria: ${s.acceptance.map((a) => a.id).join(', ')} (in the slice file).`] : []),
+    ...(task === 'build' ? [`- ${POLICY_TEXT[testPolicy(bp, s)]}`] : []),
     ...(task === 'audit' ? [] : ['- If the design is wrong or silent about something you need, stop and open a change request (`ppc change-request`); do not decide it yourself.']),
-    ...(COMMANDS[task] ? ['', `The full instructions for this task are in \`${COMMANDS[task]}\`.`] : []),
   ]);
 
   const mine = new Set(s.components);
@@ -153,9 +113,8 @@ export function buildPrompts(model, id, task) {
     '',
     'Do not:',
     '',
-    '## In this task',
-    ...list(FORBIDDEN[task]),
-    ...(['red', 'green', 'build', 'refactor'].includes(task) ? [`- Exceed ${budget} lines of production code in this slice (the budget in the blueprint).`] : []),
+    '## Size',
+    `- Exceed ${budget} lines of production code in this slice (the budget in the blueprint).`,
     '',
     `## Out of scope for this slice (\`${entry.file}\`)`,
     ...(scope.length ? list(scope) : ['- (the slice states nothing; ask before adding anything beyond its acceptance criteria)']),

@@ -28,7 +28,7 @@ node --test "tools/eval/test/*.test.mjs"              # the experiment's measuri
 
 ## Layout
 
-`contract/` schemas · `tools/ppc/` validator and generator · `sdd-pp/` Spec Kit extension and preset ·
+`contract/` schemas · `tools/ppc/` validator and generator · `sdd-pp/` Spec Kit extensions ·
 `architect-pp/` the hand-off and scope-review prompts · `install/` pinned versions · `examples/` worked example · `docs/` documentation.
 
 ## Working rules

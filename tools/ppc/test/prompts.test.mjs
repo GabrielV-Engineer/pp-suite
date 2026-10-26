@@ -29,13 +29,21 @@ test('outOfScope: takes the bullets under the heading and stops at the next head
 // ── what is in each prompt ───────────────────────────────────────
 const prompts = (id, task) => buildPrompts(model(), id, task);
 
-test('system prompt: names the slice and the task, points at the files to read, and states the rules of the phase', () => {
+test('system prompt: names the slice and the task, points at the files to read and at the skill that says how to do the task', () => {
   const { system } = prompts('SL-002', 'red');
-  for (const part of ['SL-002', 'red', '.sddpp/slices/SL-002-create-and-list-tasks.md', '.architect/blueprint.yaml', '.architect/architecture.md', 'CAP-001', 'QA-001', 'AC-1', 'AC-2']) {
+  for (const part of ['SL-002', 'red', '.sddpp/slices/SL-002-create-and-list-tasks.md', '.architect/blueprint.yaml', '.architect/architecture.md', '.sddpp/debt.yaml', 'CAP-001', 'QA-001', 'AC-1', 'AC-2', '/speckit-sddpp-cycle-red']) {
     assert.ok(system.includes(part), `the system prompt should mention ${part}`);
   }
-  assert.match(system, /no production code/i);
-  assert.match(system, /commit/i);
+});
+
+test('the prompts never restate how to do a task: that lives in the skill, so the two cannot disagree', () => {
+  for (const task of ['red', 'green', 'refactor', 'audit']) {
+    const { system, negative } = prompts('SL-002', task);
+    assert.ok(system.includes(`/speckit-sddpp-cycle-${task}`), task);
+    for (const phrase of [/Write no production code/i, /Commit as/i, /tests are locked/i, /least production code/i, /ppc finish/i]) {
+      assert.doesNotMatch(system + negative, phrase, `${task} repeats the skill: ${phrase}`);
+    }
+  }
 });
 
 test('system prompt: made of references, so it does not paste the slice or the architecture', () => {
@@ -49,15 +57,13 @@ test('every task except the audit tells the agent to stop and open a change requ
   assert.doesNotMatch(prompts('SL-002', 'audit').system, /change request/i);
 });
 
-test('each task has its own rules', () => {
-  assert.match(prompts('SL-002', 'green').system, /do not (edit|change|touch).*tests?|tests?.*locked/i);
-  assert.match(prompts('SL-002', 'refactor').system, /behavior/i);
-  assert.match(prompts('SL-002', 'audit').system, /ppc finish/);
-  assert.match(prompts('SL-002', 'red').negative, /production code/i);
-  assert.match(prompts('SL-002', 'green').negative, /test/i);
+test('each task points at its own skill', () => {
+  for (const [task, skill] of [['red', 'red'], ['green', 'green'], ['refactor', 'refactor'], ['audit', 'audit']]) {
+    assert.match(prompts('SL-002', task).system, new RegExp(`speckit-sddpp-cycle-${skill}`), task);
+  }
 });
 
-test('the green task states the production-code budget of the blueprint', () => {
+test('every task states the production-code budget of the blueprint', () => {
   const budget = blueprint().budgets.max_slice_production_lines;
   assert.ok(prompts('SL-002', 'green').negative.includes(String(budget)));
 });
