@@ -148,11 +148,14 @@ function editDebtEntry(root, register, id, change) {
 }
 
 /**
- * HUMAN ONLY: decide on an addition the design contains and the person did not ask for: keep it, or cut it.
- * `acceptRecommended` decides every pending addition the way it was recommended and leaves the ones recommended
- * as "decide" to the person. Cutting only records the decision; carrying it out in the design is a separate step.
+ * HUMAN ONLY: decide on additions the design contains and the person did not ask for: keep them, or cut them.
+ * `id` is one id or a list; the list is decided the same way. Additions that overlap cannot be decided one at a time
+ * without a contradiction in between, so deciding one of a group of undecided overlapping additions is refused unless
+ * all of them are named (or `alone` says it is on purpose). `acceptRecommended` decides every pending group whose
+ * members were all recommended the same way (cut or keep) and leaves the rest to the person.
+ * Cutting only records the decision; carrying it out in the design is a separate step.
  */
-export function decideAddition(root, id, { decision, by, reason, acceptRecommended } = {}) {
+export function decideAddition(root, id, { decision, by, reason, acceptRecommended, alone } = {}) {
   if (!by || !by.trim()) fail('--by <name> is required: a person decides what stays in the design');
   const file = '.architect/additions.yaml';
   const abs = join(root, file);
@@ -160,6 +163,8 @@ export function decideAddition(root, id, { decision, by, reason, acceptRecommend
   const original = readFileSync(abs, 'utf8');
   const doc = parseDocument(original);
   const items = doc.get('additions')?.items ?? [];
+  const byId = new Map(items.map((i) => [i.get('id'), i]));
+  const pending = (i) => i.get('decision') === 'pending';
   const decided = {};
   const left = [];
 
@@ -170,20 +175,51 @@ export function decideAddition(root, id, { decision, by, reason, acceptRecommend
     if (outcome === 'cut' && !item.get('non_goal')) item.set('non_goal', String(item.get('what')).trim());
   };
 
-  if (acceptRecommended) {
-    for (const item of items.filter((i) => i.get('decision') === 'pending')) {
-      const action = item.getIn(['recommendation', 'action']);
-      if (action === 'cut' || action === 'keep') {
-        apply(item, action, item.getIn(['recommendation', 'reason']));
-        decided[item.get('id')] = action;
-      } else left.push(item.get('id'));
+  // Undecided additions that overlap `start`, in either direction and through other additions.
+  const overlapping = (start) => {
+    const seen = new Set([start]);
+    const queue = [start];
+    while (queue.length) {
+      const current = queue.shift();
+      const links = new Set(byId.get(current).get('overlaps')?.toJSON() ?? []);
+      for (const [other, item] of byId) if ((item.get('overlaps')?.toJSON() ?? []).includes(current)) links.add(other);
+      for (const other of links) if (byId.has(other) && pending(byId.get(other)) && !seen.has(other)) (seen.add(other), queue.push(other));
     }
+    return [...seen];
+  };
+
+  let result;
+  if (acceptRecommended) {
+    const done = new Set();
+    for (const item of items.filter(pending)) {
+      const first = item.get('id');
+      if (done.has(first)) continue;
+      const group = overlapping(first);
+      group.forEach((g) => done.add(g));
+      const actions = new Set(group.map((g) => byId.get(g).getIn(['recommendation', 'action'])));
+      const [action] = actions;
+      if (actions.size === 1 && (action === 'cut' || action === 'keep')) {
+        for (const g of group) {
+          apply(byId.get(g), action, byId.get(g).getIn(['recommendation', 'reason']));
+          decided[g] = action;
+        }
+      } else left.push(...group);
+    }
+    result = { decided, left_to_the_person: left };
   } else {
     if (!['keep', 'cut'].includes(decision)) fail('the decision must be keep or cut');
-    const item = items.find((i) => i.get('id') === id) ?? fail(`unknown addition ${id}`);
-    if (item.get('decision') !== 'pending') fail(`${id} is already decided (${item.get('decision')})`);
+    const ids = Array.isArray(id) ? id : [id];
+    for (const one of ids) {
+      const item = byId.get(one) ?? fail(`unknown addition ${one}`);
+      if (!pending(item)) fail(`${one} is already decided (${item.get('decision')})`);
+    }
+    if (!alone) {
+      const missing = [...new Set(ids.flatMap(overlapping))].filter((g) => !ids.includes(g));
+      if (missing.length) fail(`${ids.join(', ')} overlap${ids.length === 1 ? 's' : ''} ${missing.join(', ')}, which is undecided, so they cannot be decided one at a time without a contradiction in between. Decide them together: ppc decide-addition ${[...ids, ...missing].join(' ')} --${decision ?? 'cut'} ..., or pass --alone to decide only ${ids.join(', ')} on purpose`);
+    }
     if (decision === 'keep' && (!reason || reason.trim().length < 5)) fail('keeping an addition needs a --reason of at least 5 characters: why it stays');
-    apply(item, decision, reason?.trim());
+    for (const one of ids) apply(byId.get(one), decision, reason?.trim());
+    result = Array.isArray(id) ? { additions: ids, decision } : { addition: id, decision };
   }
 
   writeFileSync(abs, doc.toString({ lineWidth: 0 }));
@@ -192,7 +228,7 @@ export function decideAddition(root, id, { decision, by, reason, acceptRecommend
     writeFileSync(abs, original);
     fail(`the decision would leave additions.yaml invalid:\n${describe(problems)}`);
   }
-  return acceptRecommended ? { decided, left_to_the_person: left } : { addition: id, decision };
+  return result;
 }
 
 /**

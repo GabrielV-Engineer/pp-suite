@@ -66,7 +66,7 @@ export const RULES = {
   X02: 'A cut addition was applied but something that only it justified is still in the design.',
   X03: 'A cut addition was applied but the non-goal it becomes is not among the non-goals.',
   X04: 'An addition was decided to be cut but the cut was not applied (a warning while the design is drafted, an error once slices exist).',
-  X05: 'An addition points at something that does not exist, or its id is duplicated.',
+  X05: 'An addition points at something that does not exist (a design id, or another addition it overlaps), or its id is duplicated.',
   G01: 'A generated view is missing or stale.',
 };
 
@@ -364,6 +364,7 @@ export function validateModel(model, { now = new Date() } = {}) {
       for (const a of model.additions.data.additions) {
         if (ids.has(a.id)) error('X05', file, `${a.id} is duplicated`);
         ids.add(a.id);
+        for (const other of a.overlaps ?? []) if (other === a.id || !model.additions.data.additions.some((x) => x.id === other)) error('X05', file, `${a.id} overlaps ${other}, which is not another addition`);
         const applied = a.decision === 'cut' && a.applied === true;
         if (a.decision === 'pending') (planned ? error : warn)('X01', file, `${a.id} is undecided: ${a.what}`);
         if (a.decision === 'cut' && !applied) (planned ? error : warn)('X04', file, `${a.id} was decided to be cut but the cut was not applied`);

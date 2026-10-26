@@ -46,7 +46,7 @@ brings the addition back. It is a mechanical edit, not a redesign: remove what t
    trash, `deleted_at`). For every hit, either remove or reword it, or leave it and say why. The only hits that may stay
    are the non-goal itself and its "revisit" trigger. If a hit belongs to **another addition that is still pending or
    kept** (for example a quality target about the dark theme that belongs to an accessibility addition), do not edit it:
-   the two additions overlap and the person should decide them together. Report every such overlap.
+   the two additions overlap: report it, and say that `overlaps` should list each other in `additions.yaml` so that they are decided together (you may not edit that field of a decided addition's decision, but `overlaps` is not a decision). Report every such overlap.
 4. Run `ppc validate <project> --design`. Fix every error that your edit caused. In particular, `X02` and `X03` check
    that nothing of a cut addition is left and that its non-goal is present.
 5. Report: for each addition, the ids and files you removed, the non-goal added, and what you left alone on purpose;

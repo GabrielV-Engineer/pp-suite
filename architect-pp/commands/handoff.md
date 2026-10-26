@@ -81,6 +81,8 @@ the plan**. It is a format conversion, not a redesign: do not improve, add or re
    - `recommendation`: `cut` if the person did not ask for it and nothing they asked for needs it; `keep` if
      something they asked for, or the way the system is built and checked, needs it; `decide` if cutting it would
      mean a redesign (a change of framework) or the choice is a matter of the person's values. Give the reason;
+   - `overlaps`: the ids of other additions that cannot be decided separately from this one, because they mention the same
+     thing (a dark appearance and an accessibility target about contrast in it). List it on both; leave it out if none;
    - `non_goal`: the sentence it would become among the non-goals if cut;
    - `decision: pending`. **Never write `decided_by`, `reason` or any decision**: only a person does.
    If there are no additions, do not create the file.

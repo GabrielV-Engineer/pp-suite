@@ -35,7 +35,9 @@ const USAGE = `ppc — pp-suite contract tool
     ppc approve-red --by <name> [dir]    HUMAN ONLY: approve the committed red tests, enter green
     ppc approve-debt <DEBT-ID> --by <name> [--accept <reason> | --drop] [dir]
                                          HUMAN ONLY: decide on proposed debt (default: it becomes open)
-    ppc decide-addition <ADD-ID> (--keep --reason <why> | --cut) --by <name> [dir]
+    ppc decide-addition <ADD-ID>... (--keep --reason <why> | --cut) [--alone] --by <name> [dir]
+                                         several ids are decided the same way; additions that overlap must be decided
+                                         together (--alone decides one on purpose)
     ppc decide-addition --accept-recommended --by <name> [dir]
                                          HUMAN ONLY: keep or cut something the design contains that the person did not ask for
     ppc refactor [dir]                   green -> refactor
@@ -130,11 +132,12 @@ switch (command) {
     transition(() => approveDebt(dirAt(1), positionals[0], { by: options.get('by'), accept: options.get('accept'), drop: flags.has('--drop') }));
     break;
   case 'decide-addition':
-    transition(() =>
-      flags.has('--accept-recommended')
-        ? decideAddition(dirAt(0), null, { acceptRecommended: true, by: options.get('by') })
-        : decideAddition(dirAt(1), positionals[0], { decision: flags.has('--cut') ? 'cut' : flags.has('--keep') ? 'keep' : undefined, by: options.get('by'), reason: options.get('reason') }),
-    );
+    transition(() => {
+      const ids = positionals.filter((p) => /^ADD-\d{3}$/.test(p));
+      const root = resolve(positionals.find((p) => !/^ADD-\d{3}$/.test(p)) ?? '.');
+      if (flags.has('--accept-recommended')) return decideAddition(root, null, { acceptRecommended: true, by: options.get('by') });
+      return decideAddition(root, ids.length === 1 ? ids[0] : ids, { decision: flags.has('--cut') ? 'cut' : flags.has('--keep') ? 'keep' : undefined, by: options.get('by'), reason: options.get('reason'), alone: flags.has('--alone') });
+    });
     break;
   case 'approve-red':
     transition(() => approveRed(dirAt(0), options.get('by')));

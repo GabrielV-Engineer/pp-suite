@@ -40,3 +40,5 @@ Notable: the blueprint says it was **not smoke-tested**: the generating session 
 
 One run, one persona (mine), one idea. The persona accepted every proposal; a person who pushed back would have
 steered the result (in an earlier run, pushing back removed most of the additions).
+
+Note (2026-10-26): `additions-example.yaml` illustrates the format. Its ADD-002 points at `QA-005`, which `handoff-output/` does not contain, so `ppc validate --design` reports `X05` if the two are put together. They come from different runs.

@@ -120,7 +120,11 @@ Two weaknesses found, and one fixed:
    the person to decide the two additions together. It is a prompt fix checked in one run; the validator still cannot
    see a contradiction in prose.
 2. **Overlapping additions** (a dark appearance and an accessibility target about contrast) cannot be decided one at a
-   time without a contradiction in between. The step reports them; it does not yet group them into one decision.
+   time without a contradiction in between. *Built afterwards:* an addition lists `overlaps`, and `ppc decide-addition` refuses to
+   decide one while an overlapping one is undecided unless all are named (or `--alone`); `--accept-recommended` leaves a group to the
+   person when its members were not recommended the same way. On the real additions (with the overlap written by hand,
+   since the hand-off prompt that now asks for it has not been run again) the dark appearance and the accessibility target
+   were both left to the person, where the first run had cut one and left the other, which produced the contradiction.
 
 Also: in both runs the cut step said it could not run a helper script (no permission) and did the edits by hand. It
 reported that, and the final validation was repeated by me.

@@ -172,3 +172,91 @@ test('CLI: decide-addition works from the command line, and needs a name', (t) =
   assert.equal(run('decide-addition', '--accept-recommended', '--by', 'owner').status, 0);
   assert.equal(entryOf(dir, 'ADD-001').decision, 'cut');
 });
+
+// ── overlapping additions are decided together ───────────────────
+test('SCHEMA: overlaps lists addition ids', () => {
+  assert.ok(!has(run(withAdditions([addition({ overlaps: ['ADD-002'] }), addition({ id: 'ADD-002', affects: [] })])), 'SCHEMA'));
+  assert.ok(has(run(withAdditions([addition({ overlaps: ['dark'] })])), 'SCHEMA', 'error'));
+  assert.ok(has(run(withAdditions([addition({ overlaps: ['ADD-002', 'ADD-002'] })])), 'SCHEMA', 'error'));
+});
+
+test('X05: an overlap must point at another addition that exists', () => {
+  assert.ok(has(run(withAdditions([addition({ overlaps: ['ADD-009'] })])), 'X05', 'error'));
+  assert.ok(has(run(withAdditions([addition({ overlaps: ['ADD-001'] })])), 'X05', 'error'), 'not itself');
+  assert.ok(!has(run(withAdditions([addition({ overlaps: ['ADD-002'] }), addition({ id: 'ADD-002', affects: [] })])), 'X05'));
+});
+
+const pair = (a = {}, b = {}) => [addition({ id: 'ADD-001', non_goal: 'No dark appearance', overlaps: ['ADD-002'], ...a }), addition({ id: 'ADD-002', affects: [], non_goal: 'No numeric accessibility targets', ...b })];
+const decidedOf = (dir) => Object.fromEntries(loadProject(dir).additions.data.additions.map((a) => [a.id, a.decision]));
+
+test('decide-addition: refuses to decide one addition while one that overlaps it is undecided, and says how', (t) => {
+  const { dir } = setup(t, pair());
+  const before = read(dir);
+  fails(() => decideAddition(dir, 'ADD-001', { decision: 'cut', by: 'owner' }), /ADD-002.*together|together.*ADD-002/s);
+  fails(() => decideAddition(dir, 'ADD-002', { decision: 'cut', by: 'owner' }), /ADD-001/);
+  assert.equal(read(dir), before);
+});
+
+test('decide-addition: several ids are decided in one go, the same way', (t) => {
+  const { dir } = setup(t, pair());
+  assert.deepEqual(decideAddition(dir, ['ADD-001', 'ADD-002'], { decision: 'cut', by: 'owner' }), { additions: ['ADD-001', 'ADD-002'], decision: 'cut' });
+  assert.deepEqual(decidedOf(dir), { 'ADD-001': 'cut', 'ADD-002': 'cut' });
+  assert.equal(entryOf(dir, 'ADD-002').decided_by, 'owner');
+});
+
+test('decide-addition: --alone decides one on purpose', (t) => {
+  const { dir } = setup(t, pair());
+  decideAddition(dir, 'ADD-001', { decision: 'cut', by: 'owner', alone: true });
+  assert.deepEqual(decidedOf(dir), { 'ADD-001': 'cut', 'ADD-002': 'pending' });
+});
+
+test('decide-addition: an overlap that is already decided does not hold the other back', (t) => {
+  const { dir } = setup(t, pair({}, { decision: 'keep', decided_by: 'owner', reason: 'Baseline practice stays' }));
+  decideAddition(dir, 'ADD-001', { decision: 'cut', by: 'owner' });
+  assert.equal(decidedOf(dir)['ADD-001'], 'cut');
+});
+
+test('decide-addition: overlaps count in both directions and through a third addition', (t) => {
+  const list = [
+    addition({ id: 'ADD-001', non_goal: 'No dark appearance' }),
+    addition({ id: 'ADD-002', affects: [], non_goal: 'No accessibility numbers', overlaps: ['ADD-001'] }),
+    addition({ id: 'ADD-003', affects: [], non_goal: 'No contrast tests', overlaps: ['ADD-002'] }),
+  ];
+  const { dir } = setup(t, list);
+  fails(() => decideAddition(dir, 'ADD-001', { decision: 'cut', by: 'o' }), /ADD-002/); // listed only on ADD-002
+  fails(() => decideAddition(dir, ['ADD-001', 'ADD-002'], { decision: 'cut', by: 'o' }), /ADD-003/); // reached through ADD-002
+  decideAddition(dir, ['ADD-001', 'ADD-002', 'ADD-003'], { decision: 'cut', by: 'o' });
+  assert.deepEqual(decidedOf(dir), { 'ADD-001': 'cut', 'ADD-002': 'cut', 'ADD-003': 'cut' });
+});
+
+test('decide-addition: keeping several needs the reason once, and a failure changes nothing', (t) => {
+  const { dir } = setup(t, pair());
+  const before = read(dir);
+  fails(() => decideAddition(dir, ['ADD-001', 'ADD-002'], { decision: 'keep', by: 'o' }), /reason/);
+  fails(() => decideAddition(dir, ['ADD-001', 'ADD-099'], { decision: 'cut', by: 'o' }), /unknown addition ADD-099/);
+  assert.equal(read(dir), before);
+  decideAddition(dir, ['ADD-001', 'ADD-002'], { decision: 'keep', by: 'o', reason: 'Both stay' });
+  assert.equal(entryOf(dir, 'ADD-002').reason, 'Both stay');
+});
+
+test('--accept-recommended: a group is decided only when its members were recommended the same way', (t) => {
+  const same = setup(t, pair({ recommendation: { action: 'cut', reason: 'Nobody asked' } }, { recommendation: { action: 'cut', reason: 'Nobody asked' } }));
+  assert.deepEqual(decideAddition(same.dir, null, { acceptRecommended: true, by: 'o' }).decided, { 'ADD-001': 'cut', 'ADD-002': 'cut' });
+  const mixed = setup(t, pair({ recommendation: { action: 'cut', reason: 'Nobody asked' } }, { recommendation: { action: 'decide', reason: 'A matter of values' } }));
+  const result = decideAddition(mixed.dir, null, { acceptRecommended: true, by: 'o' });
+  assert.deepEqual(result.decided, {});
+  assert.deepEqual(result.left_to_the_person.sort(), ['ADD-001', 'ADD-002']);
+  assert.deepEqual(decidedOf(mixed.dir), { 'ADD-001': 'pending', 'ADD-002': 'pending' });
+});
+
+test('CLI: decide-addition takes several ids and --alone', (t) => {
+  const { dir } = setup(t, pair());
+  const cli = (...args) => spawnSync('node', [CLI, 'decide-addition', ...args], { encoding: 'utf8' });
+  const refused = cli('ADD-001', '--cut', '--by', 'o', dir);
+  assert.equal(refused.status, 1);
+  assert.match(refused.stderr, /ADD-002/);
+  assert.equal(cli('ADD-001', 'ADD-002', '--cut', '--by', 'o', dir).status, 0);
+  assert.deepEqual(decidedOf(dir), { 'ADD-001': 'cut', 'ADD-002': 'cut' });
+  writeFileSync(join(dir, '.architect/additions.yaml'), yamlOf(pair()));
+  assert.equal(cli('ADD-001', '--cut', '--alone', '--by', 'o', dir).status, 0);
+});

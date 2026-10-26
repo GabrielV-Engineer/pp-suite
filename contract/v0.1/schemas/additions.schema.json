@@ -44,6 +44,12 @@
           "items": { "type": "string", "pattern": "^((CAP|QA|CON)-\\d{3}|ADR-\\d{4})$" },
           "description": "Ids in the design that exist only because of this addition."
         },
+        "overlaps": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "pattern": "^ADD-\\d{3}$" },
+          "description": "Other additions that cannot be decided separately from this one (for example a dark appearance and an accessibility target about contrast)."
+        },
         "non_goal": { "type": "string", "minLength": 5, "description": "The statement it becomes among the non-goals if it is cut." },
         "decision": { "enum": ["pending", "keep", "cut"] },
         "decided_by": { "type": "string", "minLength": 1 },

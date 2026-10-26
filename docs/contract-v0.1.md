@@ -139,7 +139,7 @@ Errors fail validation; warnings fail only with `--strict`. `ppc rules` prints t
 | `X02` | error | A cut addition was applied but something that only it justified is still in the design. |
 | `X03` | error | A cut addition was applied but the non-goal it becomes is not among the non-goals. |
 | `X04` | warning / error | An addition was decided to be cut but the cut was not applied (a warning while drafting, an error once slices exist). |
-| `X05` | error | An addition points at something that does not exist, or its id is duplicated. |
+| `X05` | error | An addition points at something that does not exist (a design id, or another addition it overlaps), or its id is duplicated. |
 | `G01` | error | A generated view is missing or stale (`ppc generate` fixes it). |
 
 Cross-reference rules run only when `blueprint.yaml` itself is valid, since everything else points at it.
