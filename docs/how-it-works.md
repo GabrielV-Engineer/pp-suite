@@ -64,7 +64,7 @@ Each command either changes the project or refuses and leaves it untouched.
 | `ppc change-request --slice ... --problem ... --proposal ...` | anyone | A slice asks for a design change. Records the revision it was opened at |
 | `ppc decide-change CR-NNNN --accept \| --reject --reason ... --by <name>` | **a human** | Accepts or rejects it |
 | `ppc apply-change CR-NNNN` | anyone | Marks an accepted request applied, once the design revision rose and the constitution is current |
-| `ppc constitution [--check]` | anyone | Writes Spec Kit's constitution from the design |
+| `ppc constitution [--check]` | anyone | Writes the project rules, derived from the design, as a block in `CLAUDE.md` |
 | `ppc init [--apply] [--shim]` | anyone | Checks the machine and project against pinned versions; sets them up |
 | `ppc prompt [<slice>] [--task <t>]` | anyone | Writes the system, negative and (when it applies) design prompt for one task under `.sddpp/prompts/`. Offered files: edit or ignore them; it will not overwrite without `--force` |
 | `ppc overview` | anyone | One screen: slices by status, progress per capability, debt per component, contract problems |

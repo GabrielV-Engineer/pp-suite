@@ -35,11 +35,13 @@ blueprint `revision` is bumped when Architect.PP applies it. The life of a reque
 Slices planned against the older revision are flagged (`W03`, and listed by `ppc next`); nothing updates their
 `blueprint_revision` automatically, since that is the reader saying "I read what changed".
 
-**The constitution.** `ppc constitution` writes Spec Kit's `.specify/memory/constitution.md` from the design: the
-decisions in force, the non-goals, the component boundaries, the quality targets, the slice budget, the default cycle and
-the test policy. It is the same text every time and its version is the blueprint revision. It refuses while additions
-are undecided (it would bind the plan to things the person may cut) and never replaces a hand-written file without
-`--force`. `ppc constitution --check` verifies it is current. Do not write it with `/speckit-constitution`.
+**The project rules.** `ppc constitution` writes one block into `CLAUDE.md`, which Claude Code reads at the start of every
+session, between `<!-- pp-suite:begin -->` and `<!-- pp-suite:end -->` markers. It holds how to work here (`ppc next`, what only
+a person decides), and the design as rules: the decisions in force, the non-goals, the component boundaries, the quality
+targets, the slice budget, the default cycle and the test policy. It is the same text every time and its version is the
+blueprint revision. Text a person wrote in the same file is never touched; only the block is replaced. It refuses while
+additions are undecided (it would bind the work to things the person may cut). `ppc constitution --check` verifies it
+is current. Spec Kit's own `.specify/memory/constitution.md` is not written: nothing in this flow reads it.
 
 Spec Kit's own folders (`.specify/`, `specs/`) coexist with these and are not governed by the contract.
 

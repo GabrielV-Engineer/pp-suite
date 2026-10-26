@@ -89,9 +89,9 @@ the plan**. It is a format conversion, not a redesign: do not improve, add or re
    If there are no additions, do not create the file.
 7. Run `ppc validate . --design` (the argument is the project directory, not the project id) (if you are not allowed to run it, say so in the report; do not claim it passed). Fix every error. Read every warning: fix it if the cause is in your
    conversion, and report it if the cause is in the blueprint's design.
-8. Spec Kit's constitution is written from the design by `ppc constitution`, never by you. It refuses while additions are
-   undecided, so: if you wrote no `additions.yaml` and `.specify/` exists, run it now; otherwise say in the report that a
-   person must decide the additions first, and that it is written afterwards. Never use `--force`.
+8. The project rules (a block in `CLAUDE.md`) are written from the design by `ppc constitution`, never by you. It refuses
+   while additions are undecided, so: if you wrote no `additions.yaml`, run it now; otherwise say in the report that a
+   person must decide the additions first, and that it is run afterwards. Never use `--force`.
 9. Report: the files written; the sections dropped; the additions you flagged; the quality attributes you did not
    create because the blueprint gave no measure; every warning left, with its cause. Say plainly what you decided
    on your own.

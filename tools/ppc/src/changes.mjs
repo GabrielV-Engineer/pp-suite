@@ -1,7 +1,7 @@
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { stringify } from 'yaml';
-import { checkConstitution, CONSTITUTION_FILE } from './constitution.mjs';
+import { checkConstitution, hasConstitution } from './constitution.mjs';
 import { LifecycleError, editFrontmatter, loadValid, transact } from './lifecycle.mjs';
 
 // The way a slice asks the design to change. SDD.PP never edits `.architect/`: a slice that finds the design wrong or
@@ -74,7 +74,7 @@ export function applyChange(root, id) {
     const revision = model.blueprint.data.revision;
     const opened = entry.data.blueprint_revision;
     if (opened !== undefined && revision <= opened) fail(`the design is still at revision ${revision}, where ${id} was opened: revise .architect/ and raise its revision first (/speckit-architect-pp-apply-change ${id})`);
-    if (existsSync(join(root, CONSTITUTION_FILE)) && checkConstitution(root).length) fail(`the constitution still describes the old design: run \`ppc constitution\` first`);
+    if (hasConstitution(root) && checkConstitution(root).length) fail(`the project rules in CLAUDE.md still describe the old design: run \`ppc constitution\` first`);
     editFrontmatter(root, entry.file, (doc) => doc.set('status', 'applied'));
     loadValid(root);
     return { change: id, status: 'applied' };

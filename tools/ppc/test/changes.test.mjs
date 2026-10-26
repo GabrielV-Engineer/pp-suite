@@ -114,6 +114,15 @@ test('apply: refuses while the constitution, if there is one, still describes th
   assert.equal(applyChange(r.dir, 'CR-0002').status, 'applied');
 });
 
+test('apply: a CLAUDE.md that has no rules block (the person never generated one) does not hold it back', (t) => {
+  const r = repo(t);
+  writeFileSync(join(r.dir, 'CLAUDE.md'), '# My notes only\n');
+  open(r.dir);
+  decideChange(r.dir, 'CR-0002', { decision: 'accept', by: 'owner' });
+  raiseRevision(r);
+  assert.equal(applyChange(r.dir, 'CR-0002').status, 'applied');
+});
+
 test('T17: a request marked applied while the design has not moved since it was opened is an error', () => {
   assert.ok(RULES.T17);
   const m = loadProject(EXAMPLE);

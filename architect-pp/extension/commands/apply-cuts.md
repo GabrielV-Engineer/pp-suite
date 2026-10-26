@@ -49,7 +49,7 @@ brings the addition back. It is a mechanical edit, not a redesign: remove what t
    the two additions overlap: report it, and say that `overlaps` should list each other in `additions.yaml` so that they are decided together (you may not edit that field of a decided addition's decision, but `overlaps` is not a decision). Report every such overlap.
 4. Run `ppc validate . --design` (the argument is the project directory, not the project id). Fix every error that your edit caused. In particular, `X02` and `X03` check
    that nothing of a cut addition is left and that its non-goal is present.
-5. If `.specify/` exists, run `ppc constitution` so the constitution follows the trimmed design. If it refuses because other
+5. Run `ppc constitution` so the project rules in `CLAUDE.md` follow the trimmed design. If it refuses because other
    additions are still undecided, say so in the report; do not use `--force`.
 6. Report: for each addition, the ids and files you removed, the non-goal added, and what you left alone on purpose;
    any addition you could not apply, and why; every overlap with an undecided or kept addition; the result of the validation. Say plainly what you decided on your own.
