@@ -6,7 +6,6 @@ import { join } from 'node:path';
 import { loadProject } from '../src/load.mjs';
 import { validateModel, RULES } from '../src/validate.mjs';
 import { checkGit } from '../src/gitcheck.mjs';
-import { generate, writeGenerated, checkGenerated } from '../src/generate.mjs';
 import { modeOf } from '../src/policy.mjs';
 import { nextSteps } from '../src/next.mjs';
 import { appliesTo, buildPrompts, resolveTarget } from '../src/prompts.mjs';
@@ -103,7 +102,6 @@ function lightRepo(t, { blueprint = true } = {}) {
   const r = repo(t);
   if (blueprint) {
     r.write({ '.architect/blueprint.yaml': read(r.dir, '.architect/blueprint.yaml').replace('budgets:', 'default_mode: light\nbudgets:') });
-    writeGenerated(r.dir, generate(loadProject(r.dir)));
     r.git('add', '-A');
     r.git('commit', '-q', '-m', 'light by default');
   }
@@ -116,7 +114,6 @@ test('start: records the mode it applied, and a light slice goes straight to bui
   assert.equal(slice(r.dir, 'SL-001').mode, 'light');
   assert.deepEqual(JSON.parse(read(r.dir, '.sddpp/active.json')), { slice: 'SL-001', phase: 'build' });
   assert.deepEqual(validateModel(loadProject(r.dir)).filter((f) => f.severity === 'error'), []);
-  assert.deepEqual(checkGenerated(r.dir, generate(loadProject(r.dir))), []);
 });
 
 test('start: without a default the cycle is strict and the mode is recorded as such', (t) => {
@@ -129,7 +126,6 @@ test('start: a slice that asks for the strict cycle gets it even when the projec
   const r = lightRepo(t);
   const file = '.sddpp/slices/SL-001-deployable-skeleton.md';
   r.write({ [file]: read(r.dir, file).replace('type: skeleton', 'type: skeleton\nmode: strict') });
-  writeGenerated(r.dir, generate(loadProject(r.dir)));
   r.git('add', '-A');
   r.git('commit', '-q', '-m', 'strict slice');
   assert.equal(start(r.dir, 'SL-001').phase, 'red');
@@ -139,7 +135,6 @@ test('start: a refactor slice has no mode to record', (t) => {
   const r = lightRepo(t);
   const file = '.sddpp/slices/SL-008-share-validation-rules.md';
   r.write({ [file]: read(r.dir, file).replace('status: planned', 'status: ready\napproved_by: reviewer').replace('depends_on: [SL-004]', 'depends_on: []') });
-  writeGenerated(r.dir, generate(loadProject(r.dir)));
   assert.equal(start(r.dir, 'SL-008').phase, 'refactor');
   assert.equal(slice(r.dir, 'SL-008').mode, undefined);
 });
@@ -185,7 +180,6 @@ test('finish: the test policy still applies to a light slice', (t) => {
 test('finish: a required policy refuses a light slice with no tests', (t) => {
   const r = lightRepo(t);
   r.write({ '.architect/blueprint.yaml': read(r.dir, '.architect/blueprint.yaml').replace('default_mode: light', 'default_mode: light\ntest_policy: required') });
-  writeGenerated(r.dir, generate(loadProject(r.dir)));
   r.git('add', '-A');
   r.git('commit', '-q', '-m', 'required');
   start(r.dir, 'SL-001');

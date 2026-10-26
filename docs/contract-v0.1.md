@@ -18,10 +18,8 @@ Status: **v0.1, unstable.** Expect breaking changes until v1.0.
 .sddpp/                          written by SDD.PP
   slices/SL-001-*.md             one file per slice: the leaves of the WBS
   debt/<component>.yaml          one register per component (the source of truth)
-  debt/<component>.md            generated table (do not edit)
   change-requests/CR-0001-*.md   how SDD.PP asks for a blueprint change
   active.json                    {slice, phase}: machine state read by the test-lock guard
-  wbs.md                         generated work breakdown (do not edit)
 ```
 
 SDD.PP never edits `.architect/`. If a slice finds the design wrong or silent, it opens a **change request**; the
@@ -156,7 +154,6 @@ Errors fail validation; warnings fail only with `--strict`. `ppc rules` prints t
 | `X03` | error | A cut addition was applied but the non-goal it becomes is not among the non-goals. |
 | `X04` | warning / error | An addition was decided to be cut but the cut was not applied (a warning while drafting, an error once slices exist). |
 | `X05` | error | An addition points at something that does not exist (a design id, or another addition it overlaps), or its id is duplicated. |
-| `G01` | error | A generated view is missing or stale (`ppc generate` fixes it). |
 
 Cross-reference rules run only when `blueprint.yaml` itself is valid, since everything else points at it.
 

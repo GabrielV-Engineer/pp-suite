@@ -68,7 +68,6 @@ export const RULES = {
   X03: 'A cut addition was applied but the non-goal it becomes is not among the non-goals.',
   X04: 'An addition was decided to be cut but the cut was not applied (a warning while the design is drafted, an error once slices exist).',
   X05: 'An addition points at something that does not exist (a design id, or another addition it overlaps), or its id is duplicated.',
-  G01: 'A generated view is missing or stale.',
 };
 
 /** The rules that judge a design on its own, before any slice or debt register exists. */

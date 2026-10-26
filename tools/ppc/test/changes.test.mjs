@@ -46,14 +46,13 @@ test('open: affects components, decisions and quality targets, all of which must
 
 test('open: refuses a vague request, an unknown slice, and one that says what it affects nowhere', (t) => {
   const { dir } = repo(t);
-  const before = read(dir, '.sddpp/wbs.md');
+  const before = crs(dir).length;
   fails(() => open(dir, { slice: 'SL-099' }), /unknown slice/);
   fails(() => open(dir, { title: 'x' }), /title/);
   fails(() => open(dir, { problem: 'too short' }), /problem/);
   fails(() => open(dir, { proposal: 'short' }), /proposal/);
   fails(() => open(dir, { qas: [] }), /affects/);
-  assert.equal(crs(dir).length, 1, 'nothing was written');
-  assert.equal(read(dir, '.sddpp/wbs.md'), before);
+  assert.equal(crs(dir).length, before, 'nothing was written');
 });
 
 test('open: ids keep counting, and a title becomes a safe file name', (t) => {

@@ -3,7 +3,6 @@ import { readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { loadProject } from '../src/load.mjs';
 import { validateModel, designFindings, RULES } from '../src/validate.mjs';
-import { generate, writeGenerated, checkGenerated } from '../src/generate.mjs';
 import { checkGit } from '../src/gitcheck.mjs';
 import { nextSteps, overview, renderNext } from '../src/next.mjs';
 import { execFileSync } from 'node:child_process';
@@ -22,7 +21,6 @@ const USAGE = `ppc — pp-suite contract tool
     ppc validate [dir] [--strict]        check a project against the contract (strict: warnings fail too)
     ppc validate [dir] --design          judge only the design (.architect/), before any slice or debt register exists
     ppc check-git [dir]                  verify every slice audit against the real git history
-    ppc generate [dir] [--check]         write the derived views (WBS, debt tables); --check only verifies them
     ppc rules                            list every rule the checks can emit
 
   Setup
@@ -111,7 +109,6 @@ switch (command) {
     const model = loadProject(root);
     let findings = validateModel(model);
     if (flags.has('--design')) findings = designFindings(findings);
-    else if (!findings.some((f) => f.severity === 'error') && model.blueprint) findings.push(...checkGenerated(root, generate(model)));
     const { errors, warnings } = report(findings);
     process.exit(errors || (flags.has('--strict') && warnings) ? 1 : 0);
     break;
@@ -122,21 +119,6 @@ switch (command) {
     const findings = validateModel(model);
     if (!findings.some((f) => f.severity === 'error')) findings.push(...checkGit(model, root));
     process.exit(report(findings).errors ? 1 : 0);
-    break;
-  }
-  case 'generate': {
-    const root = dirAt(0);
-    const model = loadProject(root);
-    const findings = validateModel(model);
-    if (findings.some((f) => f.severity === 'error')) {
-      report(findings);
-      console.error('refusing to generate from an invalid project');
-      process.exit(1);
-    }
-    const views = generate(model);
-    if (flags.has('--check')) process.exit(report(checkGenerated(root, views)).errors ? 1 : 0);
-    writeGenerated(root, views);
-    console.log(`wrote ${views.size} generated view(s)`);
     break;
   }
   case 'start':

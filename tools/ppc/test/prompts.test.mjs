@@ -193,7 +193,7 @@ test('writePrompts: never overwrites a file a person may have edited, unless for
   assert.notEqual(readFileSync(file, 'utf8'), 'my own rules\n');
 });
 
-test('the prompt files do not break validation or the generated views', (t) => {
+test('the prompt files do not break validation', (t) => {
   const { dir } = repo(t);
   writePrompts(dir, 'SL-002', 'red');
   const out = spawnSync('node', [CLI, 'validate', dir, '--strict'], { encoding: 'utf8' });

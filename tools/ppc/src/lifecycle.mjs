@@ -4,7 +4,6 @@ import { Document, parseDocument } from 'yaml';
 import { loadProject } from './load.mjs';
 import { validateModel } from './validate.mjs';
 import { checkGit, dirtyPaths, measure } from './gitcheck.mjs';
-import { generate, writeGenerated } from './generate.mjs';
 import { runMutation, sliceProductionFiles } from './mutation.mjs';
 import { modeOf, testPolicy } from './policy.mjs';
 
@@ -74,10 +73,9 @@ function writeActive(root, slice, phase) {
   writeFileSync(join(root, ACTIVE), `${JSON.stringify({ slice, phase })}\n`);
 }
 
-/** Regenerate the derived views and make sure the project is still valid. */
-export function refreshViews(root) {
-  const model = loadValid(root);
-  writeGenerated(root, generate(model));
+/** After a transition the project must still be valid; if it is not, the caller's transaction rolls back. */
+export function ensureValid(root) {
+  loadValid(root);
 }
 
 function inProgress(model) {
@@ -117,7 +115,7 @@ export function start(root, id) {
       if (WORK_TYPES.includes(s.type)) doc.set('mode', mode);
     });
     writeActive(root, id, phase);
-    refreshViews(root);
+    ensureValid(root);
     return { slice: id, phase };
   });
 }
@@ -133,7 +131,7 @@ export function approveSlice(root, id, by) {
       doc.set('status', 'ready');
       doc.set('approved_by', by.trim());
     });
-    refreshViews(root);
+    ensureValid(root);
     return { slice: id, status: 'ready' };
   });
 }
@@ -251,7 +249,7 @@ export function approveDebt(root, id, { by, accept, drop } = {}) {
       item.set('approved_by', by.trim());
       if (status === 'accepted') item.set('accepted_reason', accept.trim());
     });
-    refreshViews(root);
+    ensureValid(root);
     return { debt: id, status };
   });
 }
@@ -271,7 +269,7 @@ export function approveRed(root, by) {
       doc.set('phase', 'green');
     });
     writeActive(root, s.id, 'green');
-    refreshViews(root);
+    ensureValid(root);
     return { slice: s.id, phase: 'green' };
   });
 }
@@ -285,7 +283,7 @@ export function toRefactor(root) {
     requireCommitted(root);
     editFrontmatter(root, entry.file, (doc) => doc.set('phase', 'refactor'));
     writeActive(root, s.id, 'refactor');
-    refreshViews(root);
+    ensureValid(root);
     return { slice: s.id, phase: 'refactor' };
   });
 }
@@ -413,7 +411,7 @@ export function finish(root, id, input, { mutationRunner, now = new Date() } = {
       }
     }
     writeActive(root, null, null);
-    refreshViews(root);
+    ensureValid(root);
 
     const problems = checkGit(loadProject(root), root, { tips: new Map([[id, 'HEAD']]) });
     if (problems.length) fail(`the audit does not match git history:\n${describe(problems)}`);

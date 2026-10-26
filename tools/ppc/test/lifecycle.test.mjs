@@ -6,7 +6,6 @@ import { join } from 'node:path';
 import { loadProject } from '../src/load.mjs';
 import { validateModel } from '../src/validate.mjs';
 import { checkGit } from '../src/gitcheck.mjs';
-import { generate, checkGenerated, writeGenerated } from '../src/generate.mjs';
 import { start, approveSlice, approveRed, approveDebt, toRefactor, finish, mutate, status, initialPhase, LifecycleError } from '../src/lifecycle.mjs';
 import { CLI, lines, repo } from './helpers.mjs';
 
@@ -17,11 +16,10 @@ const RED = { 'tests/health.test.js': lines(3) };
 const GREEN = { 'src/health.js': lines(5) };
 const fails = (fn, pattern) => assert.throws(fn, (e) => e instanceof LifecycleError && pattern.test(e.message));
 
-/** After a transition the project must still be valid and its generated views current. */
+/** After a transition the project must still be valid. */
 function assertConsistent(dir) {
   const model = loadProject(dir);
   assert.deepEqual(validateModel(model).filter((f) => f.severity === 'error'), []);
-  assert.deepEqual(checkGenerated(dir, generate(model)), []);
 }
 
 // ── start ────────────────────────────────────────────────────────
@@ -231,7 +229,6 @@ test('finish: a refactor slice marks the debt it pays as paid, and nothing else'
   const file = '.sddpp/slices/SL-008-share-validation-rules.md';
   const original = read(r.dir, file);
   r.write({ [file]: original.replace('status: planned', 'status: ready\napproved_by: reviewer').replace('depends_on: [SL-004]', 'depends_on: []') });
-  writeGenerated(r.dir, generate(loadProject(r.dir)));
   const debtBefore = read(r.dir, '.sddpp/debt/backend.yaml');
   assert.equal(start(r.dir, 'SL-008').phase, 'refactor');
   const sha = r.commit('refactor(SL-008): share the rules', { 'src/rules.js': lines(4) });
@@ -335,7 +332,7 @@ test('finish ignores contract bookkeeping when it measures the diff', (t) => {
 
 test('finish: rolls everything back when the result would be invalid', (t) => {
   const { dir, audit } = throughGreen(t);
-  const files = ['.sddpp/slices/SL-001-deployable-skeleton.md', '.sddpp/active.json', '.sddpp/wbs.md'];
+  const files = ['.sddpp/slices/SL-001-deployable-skeleton.md', '.sddpp/active.json'];
   const before = files.map((f) => read(dir, f));
   fails(() => finish(dir, 'SL-001', { ...audit, decisions: ['ADR-0099'] }), /ADR-0099/);
   assert.deepEqual(files.map((f) => read(dir, f)), before);

@@ -8,7 +8,6 @@ import { validateModel, RULES } from '../src/validate.mjs';
 import { testPolicy } from '../src/policy.mjs';
 import { overview } from '../src/next.mjs';
 import { start, approveRed, finish, LifecycleError } from '../src/lifecycle.mjs';
-import { generate, writeGenerated } from '../src/generate.mjs';
 import { CLI, EXAMPLE, lines, repo } from './helpers.mjs';
 
 const fails = (fn, pattern) => assert.throws(fn, (e) => e instanceof LifecycleError && pattern.test(e.message));
@@ -100,7 +99,6 @@ function throughGreenWithoutTests(t, project) {
   const r = repo(t);
   if (project) {
     r.write({ '.architect/blueprint.yaml': read(r.dir, '.architect/blueprint.yaml').replace('budgets:', `test_policy: ${project}\nbudgets:`) });
-    writeGenerated(r.dir, generate(loadProject(r.dir)));
     r.git('add', '-A');
     r.git('commit', '-q', '-m', 'policy');
   }
