@@ -35,6 +35,7 @@ Each command either changes the project or refuses and leaves it untouched.
 | `ppc refactor` | anyone | green → refactor (tests stay locked) |
 | `ppc finish <slice> --audit <file>` | anyone; **a human** to add `--budget-reason` or `--mutation-reason` | Closes the slice. The sizes (production and test lines) are **measured from git**, then the result is validated and checked against git; if anything is off, nothing changes. A refactor slice also marks the debt it pays as `paid` |
 | `ppc mutation (--files a,b \| --slice <id>)` | anyone | Mutation-tests those files (or a finished slice's files) and prints the score and the mutants the tests missed. Changes nothing |
+| `ppc decide-addition <ADD-ID> (--keep --reason <why> \| --cut) --by <name>` or `--accept-recommended --by <name>` | **a human** | Keeps or cuts something the design contains that the person did not ask for (`.architect/additions.yaml`). Cutting records the decision; carrying it out in the design is a separate step. See [scope review](scope-review.md) |
 | `ppc validate --design` | anyone | Judges only the design (`.architect/`) with the rules that concern it, before any slice or debt register exists. Used to check the hand-off |
 | `ppc status` | anyone | What is in progress |
 | `ppc next` | anyone | Whose turn it is (human, agent or anyone) and the exact command to run, from the slice's phase and the git history. Also lists what else waits for a person and which slices are blocked |

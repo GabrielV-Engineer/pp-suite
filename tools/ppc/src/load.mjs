@@ -34,6 +34,7 @@ export function loadProject(root) {
     debt: [],
     active: null,
     specs: {},
+    additions: null,
   };
   const fail = (file, message) => model.errors.push({ rule: 'PARSE', severity: 'error', file, message });
   const read = (file) => readFileSync(join(root, file), 'utf8');
@@ -80,6 +81,14 @@ export function loadProject(root) {
       model.specs[file] = read(file);
     } catch {
       model.specs[file] = null;
+    }
+  }
+
+  if (existsSync(join(root, '.architect/additions.yaml'))) {
+    try {
+      model.additions = { file: '.architect/additions.yaml', data: parseYaml(read('.architect/additions.yaml')) };
+    } catch (e) {
+      fail('.architect/additions.yaml', `invalid YAML: ${e.message}`);
     }
   }
 

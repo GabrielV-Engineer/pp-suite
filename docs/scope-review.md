@@ -1,6 +1,9 @@
 # Scope review: the person accepts or cuts each addition
 
-Status: **proposed design, not built.** Written on 2026-10-26 for the owner's approval.
+Status: **built and tried once** (2026-10-26). Owner approved the design ("after the hand-off"). What exists: the
+contract file and its rules `X01` to `X05`, the human-only command `ppc decide-addition`, the guard that blocks agents
+from deciding, the hand-off writing the file, and the cut-applying prompt (`architect-pp/commands/apply-cuts.md`).
+See "What the first real try showed" at the end.
 
 ## The problem it solves
 
@@ -89,3 +92,35 @@ These are a model's proposals; the owner decides.
 On the task-list fixture: the number of additions detected, the size of the design before and after the cuts, and,
 in the later project-level experiment, whether the slices planned from the trimmed design stay narrow where the
 original design led an ambitious request to 4.6 times the code.
+
+## What the first real try showed (2026-10-26, one run of each step)
+
+Chain: hand-off from The Architect's real blueprint, then the decision, then the cuts, then validation.
+
+- The hand-off wrote **5 additions** in plain words (a dark appearance, accessibility targets, a recoverable delete,
+  a full-stack framework, a health route), each with cost, what is lost, how hard it is to add later and a
+  recommendation: cut two, keep one, leave two to the person. This is close to my own table above. It cost 0.81 USD.
+  An example is in `architect-pp/fixtures/additions-example.yaml`.
+- The decisions were made **by me under a fixture name** (`--accept-recommended`): this tested the mechanism and is not
+  a human decision. It cut two and kept one, and left two to the person.
+- Applying the cuts took about 1.5 minutes and 0.33 to 0.45 USD. Result: 12 files and 649 lines became 11 files and
+  617 lines, 5 decisions became 4, the non-goals went from 8 to 10, the revision from 1 to 2, and the design validated
+  with 0 errors and 2 warnings (`X01`, the two additions left to the person).
+- **The reduction is small (5%) by construction**: the two large items, the framework and the accessibility targets,
+  are the ones recommended for the person to decide. The value of the step is that the decisions are visible, not that
+  it shrinks the design by itself.
+
+Two weaknesses found, and one fixed:
+
+1. **The ids an addition lists (`affects`) are written by a model and can be incomplete.** The validator only checks the
+   ids it is told about. In the first run the dark appearance had an empty list, and a quality target still demanded
+   contrast "in the dark theme", contradicting the new non-goal. Neither the rules nor the step noticed.
+   *Fixed in the prompt:* the step now searches the whole design for each cut addition's key words and reports any
+   mention that belongs to another undecided addition. In the second run it reported exactly that overlap and told
+   the person to decide the two additions together. It is a prompt fix checked in one run; the validator still cannot
+   see a contradiction in prose.
+2. **Overlapping additions** (a dark appearance and an accessibility target about contrast) cannot be decided one at a
+   time without a contradiction in between. The step reports them; it does not yet group them into one decision.
+
+Also: in both runs the cut step said it could not run a helper script (no permission) and did the edits by hand. It
+reported that, and the final validation was repeated by me.

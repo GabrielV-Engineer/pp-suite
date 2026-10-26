@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { basename } from 'node:path';
 
 const SCHEMA_DIR = new URL('../../../contract/v0.1/schemas/', import.meta.url);
-const SCHEMA_NAMES = ['blueprint', 'slice', 'debt', 'adr', 'evidence', 'change-request', 'active'];
+const SCHEMA_NAMES = ['blueprint', 'slice', 'debt', 'adr', 'evidence', 'change-request', 'active', 'additions'];
 const WORK_TYPES = ['skeleton', 'feature', 'fix'];
 /** Heuristic budgets by declared level, a guard against over-engineering. They are defaults, not findings of any study. */
 const LEVEL_LIMITS = {
@@ -58,11 +58,16 @@ export const RULES = {
   W03: 'An unfinished slice was planned against an older blueprint revision.',
   W04: 'A slice has many acceptance criteria and probably needs splitting.',
   W05: 'A quality attribute is not referenced by any live slice, so nothing plans to deliver or verify it.',
+  X01: 'An addition is still undecided (a warning while the design is drafted, an error once slices exist).',
+  X02: 'A cut addition was applied but something that only it justified is still in the design.',
+  X03: 'A cut addition was applied but the non-goal it becomes is not among the non-goals.',
+  X04: 'An addition was decided to be cut but the cut was not applied (a warning while the design is drafted, an error once slices exist).',
+  X05: 'An addition points at something that does not exist, or its id is duplicated.',
   G01: 'A generated view is missing or stale.',
 };
 
 /** The rules that judge a design on its own, before any slice or debt register exists. */
-const DESIGN_RULES = new Set(['PARSE', 'SCHEMA', 'R00', 'T07', 'T08', 'A01', 'W02', 'D01', 'D02', 'D03', 'D04']);
+const DESIGN_RULES = new Set(['PARSE', 'SCHEMA', 'R00', 'T07', 'T08', 'A01', 'W02', 'D01', 'D02', 'D03', 'D04', 'X01', 'X02', 'X03', 'X04', 'X05']);
 
 /** Keep only the findings about `.architect/`, from the rules that concern the design. */
 export function designFindings(findings) {
@@ -328,6 +333,32 @@ export function validateModel(model, { now = new Date() } = {}) {
     }
     if (audit.production_lines > bp.budgets.max_slice_production_lines && !audit.budget_override_reason) {
       error('B01', file, `${s.id} changed ${audit.production_lines} production lines, budget is ${bp.budgets.max_slice_production_lines}, and no budget_override_reason is recorded`);
+    }
+  }
+
+  // ── additions: X01 to X05 ─────────────────────────────────────
+  if (model.additions) {
+    const found = schemaFindings('additions', model.additions.data, model.additions.file);
+    out.push(...found);
+    if (!found.length) {
+      const file = model.additions.file;
+      const planned = model.slices.length > 0;
+      const standing = new Set([...bp.capabilities.map((c) => c.id), ...bp.quality_attributes.map((q) => q.id), ...bp.constraints.map((c) => c.id), ...adrs.map((a) => a.data.id)]);
+      const ids = new Set();
+      for (const a of model.additions.data.additions) {
+        if (ids.has(a.id)) error('X05', file, `${a.id} is duplicated`);
+        ids.add(a.id);
+        const applied = a.decision === 'cut' && a.applied === true;
+        if (a.decision === 'pending') (planned ? error : warn)('X01', file, `${a.id} is undecided: ${a.what}`);
+        if (a.decision === 'cut' && !applied) (planned ? error : warn)('X04', file, `${a.id} was decided to be cut but the cut was not applied`);
+        if (applied) {
+          const left = (a.affects ?? []).filter((id) => standing.has(id));
+          if (left.length) error('X02', file, `${a.id} is cut but ${left.join(', ')} is still in the design`);
+          if (!bp.non_goals.some((g) => g.trim() === a.non_goal.trim())) error('X03', file, `${a.id} is cut but its non-goal "${a.non_goal}" is not among the non-goals`);
+        } else {
+          for (const id of a.affects ?? []) if (!standing.has(id)) error('X05', file, `${a.id} points at ${id}, which does not exist`);
+        }
+      }
     }
   }
 

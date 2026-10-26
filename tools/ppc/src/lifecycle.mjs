@@ -141,6 +141,54 @@ function editDebtEntry(root, register, id, change) {
 }
 
 /**
+ * HUMAN ONLY: decide on an addition the design contains and the person did not ask for: keep it, or cut it.
+ * `acceptRecommended` decides every pending addition the way it was recommended and leaves the ones recommended
+ * as "decide" to the person. Cutting only records the decision; carrying it out in the design is a separate step.
+ */
+export function decideAddition(root, id, { decision, by, reason, acceptRecommended } = {}) {
+  if (!by || !by.trim()) fail('--by <name> is required: a person decides what stays in the design');
+  const file = '.architect/additions.yaml';
+  const abs = join(root, file);
+  if (!existsSync(abs)) fail('there is no .architect/additions.yaml');
+  const original = readFileSync(abs, 'utf8');
+  const doc = parseDocument(original);
+  const items = doc.get('additions')?.items ?? [];
+  const decided = {};
+  const left = [];
+
+  const apply = (item, outcome, why) => {
+    item.set('decision', outcome);
+    item.set('decided_by', by.trim());
+    if (outcome === 'keep') item.set('reason', why);
+    if (outcome === 'cut' && !item.get('non_goal')) item.set('non_goal', String(item.get('what')).trim());
+  };
+
+  if (acceptRecommended) {
+    for (const item of items.filter((i) => i.get('decision') === 'pending')) {
+      const action = item.getIn(['recommendation', 'action']);
+      if (action === 'cut' || action === 'keep') {
+        apply(item, action, item.getIn(['recommendation', 'reason']));
+        decided[item.get('id')] = action;
+      } else left.push(item.get('id'));
+    }
+  } else {
+    if (!['keep', 'cut'].includes(decision)) fail('the decision must be keep or cut');
+    const item = items.find((i) => i.get('id') === id) ?? fail(`unknown addition ${id}`);
+    if (item.get('decision') !== 'pending') fail(`${id} is already decided (${item.get('decision')})`);
+    if (decision === 'keep' && (!reason || reason.trim().length < 5)) fail('keeping an addition needs a --reason of at least 5 characters: why it stays');
+    apply(item, decision, reason?.trim());
+  }
+
+  writeFileSync(abs, doc.toString({ lineWidth: 0 }));
+  const problems = validateModel(loadProject(root)).filter((f) => f.file === file && ['SCHEMA', 'PARSE'].includes(f.rule));
+  if (problems.length) {
+    writeFileSync(abs, original);
+    fail(`the decision would leave additions.yaml invalid:\n${describe(problems)}`);
+  }
+  return acceptRecommended ? { decided, left_to_the_person: left } : { addition: id, decision };
+}
+
+/**
  * HUMAN ONLY: decide on a debt entry the AI proposed. Default: it becomes open (a real debt to pay);
  * `accept` records that it will be lived with, and why; `drop` discards it.
  */

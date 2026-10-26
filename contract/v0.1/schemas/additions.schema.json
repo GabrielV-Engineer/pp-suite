@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:pp-suite:contract:0.1:additions",
+  "title": "Additions to review (.architect/additions.yaml)",
+  "description": "Things the design contains that the person did not ask for. Each one is decided by a person: kept, or cut. Optional file, written by Architect.PP; the decision fields are written by a person.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["additions"],
+  "properties": {
+    "additions": { "type": "array", "items": { "$ref": "#/$defs/addition" } }
+  },
+  "$defs": {
+    "addition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "what", "origin", "cost", "if_cut", "later", "recommendation", "decision"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^ADD-\\d{3}$" },
+        "what": { "type": "string", "minLength": 5, "description": "The addition, in words a novice can read." },
+        "origin": { "enum": ["not_requested", "stronger_than_asked", "tool_added", "implied_by_request"] },
+        "cost": { "type": "string", "minLength": 5, "description": "What it adds: components, targets, decisions, tools to learn, lines to read." },
+        "if_cut": { "type": "string", "minLength": 5, "description": "What the person loses." },
+        "later": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["effort", "revisit_when"],
+          "properties": {
+            "effort": { "enum": ["easy", "needs_migration", "needs_redesign"], "description": "How hard it is to add afterwards." },
+            "revisit_when": { "type": "string", "minLength": 5 }
+          }
+        },
+        "recommendation": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["action", "reason"],
+          "properties": {
+            "action": { "enum": ["cut", "keep", "decide"] },
+            "reason": { "type": "string", "minLength": 5 }
+          }
+        },
+        "affects": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "pattern": "^((CAP|QA|CON)-\\d{3}|ADR-\\d{4})$" },
+          "description": "Ids in the design that exist only because of this addition."
+        },
+        "non_goal": { "type": "string", "minLength": 5, "description": "The statement it becomes among the non-goals if it is cut." },
+        "decision": { "enum": ["pending", "keep", "cut"] },
+        "decided_by": { "type": "string", "minLength": 1 },
+        "reason": { "type": "string", "minLength": 5, "description": "Why a person kept it." },
+        "applied": { "type": "boolean", "description": "A cut has been carried out in the design." }
+      },
+      "allOf": [
+        { "if": { "properties": { "decision": { "enum": ["keep", "cut"] } }, "required": ["decision"] }, "then": { "required": ["decided_by"] } },
+        { "if": { "properties": { "decision": { "const": "keep" } }, "required": ["decision"] }, "then": { "required": ["reason"] } },
+        { "if": { "properties": { "decision": { "const": "cut" } }, "required": ["decision"] }, "then": { "required": ["non_goal"] } }
+      ]
+    }
+  }
+}

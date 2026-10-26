@@ -130,6 +130,11 @@ Errors fail validation; warnings fail only with `--strict`. `ppc rules` prints t
 | `W03` | warning | An unfinished slice was planned against an older blueprint revision. |
 | `W04` | warning | A slice has many acceptance criteria and probably needs splitting. |
 | `W05` | warning | A quality attribute is not referenced by any live slice, so nothing plans to deliver or verify it. |
+| `X01` | warning / error | An addition is still undecided (a warning while the design is drafted, an error once slices exist). |
+| `X02` | error | A cut addition was applied but something that only it justified is still in the design. |
+| `X03` | error | A cut addition was applied but the non-goal it becomes is not among the non-goals. |
+| `X04` | warning / error | An addition was decided to be cut but the cut was not applied (a warning while drafting, an error once slices exist). |
+| `X05` | error | An addition points at something that does not exist, or its id is duplicated. |
 | `G01` | error | A generated view is missing or stale (`ppc generate` fixes it). |
 
 Cross-reference rules run only when `blueprint.yaml` itself is valid, since everything else points at it.

@@ -1,0 +1,75 @@
+additions:
+  - id: ADD-001
+    what: The page switches between a light and a dark look on its own, following the computer's setting. There is no button to change it.
+    origin: not_requested
+    cost: Every colour is defined twice (ten colours in two themes), one extra style rule, and the contrast test has to pass in both themes, which doubles the colour pairs it checks.
+    if_cut: The page has a single light look and ignores the computer's dark setting.
+    later:
+      effort: easy
+      revisit_when: The owner asks for a dark look, or finds the light page uncomfortable at night.
+    recommendation:
+      action: cut
+      reason: The owner did not ask for it and nothing they asked for needs it; it only doubles the colour work.
+    affects: []
+    non_goal: Dark appearance; the page has a single light theme.
+    decision: pending
+
+  - id: ADD-002
+    what: A set of accessibility targets nobody asked for - readable colours, no sideways scrolling, controls large enough to tap, and everything usable from the keyboard - each checked by an automated test.
+    origin: stronger_than_asked
+    cost: Three quality attributes (QA-003, QA-004, QA-005), a contrast unit test, end-to-end checks for size, reflow and keyboard use, a skip link, form roles and a reduced-motion rule, plus the browser-test tool to learn and run.
+    if_cut: Nothing guarantees colours, control size or keyboard use any more; plain HTML elements are still accessible by default, but regressions would not be caught.
+    later:
+      effort: easy
+      revisit_when: The owner or another person finds the page hard to use, or the interface grows beyond a handful of controls.
+    recommendation:
+      action: decide
+      reason: Whether to hold a personal prototype to these targets is a matter of the owner's values; cutting it removes checks but needs no redesign.
+    affects: [QA-003, QA-004, QA-005]
+    non_goal: Automated accessibility targets (contrast ratios, control size, reflow, keyboard-only checks); the page relies on plain HTML elements only.
+    decision: pending
+
+  - id: ADD-003
+    what: When the owner deletes a task it is hidden from the list but its row stays in the database file, so a mistake can be fixed by hand.
+    origin: stronger_than_asked
+    cost: An extra column (deleted_at), an index on it, a filter that every read must remember, one decision record (ADR-0005), and deleted titles that stay on disk.
+    if_cut: A deleted task is gone for good and a mistaken delete cannot be recovered.
+    later:
+      effort: needs_migration
+      revisit_when: The owner deletes something by mistake twice, or the owner wants true erasure of old tasks.
+    recommendation:
+      action: cut
+      reason: The owner only asked to be able to delete tasks, there is no restore screen to use the kept rows, and nothing they asked for needs it.
+    affects: [ADR-0005]
+    non_goal: Recovering a deleted task; delete removes the row permanently.
+    decision: pending
+
+  - id: ADD-004
+    what: A full-stack web framework (Next.js with React) for a one-page app with one table and four controls.
+    origin: tool_added
+    cost: A large framework and its build step, server actions as the only interface (ADR-0004), a rule about when the page is rendered, and the framework's conventions to learn.
+    if_cut: The app would need a different, smaller way to serve one page and read and write one table.
+    later:
+      effort: needs_redesign
+      revisit_when: Before any code is written; after the first slices are built, changing it means redoing the interface and server layers.
+    recommendation:
+      action: decide
+      reason: Cutting it means choosing another framework, which is a redesign, and the weight of the tool against the size of the app is a matter of the owner's values.
+    affects: [ADR-0004]
+    non_goal: A web application framework such as Next.js or React.
+    decision: pending
+
+  - id: ADD-005
+    what: A health address (/api/health) that answers "ok" and that nobody sees or uses except a check script.
+    origin: tool_added
+    cost: One extra route and its unit test.
+    if_cut: The script that checks the app is reachable only on the owner's own computer would need another way to tell that the server is up.
+    later:
+      effort: easy
+      revisit_when: The check for local-only access (QA-001) is done another way.
+    recommendation:
+      action: keep
+      reason: "The way the system is checked needs it: the local-only check (QA-001) must know the server is up before it looks at who is listening."
+    affects: []
+    non_goal: A health-check address; the server's availability is checked another way.
+    decision: pending

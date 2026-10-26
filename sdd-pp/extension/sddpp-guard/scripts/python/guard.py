@@ -22,7 +22,7 @@ LOCKED_PHASES = {"green", "refactor"}
 
 # `ppc approve-red`, `node .../ppc.mjs approve-slice`, ...: the human gate, never the agent's to pass.
 APPROVAL = re.compile(
-    r"\bppc(\.mjs)?\s+approve"
+    r"\bppc(\.mjs)?\s+(approve|decide)"
     # `ppc finish ... --budget-reason ...` records an exception to a rule: that is a decision too
     r"|\bppc(\.mjs)?\s+finish\b[^\n]*--(budget|mutation)-reason",
     re.IGNORECASE,
@@ -30,7 +30,7 @@ APPROVAL = re.compile(
 
 # Fields that record a human decision. An agent never writes them: a person does, or `ppc` on a person's behalf.
 DECISION_FIELD = re.compile(r"(approved_by|red_approved_by|decided_by|accepted_reason|budget_override_reason|mutation_override_reason)[\"']?\s*:")
-CONTRACT_DIR = re.compile(r"(^|/)\.sddpp/")
+CONTRACT_DIR = re.compile(r"(^|/)(\.sddpp/|\.architect/additions\.yaml$)")
 
 TEST_PATH = re.compile(
     r"(^|/)(tests?|__tests__|spec)/"  # tests/, test/, __tests__/, spec/

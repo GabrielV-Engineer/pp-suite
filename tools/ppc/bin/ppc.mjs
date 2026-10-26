@@ -7,7 +7,7 @@ import { generate, writeGenerated, checkGenerated } from '../src/generate.mjs';
 import { checkGit } from '../src/gitcheck.mjs';
 import { nextSteps, overview, renderNext } from '../src/next.mjs';
 import { execFileSync } from 'node:child_process';
-import { start, approveSlice, approveRed, approveDebt, toRefactor, finish, mutate, status, LifecycleError } from '../src/lifecycle.mjs';
+import { start, approveSlice, approveRed, approveDebt, decideAddition, toRefactor, finish, mutate, status, LifecycleError } from '../src/lifecycle.mjs';
 
 const USAGE = `ppc — pp-suite contract tool
 
@@ -25,6 +25,9 @@ const USAGE = `ppc — pp-suite contract tool
     ppc approve-red --by <name> [dir]    HUMAN ONLY: approve the committed red tests, enter green
     ppc approve-debt <DEBT-ID> --by <name> [--accept <reason> | --drop] [dir]
                                          HUMAN ONLY: decide on proposed debt (default: it becomes open)
+    ppc decide-addition <ADD-ID> (--keep --reason <why> | --cut) --by <name> [dir]
+    ppc decide-addition --accept-recommended --by <name> [dir]
+                                         HUMAN ONLY: keep or cut something the design contains that the person did not ask for
     ppc refactor [dir]                   green -> refactor
     ppc finish <slice> --audit <file.json> [--budget-reason <text>] [--mutation-reason <text>] [dir]
                                          close the slice; the diff size is measured from git.
@@ -36,7 +39,7 @@ const USAGE = `ppc — pp-suite contract tool
     ppc overview [dir]                   where the project stands: slices, capabilities, debt, contract
 `;
 
-const VALUE_OPTIONS = new Set(['--by', '--audit', '--files', '--slice', '--accept', '--budget-reason', '--mutation-reason']);
+const VALUE_OPTIONS = new Set(['--by', '--audit', '--files', '--slice', '--accept', '--budget-reason', '--mutation-reason', '--reason']);
 const [command, ...rest] = process.argv.slice(2);
 const positionals = [];
 const flags = new Set();
@@ -112,6 +115,13 @@ switch (command) {
     break;
   case 'approve-debt':
     transition(() => approveDebt(dirAt(1), positionals[0], { by: options.get('by'), accept: options.get('accept'), drop: flags.has('--drop') }));
+    break;
+  case 'decide-addition':
+    transition(() =>
+      flags.has('--accept-recommended')
+        ? decideAddition(dirAt(0), null, { acceptRecommended: true, by: options.get('by') })
+        : decideAddition(dirAt(1), positionals[0], { decision: flags.has('--cut') ? 'cut' : flags.has('--keep') ? 'keep' : undefined, by: options.get('by'), reason: options.get('reason') }),
+    );
     break;
   case 'approve-red':
     transition(() => approveRed(dirAt(0), options.get('by')));

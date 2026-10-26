@@ -101,11 +101,26 @@ class GuardTest(unittest.TestCase):
         for state in (None, {"slice": "SL-002", "phase": "red"}, {"slice": "SL-002", "phase": "green"}):
             root = self.project(state)
             for cmd in ("ppc approve-red --by me", "node tools/ppc/bin/ppc.mjs approve-red --by me",
-                        "cd proj && ppc  approve-red", "npx ppc approve-slice SL-003", "ppc approve-debt DEBT-BE-004 --by me"):
+                        "cd proj && ppc  approve-red", "npx ppc approve-slice SL-003", "ppc approve-debt DEBT-BE-004 --by me",
+                        "ppc decide-addition ADD-001 --cut --by me", "node tools/ppc/bin/ppc.mjs decide-addition --accept-recommended --by me"):
                 with self.subTest(state=state, cmd=cmd):
                     code, message = guard.decide(payload("Bash", command=cmd), root)
                     self.assertEqual(code, 2)
                     self.assertIn("human", message)
+
+    def test_the_agent_cannot_decide_an_addition_by_writing_the_file(self):
+        root = self.project(None)
+        (root / ".architect").mkdir()
+        (root / ".architect" / "additions.yaml").write_text("additions:\n  - id: ADD-001\n    decision: pending\n")
+        for tool, args in (
+            ("Edit", {"file_path": ".architect/additions.yaml", "old_string": "decision: pending", "new_string": "decision: keep\n    decided_by: me"}),
+            ("Write", {"file_path": ".architect/additions.yaml", "content": "additions:\n  - id: ADD-001\n    decided_by: me\n"}),
+        ):
+            with self.subTest(tool=tool):
+                self.assertEqual(self.code(root, payload(tool, **args)), 2)
+        # an agent may still do the work that is not a decision, such as marking a cut as applied
+        applied = {"file_path": ".architect/additions.yaml", "old_string": "decision: pending", "new_string": "decision: pending\n    applied: true"}
+        self.assertEqual(self.code(root, payload("Edit", **applied)), 0)
 
     def test_the_agent_cannot_record_an_exception_through_ppc_finish_either(self):
         root = self.project({"slice": "SL-002", "phase": "green"})

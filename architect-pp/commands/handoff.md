@@ -29,10 +29,10 @@ the plan**. It is a format conversion, not a redesign: do not improve, add or re
   (a contrast ratio, a binding address, a latency, a count). If the blueprint states none for a concern, do not
   create a quality attribute for it. A capability is a behavior a person can see; a technical or cosmetic goal that
   nobody asked for is a constraint, a decision or an addition to flag, not a capability.
-- **Flag additions.** If the blueprint contains something beyond what the person's own words asked for (a feature
+- **Record additions.** If the blueprint contains something beyond what the person's own words asked for (a feature
   they never named, a stronger version of one they did, such as a recoverable delete when they said "maybe delete
-  them", a heavy tool for a small system, a quality target nobody requested), keep it as the blueprint says but write
-  one line in the report: what it is and where it came from. Do not remove it. Removing is the person's decision.
+  them", a heavy tool for a small system, a quality target nobody requested), keep it in the design as the blueprint
+  says and write it in `.architect/additions.yaml` (step 6). Do not remove it: removing is the person's decision.
 - **One owner per file.** Write only under `.architect/`. Do not create `.sddpp/`.
 - **English.** The files of the contract are in English whatever the language of the blueprint.
 
@@ -67,8 +67,22 @@ the plan**. It is a format conversion, not a redesign: do not improve, add or re
 5. Write `.architect/evidence/EV-NNN-<slug>.md` for the checks the blueprint reports (for example, versions verified
    against a package registry), with the source, the date and an expiry date. **Group by source and date**: all the
    package versions verified against one registry on one day are one evidence file, not one per package.
-6. Run `ppc validate <project> --design` (if you are not allowed to run it, say so in the report; do not claim it passed). Fix every error. Read every warning: fix it if the cause is in your
+6. Write `.architect/additions.yaml`, following `contract/v0.1/schemas/additions.schema.json`, with one entry per
+   addition you recorded:
+   - `what` in words a novice can read, and `origin` (`not_requested`, `stronger_than_asked`, `tool_added` or
+     `implied_by_request`);
+   - `cost` (what it adds: components, targets, decisions, tools to learn, lines to read) and `if_cut` (what the
+     person loses);
+   - `later`: how hard it is to add afterwards (`easy`, `needs_migration`, `needs_redesign`) and when to revisit it;
+   - `affects`: the ids (`CAP-`, `QA-`, `CON-`, `ADR-`) that exist **only** because of this addition;
+   - `recommendation`: `cut` if the person did not ask for it and nothing they asked for needs it; `keep` if
+     something they asked for, or the way the system is built and checked, needs it; `decide` if cutting it would
+     mean a redesign (a change of framework) or the choice is a matter of the person's values. Give the reason;
+   - `non_goal`: the sentence it would become among the non-goals if cut;
+   - `decision: pending`. **Never write `decided_by`, `reason` or any decision**: only a person does.
+   If there are no additions, do not create the file.
+7. Run `ppc validate <project> --design` (if you are not allowed to run it, say so in the report; do not claim it passed). Fix every error. Read every warning: fix it if the cause is in your
    conversion, and report it if the cause is in the blueprint's design.
-7. Report: the files written; the sections dropped; the additions you flagged; the quality attributes you did not
+8. Report: the files written; the sections dropped; the additions you flagged; the quality attributes you did not
    create because the blueprint gave no measure; every warning left, with its cause. Say plainly what you decided
    on your own.
