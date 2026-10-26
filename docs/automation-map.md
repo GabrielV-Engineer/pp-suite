@@ -13,11 +13,11 @@ last column is what is **not built yet**. Nothing below has been measured as tim
 | # | Step from idea to result | Spec Kit alone | SDD.PP + Architect today | Not built yet |
 |---|---|---|---|---|
 | 1 | Turn a vague idea into requirements | Model (`specify`, then `clarify` asks up to 5 questions); Person answers | Model (The Architect's interview); Person answers | |
-| 2 | Choose a stack, data model, API | Model (`plan`, `research.md`, `data-model.md`, `contracts/`) | Model (The Architect's blueprint) | A **complexity budget**: The Architect inflates scope by default until it is pushed back |
+| 2 | Choose a stack, data model, API | Model (`plan`, `research.md`, `data-model.md`, `contracts/`) | Model (The Architect's blueprint); **Auto-checked** design linter (`D01` to `D04`: circles, wrong-way dependencies, complexity budget by level, no prioritization) | A step that asks the person to cut scope when the budget is exceeded |
 | 3 | State what is out of scope | Person (the spec has assumptions, no field for non-goals) | Blueprint non-goals (Model); `Out of scope` per slice (Model, then approved) | Automatic carry-over of non-goals into every slice |
 | 4 | Record decisions and why | Constitution only | ADRs with rejected alternatives, checked by rule `A01` (Model writes, Person reads) | |
 | 5 | Turn the design into the project's files | n/a | **Person (by hand)**: the hand-off from the blueprint to `.architect/` was done manually for the demo | **Automatic hand-off** (Architect.PP) |
-| 6 | Split the work into units | Model (`tasks`: by user story, after a blocking foundation phase) | Model (`tasks` with the `sddpp-slices` preset: vertical slices with budget) | Regroup an Architect plan that is ordered by layers into vertical slices; drop literal code from plans |
+| 6 | Split the work into units | Model (`tasks`: by user story, after a blocking foundation phase) | Model (`tasks` with the `sddpp-slices` preset: vertical slices with budget) | (Decided 2026-10-26: Architect.PP does not slice; SDD.PP does. The hand-off drops The Architect's step plan.) |
 | 7 | Write what the agent must be told for each unit | Generic (`implement` runs all tasks from one command) | Generic phase prompts plus the slice file; `ppc next` names the command to run | **A per-slice prompt generated from the contract** (the dropped `ppc brief`, now reconsidered) |
 | 8 | Know the order and what is next | tasks.md order and `[P]` markers; Person decides | **Auto**: `depends_on`, `ppc next` says whose turn it is and the command | |
 | 9 | Track the state of the project | Checkboxes in tasks.md | **Auto**: state machine, generated WBS, `ppc overview`, debt tables | |

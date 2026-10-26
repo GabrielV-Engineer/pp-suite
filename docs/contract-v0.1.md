@@ -90,6 +90,10 @@ Errors fail validation; warnings fail only with `--strict`. `ppc rules` prints t
 | `PARSE` | error | A file could not be parsed. |
 | `SCHEMA` | error | An artifact does not match its JSON Schema. |
 | `R00` | error | A required file is missing. |
+| `D01` | error | Components depend on each other in a circle. |
+| `D02` | error | A dependency between components points the wrong way for their kind (a frontend reaching the database, or a database depending on the layers above it). |
+| `D03` | warning | The design is larger than the complexity budget of its declared level (lite: 4 components, 8 capabilities, 5 quality attributes; standard: 8, 20, 8). The limits are heuristics I chose, not the result of a study. |
+| `D04` | warning | Every capability is a must (with four or more capabilities), so nothing was prioritized. |
 | `R01` | error | A component has no debt register file. |
 | `T01` | error | A slice references a capability that does not exist. |
 | `T02` | error | A slice references a component that does not exist. |

@@ -6,6 +6,11 @@ import { basename } from 'node:path';
 const SCHEMA_DIR = new URL('../../../contract/v0.1/schemas/', import.meta.url);
 const SCHEMA_NAMES = ['blueprint', 'slice', 'debt', 'adr', 'evidence', 'change-request', 'active'];
 const WORK_TYPES = ['skeleton', 'feature', 'fix'];
+/** Heuristic budgets by declared level, a guard against over-engineering. They are defaults, not findings of any study. */
+const LEVEL_LIMITS = {
+  lite: { components: 4, capabilities: 8, quality_attributes: 5 },
+  standard: { components: 8, capabilities: 20, quality_attributes: 8 },
+};
 const ADR_HEADINGS = ['Context', 'Decision', 'Rejected alternatives', 'Consequences'];
 
 /** Every rule the validator can emit. docs/contract-v0.1.md mirrors this table. */
@@ -21,6 +26,10 @@ export const RULES = {
   T05: 'Slice dependencies contain a cycle.',
   T06: 'A capability has no slice (no requirement without a slice).',
   T07: 'A component references an unknown requirement or component.',
+  D01: 'Components depend on each other in a circle.',
+  D02: 'A dependency between components points the wrong way for their kind (a frontend reaching the database, or a database depending on the layers above it).',
+  D03: 'The design is larger than the complexity budget of its declared level.',
+  D04: 'Every capability is a must, so nothing was prioritized.',
   T08: 'An ADR references an unknown driver, evidence or ADR.',
   T09: 'A debt entry is inconsistent with its component, origin or paying slice.',
   T10: 'A refactor slice pays a debt entry that does not point back at it.',
@@ -146,6 +155,42 @@ export function validateModel(model, { now = new Date() } = {}) {
       if (!comps.has(dep)) error('T07', model.blueprint.file, `component ${c.id} may depend on unknown component ${dep}`);
       if (dep === c.id) error('T07', model.blueprint.file, `component ${c.id} cannot depend on itself`);
     }
+  }
+
+  // ── D01, D02: the dependency structure of the design must make sense ──
+  const componentById = new Map(bp.components.map((c) => [c.id, c]));
+  {
+    const state = new Map();
+    const visit = (id, path) => {
+      if (state.get(id) === 2 || !componentById.has(id)) return;
+      if (state.get(id) === 1) {
+        error('D01', model.blueprint.file, `components depend on each other in a circle: ${[...path.slice(path.indexOf(id)), id].join(' → ')}`);
+        return;
+      }
+      state.set(id, 1);
+      for (const next of componentById.get(id).may_depend_on) if (next !== id) visit(next, [...path, id]);
+      state.set(id, 2);
+    };
+    for (const c of bp.components) visit(c.id, []);
+  }
+  for (const c of bp.components) {
+    for (const depId of c.may_depend_on) {
+      const dep = componentById.get(depId);
+      if (!dep || depId === c.id) continue;
+      if (c.kind === 'frontend' && dep.kind === 'database') error('D02', model.blueprint.file, `${c.id} (frontend) depends directly on ${depId} (database); it should go through a backend`);
+      if (c.kind === 'database' && ['frontend', 'backend'].includes(dep.kind)) error('D02', model.blueprint.file, `${c.id} (database) depends on ${depId} (${dep.kind}), which sits above it`);
+    }
+  }
+
+  // ── D03, D04: a complexity budget, and a sign of unprioritized scope ──
+  const limits = LEVEL_LIMITS[bp.project.level];
+  if (limits) {
+    const sizes = { components: bp.components.length, capabilities: bp.capabilities.length, quality_attributes: bp.quality_attributes.length };
+    const over = Object.entries(sizes).filter(([key, n]) => n > limits[key]).map(([key, n]) => `${n} ${key.replace('_', ' ')} (limit ${limits[key]})`);
+    if (over.length) warn('D03', model.blueprint.file, `a ${bp.project.level} project has ${over.join(', ')}; cut scope or declare a larger level`);
+  }
+  if (bp.capabilities.length >= 4 && bp.capabilities.every((c) => c.priority === 'must')) {
+    warn('D04', model.blueprint.file, `all ${bp.capabilities.length} capabilities are a must; decide what is only a should or a could`);
   }
 
   // ── R01: one debt file per component ──────────────────────────

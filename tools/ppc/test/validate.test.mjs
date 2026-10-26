@@ -256,6 +256,65 @@ test('W03: unfinished slices planned against an older revision are flagged', () 
   assert.ok(has(run(m), 'W03', 'warning'));
 });
 
+// ── the design itself: coherence and a complexity budget ─────────
+const component = (m, id) => m.blueprint.data.components.find((c) => c.id === id);
+
+test('D01: components that depend on each other in a circle are an architecture fault', () => {
+  const m = base();
+  component(m, 'database').may_depend_on = ['frontend']; // frontend -> backend -> database -> frontend
+  assert.ok(has(run(m), 'D01', 'error'));
+  assert.ok(!has(run(base()), 'D01'));
+});
+
+test('D02: a frontend must not reach the database, and a database must not depend on the layers above it', () => {
+  const direct = base();
+  component(direct, 'frontend').may_depend_on = ['backend', 'database'];
+  assert.ok(has(run(direct), 'D02', 'error'));
+  const inverted = base();
+  component(inverted, 'database').may_depend_on = ['backend'];
+  assert.ok(has(run(inverted), 'D02', 'error'));
+  assert.ok(!has(run(base()), 'D02'));
+});
+
+const extraComponent = (n) => ({ id: `extra-${n}`, code: `X${'ABCDEFG'[n]}`, name: `Extra ${n}`, kind: 'library', responsibility: 'Something extra.', may_depend_on: [], justified_by: ['CAP-001'] });
+
+test('D03: a project that declares itself lite has a small complexity budget', () => {
+  const m = base();
+  m.blueprint.data.project.level = 'lite';
+  m.blueprint.data.components.push(extraComponent(1), extraComponent(2)); // 3 + 2 = 5 components
+  const found = run(m).filter((f) => f.rule === 'D03');
+  assert.equal(found.length, 1);
+  assert.equal(found[0].severity, 'warning');
+  assert.match(found[0].message, /5 components/);
+});
+
+test('D03: the same size is fine for a standard project, and counts capabilities and quality attributes too', () => {
+  const standard = base();
+  standard.blueprint.data.project.level = 'standard';
+  standard.blueprint.data.components.push(extraComponent(1), extraComponent(2));
+  assert.ok(!has(run(standard), 'D03'));
+
+  const many = base();
+  many.blueprint.data.project.level = 'lite';
+  for (let i = 10; i < 20; i++) many.blueprint.data.capabilities.push({ id: `CAP-0${i}`, name: `Cap ${i}`, description: 'A capability.', priority: 'could' });
+  assert.ok(run(many).some((f) => f.rule === 'D03' && /capabilities/.test(f.message)));
+
+  const attrs = base();
+  attrs.blueprint.data.project.level = 'lite';
+  for (let i = 10; i < 16; i++) attrs.blueprint.data.quality_attributes.push({ id: `QA-0${i}`, attribute: 'usability', scenario: 'A scenario.', metric: 'a metric', target: 'a target' });
+  assert.ok(run(attrs).some((f) => f.rule === 'D03' && /quality attributes/.test(f.message)));
+});
+
+test('D04: when every capability is a must, nothing was prioritized', () => {
+  const m = base();
+  for (const c of m.blueprint.data.capabilities) c.priority = 'must';
+  assert.ok(has(run(m), 'D04', 'warning'));
+  assert.ok(!has(run(base()), 'D04'));
+  const few = base();
+  few.blueprint.data.capabilities = few.blueprint.data.capabilities.slice(0, 2).map((c) => ({ ...c, priority: 'must' }));
+  assert.ok(!has(run(few), 'D04')); // with so few capabilities, all of them being a must is plausible
+});
+
 test('W05: a quality attribute that no live slice references is a warning, and a dropped slice does not count', () => {
   const m = base();
   assert.ok(!has(run(m), 'W05'));
