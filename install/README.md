@@ -14,7 +14,7 @@ guard), Spec Kit at the pinned commit, Claude Code (informs only), the dependenc
 project, Spec Kit initialized, the three extensions (`architect-pp`, `sddpp-guard`, `sddpp-cycle`) at the version in this repository, the guard script
 (without it the guard fails open), the guard hook and the session-start hook in `.claude/settings.json`.
 
-What `--apply` does, in order, skipping what is already done: `npm ci` for ppc; `specify init --here --force
+What `--apply` does, in order, skipping what is already done (the last step writes the `/pp` skill, a plain file, into `.claude/skills/pp/`; a `/pp` that differs from this repository is reported and only rewritten with `--update`): `npm ci` for ppc; `specify init --here --force
 --non-interactive --integration claude`; `specify extension add <path> --dev` for `architect-pp`, `sddpp-guard` and `sddpp-cycle`;
 the removal of the ten Spec Kit skills this flow does not use (`specify`, `plan`, `tasks`, `implement`, `clarify`, `analyze`, `checklist`, `constitution`, `converge`, `taskstoissues`; the change shows in git, and the reasons are in [speckit-skills-review](../docs/speckit-skills-review.md)); and, only with `--shim`, a two-line shell script that runs this
 checkout of ppc.

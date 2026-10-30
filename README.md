@@ -57,7 +57,7 @@ AI agents write code fast. What goes wrong is not the first hour; it is week two
 | 5. Close | Decide the debt it recorded | Writes the audit: what changed, what was left out, what is open |
 | 6. Design was wrong | Decide the change | Opens a change request; the design is revised and re-numbered |
 
-One command is enough to find your place: **`ppc next`** says whose turn it is and what to run.
+One thing is enough to find your place and move on: type **`/pp`** in the chat. It does the next step, or shows you the next decision in plain words and asks. (`ppc next` prints the same state in a terminal.)
 
 ## Vertical slices instead of the strict cascade
 

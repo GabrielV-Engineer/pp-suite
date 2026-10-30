@@ -57,7 +57,7 @@ Los agentes de IA escriben código muy rápido. Lo que sale mal no es la primera
 | 5. Cierre | Decides la deuda que registró | Escribe la auditoría: qué cambió, qué se dejó fuera, qué queda abierto |
 | 6. El diseño estaba mal | Decides el cambio | Abre una solicitud de cambio; el diseño se revisa y se renumera |
 
-Un solo comando basta para saber dónde estás: **`ppc next`** dice de quién es el turno y qué ejecutar.
+Una sola cosa basta para saber dónde estás y avanzar: escribe **`/pp`** en el chat. Hace el siguiente paso, o te muestra la siguiente decisión en palabras llanas y te pregunta. (`ppc next` imprime el mismo estado en una terminal.)
 
 ## Rebanadas verticales en vez de la cascada estricta
 

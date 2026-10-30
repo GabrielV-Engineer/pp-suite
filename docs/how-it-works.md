@@ -10,6 +10,17 @@ command names are provisional.
                └────── change request ─────────────┘
 ```
 
+## You type `/pp`
+
+Everything below is the engine. The person types one thing in the chat, `/pp`, and the assistant does the next step or puts the next
+decision to them in plain words. `/pp` reads `ppc next --json`, then, by what is next: runs the skill of the agent's step, runs a
+plain `ppc` command, tells the person what only they can do (The Architect's interview), or shows the decision (`ppc show <id>`),
+asks which outcome when there are several, and carries it out. Claude Code asks the person to confirm each approval; that
+confirmation is the decision. Status: built and tested without a person (a non-interactive run reached the approval, was stopped
+there, and nothing was approved); **the confirmation dialog has not been seen by a person yet**. A debt entry or a change request
+with several outcomes takes two clicks (the panel to choose, then the confirmation) until the panel answer is verified by a hook
+([ROADMAP](../ROADMAP.md)).
+
 ## Per project
 
 | Step | You | The AI |
@@ -48,11 +59,14 @@ audit. Whether that is enough is untested; the strict cycle stays available per 
 
 ## The slice cycle, as commands
 
-Each command either changes the project or refuses and leaves it untouched.
+The engine behind `/pp`; a person rarely types these. Each command either changes the project or refuses and leaves it untouched. `--by` defaults to the git `user.name` everywhere.
 
 | Command | Who runs it | What it does |
 |---|---|---|
-| `ppc approve-slice <slice> --by <name>` | **a human** | `planned` → `ready`. The only way a slice becomes ready to start |
+| `ppc approve [<id>] [--accept <reason> \| --drop]` | **a human** | The short form of the three approvals below. A slice id approves it to start, or its red tests when it is in progress in red; a `DEBT-` id decides the debt; with no id it takes the one decision that is waiting and refuses to guess when there are several |
+| `ppc show <id>` | anyone | The card of what is being decided, in plain words: a slice (does, does not, checked by, waits for), its red tests, a debt entry or a change request |
+| `ppc next --json` | anyone | The same next step as data, for the `/pp` skill: `kind` is `decision`, `human-step`, `agent-step`, `run` or `none` |
+| `ppc approve-slice <slice> [--by <name>]` | **a human** | `planned` → `ready`. The only way a slice becomes ready to start |
 | `ppc start <slice>` | anyone | `ready` → in progress, in the red phase (strict) or the build phase (light), and records the mode. Refuses a slice that is not approved, has unfinished dependencies, or when another slice is in progress |
 | `ppc approve-red --by <name>` | **a human** | Strict only. Approves the committed red tests and enters green. Refuses if code is uncommitted |
 | `ppc approve-debt <DEBT-ID> --by <name> [--accept <reason> \| --drop]` | **a human** | Decides on a debt entry the AI proposed: `open` (default), `accepted` (with a reason) or `dropped` |
