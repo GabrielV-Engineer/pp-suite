@@ -25,3 +25,19 @@ and two hooks that append what Claude Code sends them to `probe.log.jsonl`.
 | Did the injected `date` number show in the skill (`!` commands work in VS Code)? | the assistant's first line | `/pp` has to run `ppc next --json` itself |
 | Did the confirmation prompt appear at all, and did "No" keep `marker-approve-1` from being created, although the skill allows `touch`? | the `pre-bash` lines and the folder | The guard's question does not hold against a skill's allowed tools, and `/pp` must not allow `ppc` commands |
 | Did the permission mode in the payload read `default`? | `permission_mode` in the lines | The guard's list of modes must follow what is observed |
+
+## Results (run by the owner on 2026-10-30, VS Code extension, Claude Code 2.1.311)
+
+Read from `probe.log.jsonl` and the session transcript, plus two answers from the owner.
+
+| Question | Result |
+|---|---|
+| What does the hook receive when a person answers the panel? | A `PostToolUse` payload with `tool_name: "AskUserQuestion"`, `tool_use_id`, `session_id`, `cwd`, `permission_mode`, `transcript_path` and `tool_response.answers`, a map from the **text of the question** to the **label of the option chosen** (for example `{"Approve probe-1?": "Yes, approve probe-1"}`). `tool_input` carries the same `answers`. The panel answer can therefore be recorded and checked by a hook |
+| Do `` !`cmd` `` injections work in a skill in VS Code? | Yes: the injected `date` came out as a number |
+| Did the confirmation prompt appear for a command a hook answered `ask` to, with the command allowed by the skill's `allowed-tools`? | **Yes, the owner saw it** and pressed Yes; the command ran. So the hook's `ask` won over the skill's allowed tools, and a person saw the dialog |
+| Did pressing **No** keep the command from running? | **Not tested.** On the first run the owner pressed Yes; on the second the assistant did not attempt the command because the panel answer was No |
+| Which permission mode was the session in? | **`auto`**, which the owner says is their normal mode. The guard asked only in `default` and `acceptEdits`, so in this mode it **blocked** approvals. `auto` is now in the list of modes where it asks |
+| Does `/pp` clash with another command in the `/` menu? | Not reported |
+
+What this does not show: the behavior of the prompt when answered No, any mode other than `auto`, `default` and `acceptEdits` in
+a person's hands, and one run is one run.

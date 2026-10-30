@@ -20,9 +20,11 @@ FILE_TOOLS = {"Edit", "Write", "MultiEdit", "NotebookEdit"}
 
 # Returned in place of an exit code when the person should be asked instead of the call being blocked.
 ASK = "ask"
-# Tried with the real Claude Code on 2026-10-30 (docs/ask-spike.md): in these modes a hook answer of "ask" kept the command from
-# running, even with `Bash` allowed. For any other mode, or none, an approval stays blocked: nothing says what "ask" does there.
-ASKABLE_MODES = {"default", "acceptEdits"}
+# Tried with the real Claude Code on 2026-10-30: in `default` and `acceptEdits` (docs/ask-spike.md, non-interactive) and in `auto`
+# (docs/ask-panel-probe.md, the VS Code extension, seen by a person) a hook answer of "ask" kept the command from running until the
+# person answered, even with `Bash` allowed by the skill. For any other mode, or none, an approval stays blocked: nothing says what
+# "ask" does there.
+ASKABLE_MODES = {"default", "acceptEdits", "auto"}
 
 # Tests are locked in both phases, so refactoring cannot be used to weaken them.
 LOCKED_PHASES = {"green", "refactor"}

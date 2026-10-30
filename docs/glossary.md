@@ -24,7 +24,7 @@ Moved here from the README so that the front page stays short.
 | Mechanism | What it is | Does |
 |---|---|---|
 | **Skills** (`/speckit-...`) | Markdown prompts that Spec Kit turns into Claude Code skills | Tell the model what to read, write and not do in each step |
-| **Hooks** | Programs Claude Code runs at set moments | Before every tool call (the guard): stops an agent running `ppc approve-*` or `ppc decide-change` (it asks the person in Claude Code's own prompt in the default and accept-edits modes, and blocks in the others), from writing a decision field (it lets it run `ppc decide-addition`, for what the person told it), and, in the strict cycle, from editing the tests. At the start of every session: shows whose turn it is (`ppc session`) |
+| **Hooks** | Programs Claude Code runs at set moments | Before every tool call (the guard): stops an agent running `ppc approve-*` or `ppc decide-change` (it asks the person in Claude Code's own prompt in the default, accept-edits and auto modes, and blocks in the others), from writing a decision field (it lets it run `ppc decide-addition`, for what the person told it), and, in the strict cycle, from editing the tests. At the start of every session: shows whose turn it is (`ppc session`) |
 | **`/pp`** | The one command a person types | A skill that reads `ppc next --json` and does the next step, or shows the next decision in plain words and carries it out once Claude Code has asked the person to confirm. The `ppc` commands are the engine behind it |
 | **Scripts** (`ppc`) | Plain Node code, no AI | Measures sizes from git, runs each transition, generates the prompts and the rules |
 | **Rules** | `ppc validate` and `ppc check-git` | Check the contract and compare every audit with the real git history |

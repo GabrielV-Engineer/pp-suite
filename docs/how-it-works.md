@@ -17,7 +17,7 @@ decision to them in plain words. `/pp` reads `ppc next --json`, then, by what is
 plain `ppc` command, tells the person what only they can do (The Architect's interview), or shows the decision (`ppc show <id>`),
 asks which outcome when there are several, and carries it out. Claude Code asks the person to confirm each approval; that
 confirmation is the decision. Status: built and tested without a person (a non-interactive run reached the approval, was stopped
-there, and nothing was approved); **the confirmation dialog has not been seen by a person yet**. A debt entry or a change request
+there, and nothing was approved); **the confirmation dialog was seen by a person once (pressing Yes)**. A debt entry or a change request
 with several outcomes takes two clicks (the panel to choose, then the confirmation) until the panel answer is verified by a hook
 ([ROADMAP](../ROADMAP.md)).
 
@@ -89,9 +89,8 @@ The engine behind `/pp`; a person rarely types these. Each command either change
 | `ppc overview` | anyone | One screen: slices by status, progress per capability, debt per component, contract problems |
 
 Approvals are human-only. The guard blocks the agent from running `ppc approve-*` and from writing any
-field that records a human decision into `.sddpp/`; in the default and accept-edits permission modes
-Claude Code shows the person the exact command and asks, and if nobody answers the command does not run ([spike](ask-spike.md); the
-dialog itself was not seen by a person yet). In any other mode the guard blocks and the person runs the command in a terminal (the CLI
+field that records a human decision into `.sddpp/`; in the default, accept-edits and auto permission modes
+Claude Code shows the person the exact command and asks, and if nobody answers the command does not run ([spike](ask-spike.md) and [probe](ask-panel-probe.md): a person saw the dialog in the VS Code extension, in auto mode, and pressed Yes; pressing No was not tried). In any other mode the guard blocks and the person runs the command in a terminal (the CLI
 also takes it after `!`; the VS Code extension has no `!`). Like the test lock, this stops an agent that
 cooperates; it is not a security boundary.
 

@@ -38,3 +38,9 @@ In a project whose `.claude/settings.json` has the guard installed (`ppc init . 
 `ppc approve-slice SL-001 --by <you>` in the default mode. Expected: a permission prompt that shows the command and says
 "approvals are human decisions"; Yes runs it, No leaves the slice planned. If no prompt appears and the command is refused,
 write that down: the fallback is the old block.
+
+## Update (2026-10-30, later)
+
+The owner's VS Code session runs in `auto`, which this spike did not try, so the guard blocked approvals there. A probe run by the
+owner ([ask-panel-probe](ask-panel-probe.md)) showed that in `auto` a hook's `ask` produces the permission prompt too, so `auto` is
+now one of the modes where the guard asks.

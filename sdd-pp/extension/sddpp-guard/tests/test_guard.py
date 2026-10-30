@@ -124,7 +124,7 @@ class GuardTest(unittest.TestCase):
     # the default and accept-edits modes even when `Bash` was allowed. Any other mode, or an unknown one, keeps the block.
     def test_in_the_modes_that_were_tested_an_approval_asks_the_person_instead_of_blocking(self):
         root = self.project(None)
-        for mode in ("default", "acceptEdits"):
+        for mode in ("default", "acceptEdits", "auto"):
             for cmd in ("ppc approve-slice SL-001 --by me", "node tools/ppc/bin/ppc.mjs approve-red --by me", "ppc decide-change CR-0001 --accept --by me"):
                 with self.subTest(mode=mode, cmd=cmd):
                     code, message = guard.decide(in_mode(mode, "Bash", command=cmd), root)
@@ -133,7 +133,7 @@ class GuardTest(unittest.TestCase):
 
     def test_in_any_other_mode_or_with_no_mode_an_approval_is_still_blocked(self):
         root = self.project(None)
-        for mode in ("bypassPermissions", "dontAsk", "auto", "plan", "somethingNew", "", None):
+        for mode in ("bypassPermissions", "dontAsk", "plan", "somethingNew", "", None):
             with self.subTest(mode=mode):
                 data = payload("Bash", command="ppc approve-slice SL-001 --by me")
                 if mode is not None:
