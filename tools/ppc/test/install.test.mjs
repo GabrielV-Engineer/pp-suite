@@ -422,3 +422,18 @@ test('apply: writes the /pp skill as a plain file, and a second run does nothing
   spawnSync('git', ['commit', '-q', '-m', 'pp'], { cwd: dir });
   assert.deepEqual(apply(dir, env(machine(installed)), { run: () => ({ status: 0 }) }).ran.filter((id) => id === 'pp-skill'), []);
 });
+
+test('plan: the answer recorder and its hook are verified, because without them no panel answer lets an approval through', (t) => {
+  const dir = project(t, { specify: true });
+  mkdirSync(join(dir, '.claude'), { recursive: true });
+  mkdirSync(join(dir, '.specify/extensions/sddpp-guard/scripts/python'), { recursive: true });
+  const status = () => check(plan(dir, env(machine(installed))), 'answer-hook').status;
+  assert.equal(status(), 'missing');
+  writeFileSync(join(dir, '.claude/settings.json'), JSON.stringify({ hooks: { PostToolUse: [{ hooks: [{ command: 'python3 .specify/events.py speckit.sddpp-guard.record-answer post_tool_use 60' }] }] } }));
+  assert.equal(status(), 'missing', 'the hook alone is not enough: its scripts must be there');
+  writeFileSync(join(dir, '.specify/extensions/sddpp-guard/scripts/python/record_answer.py'), '#');
+  assert.equal(status(), 'missing', 'the module it imports too');
+  writeFileSync(join(dir, '.specify/extensions/sddpp-guard/scripts/python/ledger.py'), '#');
+  assert.equal(status(), 'ok');
+  assert.match(check(plan(project(t, { specify: true }), env(machine(installed))), 'answer-hook').fix, /--update/);
+});

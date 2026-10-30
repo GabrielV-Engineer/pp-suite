@@ -30,6 +30,9 @@ const GUARD_SCRIPT = '.specify/extensions/sddpp-guard/scripts/python/guard.py';
 const HOOK_NAME = 'speckit.sddpp-guard.pre-tool';
 const SESSION_SCRIPT = '.specify/extensions/sddpp-cycle/scripts/python/session.py';
 const SESSION_HOOK_NAME = 'speckit.sddpp-cycle.session-start';
+// The recorder of the question-panel answers: without it, no answer lets an approval through (the guard then asks or blocks as before).
+const ANSWER_SCRIPTS = ['.specify/extensions/sddpp-guard/scripts/python/record_answer.py', '.specify/extensions/sddpp-guard/scripts/python/ledger.py'];
+const ANSWER_HOOK_NAME = 'speckit.sddpp-guard.record-answer';
 // `/pp`: the one command a person types. It is not a Spec Kit command, so it is written into the project directly.
 const PP_SKILL_SOURCE = 'sdd-pp/skills/pp/SKILL.md';
 const PP_SKILL_TARGET = '.claude/skills/pp/SKILL.md';
@@ -140,6 +143,13 @@ export function plan(root, env, { shim = false, allowUntested = false, update = 
   }
   add({ id: 'session-hook', label: 'the session-start hook is registered (shows whose turn it is when a session begins)', status: sessionHook && existsSync(join(root, SESSION_SCRIPT)) ? 'ok' : 'missing', fix: 'ppc init --apply --update' });
 
+  let answerHook = false;
+  try {
+    answerHook = readFileSync(join(root, '.claude/settings.json'), 'utf8').includes(ANSWER_HOOK_NAME);
+  } catch {
+    // no settings file: no hook
+  }
+  add({ id: 'answer-hook', label: "the question-panel answer recorder is registered (a person's choice in the panel is what lets an approval through)", status: answerHook && ANSWER_SCRIPTS.every((f) => existsSync(join(root, f))) ? 'ok' : 'missing', fix: 'ppc init --apply --update' });
   const ppSource = readFileSync(join(suite, PP_SKILL_SOURCE), 'utf8');
   const ppTarget = join(root, PP_SKILL_TARGET);
   const ppThere = existsSync(ppTarget);
