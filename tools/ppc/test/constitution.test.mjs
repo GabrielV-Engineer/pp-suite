@@ -48,6 +48,7 @@ test('it orients an agent that has never seen the project: ppc next first, what 
   assert.match(out, /`ppc next`/);
   assert.match(out, /ppc overview/);
   assert.match(out, /`ppc approve-\*`/);
+  assert.match(out, /`\/pp`/, 'the one command the person types');
   assert.match(out, /`ppc decide-change`/, 'the decisions that stay with the person');
   assert.match(out, /ppc decide-addition.*only .*person (told|asked)/i, 'the one decision an assistant may carry out, and only when told');
   assert.match(out, /ppc change-request/);
