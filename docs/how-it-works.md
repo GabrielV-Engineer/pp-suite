@@ -59,7 +59,8 @@ Each command either changes the project or refuses and leaves it untouched.
 | `ppc refactor` | anyone | Strict only. green → refactor (tests stay locked) |
 | `ppc finish <slice> --audit <file>` | anyone; **a human** to add `--budget-reason` or `--mutation-reason` | Closes the slice. The sizes (production and test lines) are **measured from git**, then the result is validated and checked against git; if anything is off, nothing changes. A refactor slice also marks the debt it pays as `paid` |
 | `ppc mutation (--files a,b \| --slice <id>)` | anyone | Mutation-tests those files (or a finished slice's files) and prints the score and the mutants the tests missed. Changes nothing |
-| `ppc decide-addition <ADD-ID> (--keep --reason <why> \| --cut) --by <name>` or `--accept-recommended --by <name>` | **a human** | Keeps or cuts something the design contains that the person did not ask for (`.architect/additions.yaml`). Cutting records the decision; carrying it out in the design is a separate step. See [scope review](scope-review.md) |
+| `ppc additions` | anyone | The additions in plain words: what needs you first, then what a recommendation settles, with cost, what is lost and how hard it is to add later |
+| `ppc decide-addition --accept-recommended [--but-cut <ids>] [--but-keep <ids> --reason <why>]`, or `<ADD-ID>... (--keep --reason <why> \| --cut)`; `--by` defaults to the git `user.name` | **a person**; an assistant may run it for what the person told it in the conversation | Keeps or cuts something the design contains that the person did not ask for (`.architect/additions.yaml`). The first form settles every group whose members were recommended the same way and decides the ones you name, in one command. Cutting records the decision; carrying it out in the design is a separate step. See [scope review](scope-review.md) |
 | `ppc validate --design` | anyone | Judges only the design (`.architect/`) with the rules that concern it, before any slice or debt register exists. Used to check the hand-off |
 | `ppc status` | anyone | What is in progress |
 | `ppc next` | anyone | Whose turn it is (human, agent or anyone) and the exact command to run, from the slice's phase and the git history. Also lists what else waits for a person and which slices are blocked. Before the design exists (pp-suite installed, `.architect/` empty) it points at The Architect's interview and the hand-off |
@@ -77,6 +78,11 @@ Approvals are human-only. The guard blocks the agent from running `ppc approve-*
 field that records a human decision into `.sddpp/`; the human runs the command themselves (in Claude
 Code, prefix it with `!`). Like the test lock, this stops an agent that
 cooperates; it is not a security boundary.
+
+One exception, by the owner's decision (2026-10-30): `ppc decide-addition`. What a person tells the assistant in the conversation
+about the additions counts as permission, so the guard lets the assistant run that command; the project rules tell it to run it only
+for what the person said. Nothing checks that it was said, and nothing in `additions.yaml` records whether the person or the
+assistant typed it. Writing a decision into the file by hand stays blocked.
 
 ## Where things live
 

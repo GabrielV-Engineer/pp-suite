@@ -50,7 +50,8 @@ per addition:
 - One command shows all of them. The person can decide one by one, or accept all recommendations at once
   (`accept-recommended`). The default is the opposite of today's: doing nothing blocks, and the easy answer is the
   recommended minimal design instead of "keep everything".
-- Only a person can decide: the same guard that keeps approvals human-only blocks an agent from writing a decision.
+- Only a person decides, but what the person tells the assistant in the conversation counts (changed 2026-10-30; before, the guard blocked the
+  agent from running the command at all). The guard still blocks writing a decision into the file by hand.
 
 ## My recommendations for the five additions found
 
@@ -128,3 +129,16 @@ Two weaknesses found, and one fixed:
 
 Also: in both runs the cut step said it could not run a helper script (no permission) and did the edits by hand. It
 reported that, and the final validation was repeated by me.
+
+## What the second real try showed (2026-10-30, psyBook, 13 additions)
+
+Three things made deciding hard, all found by the person doing it, and all changed:
+
+- **The content was not readable.** `ppc next` printed only the ids; the cost and what is lost lived in a 170-line YAML.
+  `ppc additions` now prints one card per addition, with what needs the person first.
+- **Deciding took one command per group.** In that design 10 of the 13 were settled by a recommendation and 3 needed the person
+  (an overlapping pair recommended differently, and one left to the person), but the only batch form was all or nothing.
+  `--accept-recommended --but-cut ... --but-keep ... --reason ...` does it in one command; `--by` defaults to the git user.
+- **The person had to run the command.** The guard blocked the assistant even when the person had said what to decide. Now it does not,
+  for this command only; see the change above. Not done: making the guard ask for confirmation in Claude Code's own prompt
+  (needs a test in each permission mode first), and one recommendation per overlap group in the hand-off.

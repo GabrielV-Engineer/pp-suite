@@ -24,7 +24,7 @@ Moved here from the README so that the front page stays short.
 | Mechanism | What it is | Does |
 |---|---|---|
 | **Skills** (`/speckit-...`) | Markdown prompts that Spec Kit turns into Claude Code skills | Tell the model what to read, write and not do in each step |
-| **Hooks** | Programs Claude Code runs at set moments | Before every tool call (the guard): blocks an agent from running `ppc approve-*` or `ppc decide-*`, from writing a decision field, and, in the strict cycle, from editing the tests. At the start of every session: shows whose turn it is (`ppc session`) |
+| **Hooks** | Programs Claude Code runs at set moments | Before every tool call (the guard): blocks an agent from running `ppc approve-*` or `ppc decide-change`, from writing a decision field (it lets it run `ppc decide-addition`, for what the person told it), and, in the strict cycle, from editing the tests. At the start of every session: shows whose turn it is (`ppc session`) |
 | **Scripts** (`ppc`) | Plain Node code, no AI | Measures sizes from git, runs each transition, generates the prompts and the rules |
 | **Rules** | `ppc validate` and `ppc check-git` | Check the contract and compare every audit with the real git history |
 | **`CLAUDE.md`** | One short block (about 1,300 characters), generated | Where the design is and how to work: run `ppc next`, what only a person decides. It copies nothing from the design |
