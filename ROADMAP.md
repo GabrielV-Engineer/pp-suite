@@ -26,6 +26,8 @@ Status key: **done** has tests in CI · **spiked** tried once by hand, not autom
 | `ppc next` and `ppc session` before the design exists: a project that is set up but has no `.architect/` is told to run The Architect and then the hand-off, instead of `R00` errors and silence. Found in the first real project ([report](docs/first-real-project-report.md)) | done (tests; each part broken on purpose) |
 | `ppc additions` (the additions in plain words) and the one-command batch `ppc decide-addition --accept-recommended --but-cut ... --but-keep ...`, with `--by` from git. Found deciding 13 additions in the first real project ([report](docs/first-real-project-report.md)) | done (tests; each part broken on purpose) |
 | The guard lets the assistant run `ppc decide-addition` (the owner's decision: what a person says in the chat is permission); `decide-change` and every `approve-*` stay human-only. The project-rules block says when to run it | done (unit tests); nothing verifies that the person said it |
+| The guard answers `ask` instead of blocking for approvals in the default and accept-edits modes ([spike](docs/ask-spike.md)); other modes keep the block; the block message no longer promises `!`, which the VS Code extension lacks | done (unit tests, each part broken on purpose, one run of the real guard inside Claude Code); the dialog was not seen by a person |
+| `ppc next` points at `/speckit-architect-pp-apply-cuts` while decided cuts are not applied; the batch decision may split an overlapping pair when both are named. Found in the first real project (F-H5, and the owner's own split of ADD-004 and ADD-005) | done (tests; each part broken on purpose) |
 | Rule `W05`: every quality attribute is referenced by a live slice. It flags QA-003 in the demo, which no planned slice covers | done (warning, not an error) |
 | Experiment instrument (`tools/eval`): tested measures, neutral acceptance tests for four slices, mutation score per run | done: [evaluation plan](docs/evaluation-plan.md) |
 | Refactor phase exercised with a real agent (a refactor slice paying one debt entry, with a tempting request to touch the tests); `ppc finish` now marks the debt paid | done once, in a throwaway copy: [refactor exercise](docs/refactor-exercise.md) |
@@ -46,8 +48,8 @@ owns the plan. Done: the design linter rules `D01` to `D04` (tests, each broken 
 
 | Item | Why |
 |---|---|
-| The guard asks for confirmation (`permissionDecision: "ask"`) instead of blocking, so a person's click proves a person decided. Test first, in every permission mode (default, an allow rule on `ppc`, accept-edits, bypass, `claude -p`) | The docs say `ask` prompts the user; they do not say what it does in bypass mode or with an allow rule |
-| The hand-off gives one recommendation per group of overlapping additions (a new rule, with its test) | In the first real project a pair recommended cut and keep could not be settled by `--accept-recommended` |
+| Try the guard's `ask` in `bypassPermissions` (refused by the safety classifier of the session that ran the spike), and see the permission prompt once in the CLI and in the VS Code extension ([spike](docs/ask-spike.md)) | The guard asks only in the two modes that were tried; the dialog itself was not seen by a person |
+| The guard blocks `--help` of a human-only command and a command that only mentions an approval (F-H3, F-E1) | Found twice in the first real project |
 | `check-git`: detect commits of a slice that its audit leaves out, for anything other than tests | `C06` closes this for test files only; an omitted production commit still goes unnoticed |
 | Session-start check that the guard script is present | The dispatcher fails open when the script is missing |
 | Approval gates as a Spec Kit workflow, and the agent prompts (`sddpp-cycle`, drafted; exercised in M1) | The `ppc` side of the loop exists and is tested; the agent side is new |

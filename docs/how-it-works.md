@@ -75,8 +75,10 @@ Each command either changes the project or refuses and leaves it untouched.
 | `ppc overview` | anyone | One screen: slices by status, progress per capability, debt per component, contract problems |
 
 Approvals are human-only. The guard blocks the agent from running `ppc approve-*` and from writing any
-field that records a human decision into `.sddpp/`; the human runs the command themselves (in Claude
-Code, prefix it with `!`). Like the test lock, this stops an agent that
+field that records a human decision into `.sddpp/`; in the default and accept-edits permission modes
+Claude Code shows the person the exact command and asks, and if nobody answers the command does not run ([spike](ask-spike.md); the
+dialog itself was not seen by a person yet). In any other mode the guard blocks and the person runs the command in a terminal (the CLI
+also takes it after `!`; the VS Code extension has no `!`). Like the test lock, this stops an agent that
 cooperates; it is not a security boundary.
 
 One exception, by the owner's decision (2026-10-30): `ppc decide-addition`. What a person tells the assistant in the conversation

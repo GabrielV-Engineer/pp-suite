@@ -140,5 +140,8 @@ Three things made deciding hard, all found by the person doing it, and all chang
   (an overlapping pair recommended differently, and one left to the person), but the only batch form was all or nothing.
   `--accept-recommended --but-cut ... --but-keep ... --reason ...` does it in one command; `--by` defaults to the git user.
 - **The person had to run the command.** The guard blocked the assistant even when the person had said what to decide. Now it does not,
-  for this command only; see the change above. Not done: making the guard ask for confirmation in Claude Code's own prompt
-  (needs a test in each permission mode first), and one recommendation per overlap group in the hand-off.
+  for this command only; see the change above. The other approvals now ask in Claude Code's own prompt where that was tried
+  ([spike](ask-spike.md)).
+- **A split can be deliberate.** The owner cut one addition of an overlapping pair and kept the other. The first batch form refused that;
+  it now requires that every member of the group is named in the same command, the same way or not. A rule "one recommendation per
+  overlap group" was considered and dropped: the real decision shows that a pair recommended differently can be right.
