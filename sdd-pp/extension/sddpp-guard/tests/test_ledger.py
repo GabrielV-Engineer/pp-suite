@@ -1,0 +1,184 @@
+"""The panel answer as proof that a person decided: the recorder (PostToolUse) and the guard that reads what it recorded.
+Run: python3 -m unittest discover -s sdd-pp/extension/sddpp-guard/tests"""
+import json
+import os
+import subprocess
+import sys
+import tempfile
+import time
+import unittest
+from pathlib import Path
+
+SCRIPTS = Path(__file__).resolve().parents[1] / "scripts" / "python"
+sys.path.insert(0, str(SCRIPTS))
+import guard  # noqa: E402
+import ledger  # noqa: E402
+import record_answer  # noqa: E402
+
+SLICE_YES = "Sí, aprobar — ppc approve SL-001"
+DEBT_DROP = 'Descartarla — ppc approve DEBT-BE-001 --drop'
+DEBT_LIVE = 'Vivir con ella — ppc approve DEBT-BE-001 --accept "accepted in the panel"'
+
+
+def answered(answers, session="S1", tool_use_id="toolu_A", cwd=None):
+    """What Claude Code sends a PostToolUse hook after a person answers the panel (the shape seen in docs/ask-panel-probe.md)."""
+    return {
+        "hook_event_name": "PostToolUse", "tool_name": "AskUserQuestion", "tool_use_id": tool_use_id, "session_id": session,
+        "permission_mode": "auto", "cwd": cwd, "duration_ms": 12000,
+        "tool_input": {"questions": [{"question": q} for q in answers], "answers": answers},
+        "tool_response": {"questions": [{"question": q} for q in answers], "answers": answers},
+    }
+
+
+def bash(command, session="S1", mode="auto"):
+    return {"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": command}, "session_id": session, "permission_mode": mode}
+
+
+class LedgerTest(unittest.TestCase):
+    def project(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        return Path(tmp.name)
+
+    def record(self, root, answers, **kw):
+        record_answer.record(answered(answers, cwd=str(root), **kw), root)
+
+    def lines(self, root):
+        file = root / ".sddpp" / "answers.jsonl"
+        return [json.loads(l) for l in file.read_text().splitlines()] if file.exists() else []
+
+    # ── what a label says ────────────────────────────────────────
+    def test_the_command_is_what_follows_the_last_dash_of_the_label(self):
+        self.assertEqual(ledger.command_of(SLICE_YES), "ppc approve SL-001")
+        self.assertEqual(ledger.command_of(DEBT_LIVE), "ppc approve DEBT-BE-001 --accept accepted in the panel")
+        self.assertIsNone(ledger.command_of("No, todavía no"))
+        self.assertIsNone(ledger.command_of("Quiero cambiar algo — después hablamos"), "a dash without a ppc command is not a command")
+
+    def test_normalize_makes_the_same_command_equal_however_it_is_written(self):
+        want = "ppc approve SL-001"
+        for text in ("ppc approve SL-001", "ppc  approve   SL-001", "ppc approve SL-001 --by Gabriel", "node /x/tools/ppc/bin/ppc.mjs approve SL-001 --by 'A B'",
+                     "cd proj && ppc approve SL-001"):
+            self.assertEqual(ledger.invocations(text), [want], text)
+        self.assertEqual(ledger.invocations("ppc approve SL-001; ppc approve SL-002"), ["ppc approve SL-001", "ppc approve SL-002"])
+        self.assertEqual(ledger.invocations("echo hello"), [])
+
+    # ── the recorder ─────────────────────────────────────────────
+    def test_an_answer_whose_label_names_a_command_is_recorded_with_who_when_and_what(self):
+        root = self.project()
+        before = time.time()
+        self.record(root, {"Approve SL-001?": SLICE_YES})
+        (entry,) = self.lines(root)
+        self.assertEqual(entry["command"], "ppc approve SL-001")
+        self.assertEqual((entry["session_id"], entry["tool_use_id"], entry["label"], entry["question"]), ("S1", "toolu_A", SLICE_YES, "Approve SL-001?"))
+        self.assertGreaterEqual(entry["at"], before)
+
+    def test_answers_that_name_no_command_are_not_recorded(self):
+        root = self.project()
+        self.record(root, {"Approve probe-1?": "Yes, approve probe-1"})
+        self.record(root, {"Approve SL-001?": "Todavía no"})
+        self.assertEqual(self.lines(root), [])
+
+    def test_several_questions_and_a_multiple_choice_answer_are_each_recorded(self):
+        root = self.project()
+        self.record(root, {"A?": SLICE_YES, "B?": [DEBT_DROP, "otra cosa"]})
+        self.assertEqual(sorted(e["command"] for e in self.lines(root)), ["ppc approve DEBT-BE-001 --drop", "ppc approve SL-001"])
+
+    def test_the_recorder_ignores_other_tools_and_payloads_it_cannot_read(self):
+        root = self.project()
+        record_answer.record({"tool_name": "Bash", "tool_input": {"command": "ls"}}, root)
+        record_answer.record({"tool_name": "AskUserQuestion", "tool_response": "not a map"}, root)
+        record_answer.record("garbage", root)
+        record_answer.record(None, root)
+        self.assertEqual(self.lines(root), [])
+
+    def test_the_recorder_runs_as_a_hook_reads_stdin_and_exits_zero(self):
+        root = self.project()
+        result = subprocess.run([sys.executable, "-I", str(SCRIPTS / "record_answer.py")], input=json.dumps(answered({"Q?": SLICE_YES}, cwd=str(root))),
+                                capture_output=True, text=True, cwd=root, env={**os.environ, "CLAUDE_PROJECT_DIR": str(root)})
+        self.assertEqual((result.returncode, result.stdout), (0, ""))
+        self.assertEqual(len(self.lines(root)), 1)
+        bad = subprocess.run([sys.executable, "-I", str(SCRIPTS / "record_answer.py")], input="not json", capture_output=True, text=True, cwd=root, env={**os.environ, "CLAUDE_PROJECT_DIR": str(root)})
+        self.assertEqual(bad.returncode, 0)
+
+    # ── the guard lets an approval through only with a matching answer ──
+    def decide(self, root, command, **kw):
+        return guard.decide(bash(command, **kw), root)
+
+    def test_a_recorded_answer_lets_exactly_that_command_through_once(self):
+        root = self.project()
+        self.record(root, {"Approve SL-001?": SLICE_YES})
+        self.assertEqual(self.decide(root, "ppc approve SL-001")[0], 0)
+        self.assertIn(self.decide(root, "ppc approve SL-001")[0], (2, guard.ASK), "the answer is used up")
+
+    def test_without_an_answer_the_old_behavior_holds_and_the_message_points_at_pp(self):
+        root = self.project()
+        code, message = self.decide(root, "ppc approve SL-001", mode="default")
+        self.assertEqual(code, guard.ASK)
+        code, message = self.decide(root, "ppc approve SL-001", mode="bypassPermissions")
+        self.assertEqual(code, 2)
+        self.assertIn("/pp", message)
+
+    def test_an_answer_for_another_command_does_not_count(self):
+        root = self.project()
+        self.record(root, {"Approve SL-001?": SLICE_YES})
+        for command in ("ppc approve SL-002", "ppc approve", "ppc approve SL-001 --extra", "ppc decide-change CR-0001 --accept",
+                        "ppc approve DEBT-BE-001 --drop"):
+            with self.subTest(command=command):
+                self.assertIn(self.decide(root, command)[0], (2, guard.ASK))
+
+    def test_the_options_of_one_debt_entry_are_not_interchangeable(self):
+        root = self.project()
+        self.record(root, {"Debt?": DEBT_DROP})
+        self.assertIn(self.decide(root, 'ppc approve DEBT-BE-001 --accept "accepted in the panel"')[0], (2, guard.ASK))
+        self.assertIn(self.decide(root, "ppc approve DEBT-BE-001")[0], (2, guard.ASK))
+        self.assertEqual(self.decide(root, "ppc approve DEBT-BE-001 --drop")[0], 0)
+
+    def test_an_answer_from_another_session_or_an_old_one_does_not_count(self):
+        root = self.project()
+        self.record(root, {"Approve SL-001?": SLICE_YES}, session="OTHER")
+        self.assertIn(self.decide(root, "ppc approve SL-001", session="S1")[0], (2, guard.ASK))
+        old = self.project()
+        ledger.append(old, {"id": "x#0", "at": time.time() - ledger.TTL_SECONDS - 5, "session_id": "S1", "tool_use_id": "x", "question": "Q?",
+                            "label": SLICE_YES, "command": "ppc approve SL-001"})
+        self.assertIn(self.decide(old, "ppc approve SL-001")[0], (2, guard.ASK))
+
+    def test_a_garbled_ledger_never_lets_anything_through(self):
+        root = self.project()
+        (root / ".sddpp").mkdir()
+        (root / ".sddpp" / "answers.jsonl").write_text("not json\n{\"command\": 5}\n[]\n")
+        self.assertIn(self.decide(root, "ppc approve SL-001")[0], (2, guard.ASK))
+
+    def test_two_approvals_in_one_command_need_two_answers(self):
+        root = self.project()
+        self.record(root, {"A?": SLICE_YES})
+        self.assertIn(self.decide(root, "ppc approve SL-001 && ppc approve SL-002")[0], (2, guard.ASK))
+        self.record(root, {"B?": "Sí — ppc approve SL-002"}, tool_use_id="toolu_B")
+        self.assertEqual(self.decide(root, "ppc approve SL-001 && ppc approve SL-002")[0], 0)
+
+    # ── the agent cannot make the proof itself ───────────────────
+    def test_the_agent_cannot_write_the_ledger(self):
+        root = self.project()
+        (root / ".sddpp").mkdir()
+        for tool, args in (("Edit", {"file_path": ".sddpp/answers.jsonl", "old_string": "a", "new_string": "b"}),
+                           ("Write", {"file_path": str(root / ".sddpp" / "answers.jsonl"), "content": "{}"}),
+                           ("Bash", {"command": "echo '{}' >> .sddpp/answers.jsonl"}),
+                           ("Bash", {"command": "python3 -c \"open('.sddpp/answers.jsonl','a').write('x')\""}),
+                           ("Bash", {"command": "rm .sddpp/answers.jsonl"})):
+            with self.subTest(tool=tool, args=args):
+                self.assertEqual(guard.decide({"tool_name": tool, "tool_input": args}, root)[0], 2)
+
+    def test_reading_the_ledger_is_allowed(self):
+        root = self.project()
+        self.assertEqual(guard.decide(bash("cat .sddpp/answers.jsonl"), root)[0], 0)
+
+    def test_a_question_that_arrives_already_answered_is_blocked(self):
+        root = self.project()
+        ask = {"tool_name": "AskUserQuestion", "tool_input": {"questions": [{"question": "Q?"}], "answers": {"Q?": SLICE_YES}}}
+        code, message = guard.decide(ask, root)
+        self.assertEqual(code, 2)
+        self.assertIn("person", message)
+        self.assertEqual(guard.decide({"tool_name": "AskUserQuestion", "tool_input": {"questions": [{"question": "Q?"}]}}, root)[0], 0)
+
+
+if __name__ == "__main__":
+    unittest.main()

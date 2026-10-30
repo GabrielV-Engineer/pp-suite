@@ -150,7 +150,9 @@ class GuardTest(unittest.TestCase):
         script = Path(guard.__file__)
         data = json.dumps(in_mode("default", "Bash", command="ppc approve-slice SL-001 --by me"))
         with tempfile.TemporaryDirectory() as tmp:
-            result = subprocess.run([sys.executable, "-I", str(script)], input=data, capture_output=True, text=True, cwd=tmp)
+            import os
+            result = subprocess.run([sys.executable, "-I", str(script)], input=data, capture_output=True, text=True, cwd=tmp,
+                                    env={**{k: v for k, v in os.environ.items() if k != "CLAUDE_PROJECT_DIR"}})
         self.assertEqual(result.returncode, 0)
         out = json.loads(result.stdout)["hookSpecificOutput"]
         self.assertEqual(out["hookEventName"], "PreToolUse")

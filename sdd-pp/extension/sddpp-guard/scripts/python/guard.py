@@ -16,6 +16,9 @@ import re
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))  # also under `python -I`, which leaves the script's folder out
+import ledger  # noqa: E402
+
 FILE_TOOLS = {"Edit", "Write", "MultiEdit", "NotebookEdit"}
 
 # Returned in place of an exit code when the person should be asked instead of the call being blocked.
@@ -155,18 +158,40 @@ def _writes_a_decision(payload, root: Path) -> bool:
     return False
 
 
+def _writes_the_ledger(payload) -> bool:
+    """True when a tool call would write the file that holds the person's panel answers: only the recorder hook may."""
+    if not isinstance(payload, dict):
+        return False
+    tool, args = payload.get("tool_name", ""), payload.get("tool_input") or {}
+    if tool in FILE_TOOLS:
+        return str(args.get("file_path") or args.get("notebook_path") or "").replace("\\", "/").endswith("answers.jsonl")
+    if tool == "Bash":
+        command = str(args.get("command", ""))
+        return "answers.jsonl" in command and bool(WRITES.search(command))
+    return False
+
+
 def decide(payload, root: Path):
     """Return (exit_code, message) for one PreToolUse payload; the code is ASK when the person should be asked."""
-    # Approvals belong to a human, whatever the phase.
+    # The proof that a person decided is theirs alone: the agent writes neither the ledger nor the answers to its own question.
+    if _writes_the_ledger(payload):
+        return 2, "SDD.PP guard: .sddpp/answers.jsonl holds the person's answers in the question panel; only the recorder hook writes it."
+    if isinstance(payload, dict) and payload.get("tool_name") == "AskUserQuestion" and (payload.get("tool_input") or {}).get("answers"):
+        return 2, "SDD.PP guard: the answers to a question are the person's; do not fill them in. Ask the question without `answers`."
+
+    # Approvals belong to a human, whatever the phase. A human has decided when they picked, in the question panel, the option that
+    # names exactly this command (`/pp` asks it that way); that answer is used up by the approval it allows.
     if isinstance(payload, dict) and payload.get("tool_name") == "Bash":
         command = str((payload.get("tool_input") or {}).get("command", ""))
         if APPROVAL.search(command):
-            if payload.get("permission_mode") in ASKABLE_MODES:
-                return ASK, "SDD.PP guard: approvals are human decisions. Approve this only if you decided it yourself."
-            return 2, (
-                "SDD.PP guard: approvals are human-only. Ask the human to run this command themselves in a terminal "
-                "(in the Claude Code CLI they can also type it after `!`; the VS Code extension has no `!`)."
-            )
+            needed = [inv for inv in ledger.invocations(command) if APPROVAL.search(inv)]
+            if not (needed and ledger.consume(root, needed, payload.get("session_id"), payload.get("tool_use_id"))):
+                if payload.get("permission_mode") in ASKABLE_MODES:
+                    return ASK, "SDD.PP guard: approvals are human decisions. Approve this only if you decided it yourself."
+                return 2, (
+                    "SDD.PP guard: approvals are human-only. Type /pp so the person can decide in the question panel, or run the "
+                    "command in a terminal (in the Claude Code CLI also after `!`; the VS Code extension has no `!`)."
+                )
 
     # Decisions belong to a human too: no file tool or shell write may record one.
     if isinstance(payload, dict) and _writes_a_decision(payload, root):
@@ -211,7 +236,7 @@ def main() -> None:
         payload = json.load(sys.stdin)
     except (ValueError, OSError):
         payload = None
-    code, message = decide(payload, Path.cwd())
+    code, message = decide(payload, ledger.project_root(payload))
     if code == ASK:
         print(json.dumps({"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "ask", "permissionDecisionReason": message}}))
         sys.exit(0)
