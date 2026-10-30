@@ -108,11 +108,27 @@ class GuardTest(unittest.TestCase):
             root = self.project(state)
             for cmd in ("ppc approve-red --by me", "node tools/ppc/bin/ppc.mjs approve-red --by me",
                         "cd proj && ppc  approve-red", "npx ppc approve-slice SL-003", "ppc approve-debt DEBT-BE-004 --by me",
-                        "ppc decide-addition ADD-001 --cut --by me", "ppc decide-change CR-0002 --accept --by me", "node tools/ppc/bin/ppc.mjs decide-addition --accept-recommended --by me"):
+                        "ppc decide-change CR-0002 --accept --by me", "node tools/ppc/bin/ppc.mjs decide-change CR-0002 --reject --reason x --by me"):
                 with self.subTest(state=state, cmd=cmd):
                     code, message = guard.decide(payload("Bash", command=cmd), root)
                     self.assertEqual(code, 2)
                     self.assertIn("human", message)
+
+    # The owner's decision (2026-10-30): what a person tells the assistant in the conversation about the additions is
+    # permission enough, so the agent may run the command. Everything else above stays human-only.
+    def test_the_agent_may_run_decide_addition_when_the_person_asked_for_it(self):
+        for state in (None, {"slice": "SL-002", "phase": "green"}):
+            root = self.project(state)
+            for cmd in ("ppc decide-addition ADD-001 --cut --by me", "ppc decide-addition --accept-recommended --but-keep ADD-005 --reason x",
+                        "node tools/ppc/bin/ppc.mjs decide-addition --accept-recommended", "cd proj && ppc  decide-addition ADD-002 --keep --reason why",
+                        "ppc additions"):
+                with self.subTest(state=state, cmd=cmd):
+                    self.assertEqual(guard.decide(payload("Bash", command=cmd), root)[0], 0)
+
+    def test_writing_a_command_that_mentions_decide_addition_is_not_blocked_either(self):
+        root = self.project(None)
+        cmd = "cat >> LOG.md <<'EOF'\nthe person ran ppc decide-addition --accept-recommended\nEOF\ngit add LOG.md"
+        self.assertEqual(guard.decide(payload("Bash", command=cmd), root)[0], 0)
 
     def test_the_agent_cannot_decide_an_addition_by_writing_the_file(self):
         root = self.project(None)

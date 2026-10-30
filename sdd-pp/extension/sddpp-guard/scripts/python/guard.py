@@ -21,8 +21,10 @@ FILE_TOOLS = {"Edit", "Write", "MultiEdit", "NotebookEdit"}
 LOCKED_PHASES = {"green", "refactor"}
 
 # `ppc approve-red`, `node .../ppc.mjs approve-slice`, ...: the human gate, never the agent's to pass.
+# `ppc decide-addition` is not in it: the owner decided (2026-10-30) that telling the assistant in the conversation what to cut or
+# keep is permission enough. Writing the decision into additions.yaml by hand stays blocked (DECISION_FIELD, CONTRACT_DIR).
 APPROVAL = re.compile(
-    r"\bppc(\.mjs)?\s+(approve|decide)"
+    r"\bppc(\.mjs)?\s+(approve|decide(?!-addition))"
     # `ppc finish ... --budget-reason ...` records an exception to a rule: that is a decision too
     r"|\bppc(\.mjs)?\s+finish\b[^\n]*--(budget|mutation)-reason",
     re.IGNORECASE,

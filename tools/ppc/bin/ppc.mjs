@@ -51,11 +51,12 @@ const USAGE = `ppc — pp-suite contract tool
                                          HUMAN ONLY: decide on proposed debt (default: it becomes open)
     ppc schedule-debt <DEBT-ID> --slice <refactor slice> [dir]
                                          assign an approved (open) debt to a planned refactor slice that touches its component
-    ppc decide-addition <ADD-ID>... (--keep --reason <why> | --cut) [--alone] --by <name> [dir]
+    ppc decide-addition <ADD-ID>... (--keep --reason <why> | --cut) [--alone] [--by <name>] [dir]
                                          several ids are decided the same way; additions that overlap must be decided
                                          together (--alone decides one on purpose)
     ppc decide-addition --accept-recommended [--but-cut ADD-1,ADD-2] [--but-keep ADD-3 --reason <why>] [--by <name>] [dir]
-                                         HUMAN ONLY: keep or cut something the design contains that the person did not ask for
+                                         keep or cut something the design contains that the person did not ask for. The person
+                                         decides; an assistant may run it for what the person told it in the conversation
     ppc additions [dir]                  the additions in plain words: what needs you, what a recommendation settles
     ppc refactor [dir]                   green -> refactor
     ppc finish <slice> --audit <file.json> [--budget-reason <text>] [--mutation-reason <text>] [dir]
