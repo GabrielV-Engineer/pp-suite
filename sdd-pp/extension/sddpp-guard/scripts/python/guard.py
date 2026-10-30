@@ -3,7 +3,8 @@
 and approvals and exceptions can only be given by a human.
 
 Runs as a Claude Code PreToolUse hook (registered by Spec Kit from extension.yml).
-Exit 0 allows the tool call. Exit 2 blocks it and feeds stderr back to the model.
+Exit 0 allows the tool call. Exit 2 blocks it and feeds stderr back to the model. For an approval, in the permission modes where
+that was tested (ASKABLE_MODES), the hook answers "ask" instead: Claude Code shows the exact command to the person, who decides.
 
 Standard library only, on purpose: it must run anywhere the agent runs.
 
@@ -16,6 +17,12 @@ import sys
 from pathlib import Path
 
 FILE_TOOLS = {"Edit", "Write", "MultiEdit", "NotebookEdit"}
+
+# Returned in place of an exit code when the person should be asked instead of the call being blocked.
+ASK = "ask"
+# Tried with the real Claude Code on 2026-10-30 (docs/ask-spike.md): in these modes a hook answer of "ask" kept the command from
+# running, even with `Bash` allowed. For any other mode, or none, an approval stays blocked: nothing says what "ask" does there.
+ASKABLE_MODES = {"default", "acceptEdits"}
 
 # Tests are locked in both phases, so refactoring cannot be used to weaken them.
 LOCKED_PHASES = {"green", "refactor"}
@@ -147,14 +154,16 @@ def _writes_a_decision(payload, root: Path) -> bool:
 
 
 def decide(payload, root: Path):
-    """Return (exit_code, message) for one PreToolUse payload."""
+    """Return (exit_code, message) for one PreToolUse payload; the code is ASK when the person should be asked."""
     # Approvals belong to a human, whatever the phase.
     if isinstance(payload, dict) and payload.get("tool_name") == "Bash":
         command = str((payload.get("tool_input") or {}).get("command", ""))
         if APPROVAL.search(command):
+            if payload.get("permission_mode") in ASKABLE_MODES:
+                return ASK, "SDD.PP guard: approvals are human decisions. Approve this only if you decided it yourself."
             return 2, (
-                "SDD.PP guard: approvals are human-only. Ask the human to run this command themselves "
-                "(in Claude Code, prefix it with `!`)."
+                "SDD.PP guard: approvals are human-only. Ask the human to run this command themselves in a terminal "
+                "(in the Claude Code CLI they can also type it after `!`; the VS Code extension has no `!`)."
             )
 
     # Decisions belong to a human too: no file tool or shell write may record one.
@@ -201,6 +210,9 @@ def main() -> None:
     except (ValueError, OSError):
         payload = None
     code, message = decide(payload, Path.cwd())
+    if code == ASK:
+        print(json.dumps({"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "ask", "permissionDecisionReason": message}}))
+        sys.exit(0)
     if message:
         sys.stderr.write(message + "\n")
     sys.exit(code)

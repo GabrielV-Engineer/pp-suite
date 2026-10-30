@@ -13,6 +13,11 @@ def payload(tool, **tool_input):
     return {"hook_event_name": "PreToolUse", "tool_name": tool, "tool_input": tool_input}
 
 
+def in_mode(mode, tool, **tool_input):
+    """The payload Claude Code sends, which says which permission mode the session is in."""
+    return {**payload(tool, **tool_input), "permission_mode": mode}
+
+
 class GuardTest(unittest.TestCase):
     def project(self, state=None, raw=None):
         """A temporary project root, optionally with .sddpp/active.json."""
@@ -113,6 +118,51 @@ class GuardTest(unittest.TestCase):
                     code, message = guard.decide(payload("Bash", command=cmd), root)
                     self.assertEqual(code, 2)
                     self.assertIn("human", message)
+
+    # ── an approval asks the person in Claude Code's own permission prompt, where that was tested ──
+    # Tried with the real Claude Code on 2026-10-30 (docs/ask-spike.md): a hook answer of "ask" kept the command from running in
+    # the default and accept-edits modes even when `Bash` was allowed. Any other mode, or an unknown one, keeps the block.
+    def test_in_the_modes_that_were_tested_an_approval_asks_the_person_instead_of_blocking(self):
+        root = self.project(None)
+        for mode in ("default", "acceptEdits"):
+            for cmd in ("ppc approve-slice SL-001 --by me", "node tools/ppc/bin/ppc.mjs approve-red --by me", "ppc decide-change CR-0001 --accept --by me"):
+                with self.subTest(mode=mode, cmd=cmd):
+                    code, message = guard.decide(in_mode(mode, "Bash", command=cmd), root)
+                    self.assertEqual(code, guard.ASK)
+                    self.assertIn("human", message)
+
+    def test_in_any_other_mode_or_with_no_mode_an_approval_is_still_blocked(self):
+        root = self.project(None)
+        for mode in ("bypassPermissions", "dontAsk", "auto", "plan", "somethingNew", "", None):
+            with self.subTest(mode=mode):
+                data = payload("Bash", command="ppc approve-slice SL-001 --by me")
+                if mode is not None:
+                    data["permission_mode"] = mode
+                self.assertEqual(guard.decide(data, root)[0], 2)
+
+    def test_the_block_message_does_not_promise_a_prefix_that_the_vscode_extension_lacks(self):
+        message = guard.decide(payload("Bash", command="ppc approve-slice SL-001"), self.project(None))[1]
+        self.assertIn("terminal", message)
+        self.assertIn("VS Code", message)
+
+    def test_the_hook_answers_ask_in_the_format_claude_code_reads_and_exits_zero(self):
+        import subprocess
+        script = Path(guard.__file__)
+        data = json.dumps(in_mode("default", "Bash", command="ppc approve-slice SL-001 --by me"))
+        with tempfile.TemporaryDirectory() as tmp:
+            result = subprocess.run([sys.executable, "-I", str(script)], input=data, capture_output=True, text=True, cwd=tmp)
+        self.assertEqual(result.returncode, 0)
+        out = json.loads(result.stdout)["hookSpecificOutput"]
+        self.assertEqual(out["hookEventName"], "PreToolUse")
+        self.assertEqual(out["permissionDecision"], "ask")
+        self.assertIn("human", out["permissionDecisionReason"])
+
+    def test_writing_a_decision_into_a_file_is_never_turned_into_a_question(self):
+        root = self.project(None)
+        (root / ".architect").mkdir()
+        (root / ".architect" / "additions.yaml").write_text("additions:\n  - id: ADD-001\n    decision: pending\n")
+        data = in_mode("default", "Edit", file_path=".architect/additions.yaml", old_string="decision: pending", new_string="decision: keep\n    decided_by: me")
+        self.assertEqual(guard.decide(data, root)[0], 2)
 
     # The owner's decision (2026-10-30): what a person tells the assistant in the conversation about the additions is
     # permission enough, so the agent may run the command. Everything else above stays human-only.
