@@ -41,3 +41,8 @@ Read from `probe.log.jsonl` and the session transcript, plus two answers from th
 
 What this does not show: the behavior of the prompt when answered No, any mode other than `auto`, `default` and `acceptEdits` in
 a person's hands, and one run is one run.
+
+## What was built from it
+
+The shape of the answer made the design possible: an option whose label ends with ` — <command>` is recorded when picked, and the
+guard accepts that command once. The mechanism and its limits are in [how it works](how-it-works.md#you-type-pp).

@@ -19,7 +19,7 @@ agent steps without them.
     1. Read what is being decided: `ppc show <decision.id>`. Say it in your own words in this message: what it is, what approving
        it means, what it leaves out. Do not paste the raw card.
     2. Get the question: `ppc ask <decision.id>`. Ask it with the AskUserQuestion tool: the same question and options, in the same
-       order, without an `answers` field. You may put the words of the question and of each option in the person's language, but
+       order, without an `answers` field, with `questions` as a list and not as text. You may put the words of the question and of each option in the person's language, but
        **everything after the last ` — ` of an option is a command and must stay exactly as printed.**
     3. If the person picked an option that ends with ` — ppc …`, run exactly that command. Their choice is the approval, so Claude
        Code will not ask a second time. If they picked anything else ("I want to change something", "Not yet", their own words), run

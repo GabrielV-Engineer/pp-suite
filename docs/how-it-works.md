@@ -13,13 +13,22 @@ command names are provisional.
 ## You type `/pp`
 
 Everything below is the engine. The person types one thing in the chat, `/pp`, and the assistant does the next step or puts the next
-decision to them in plain words. `/pp` reads `ppc next --json`, then, by what is next: runs the skill of the agent's step, runs a
-plain `ppc` command, tells the person what only they can do (The Architect's interview), or shows the decision (`ppc show <id>`),
-asks which outcome when there are several, and carries it out. Claude Code asks the person to confirm each approval; that
-confirmation is the decision. Status: built and tested without a person (a non-interactive run reached the approval, was stopped
-there, and nothing was approved); **the confirmation dialog was seen by a person once (pressing Yes)**. A debt entry or a change request
-with several outcomes takes two clicks (the panel to choose, then the confirmation) until the panel answer is verified by a hook
-([ROADMAP](../ROADMAP.md)).
+decision to them. `/pp` reads `ppc next --json`, then, by what is next: runs the skill of the agent's step, runs a plain `ppc`
+command, tells the person what only they can do (The Architect's interview), or, for a decision, shows it in plain words
+(`ppc show`), asks it in the question panel (`ppc ask`) and carries it out.
+
+**What counts as a person deciding.** The option of the panel that carries a decision out ends with the exact command it stands for
+(`Yes, approve it — ppc approve SL-001`). When the person picks it, a hook (`record_answer.py`) writes the answer into
+`.sddpp/answers.jsonl`; the guard then lets exactly that command through, once, if the answer came from the same session and is less
+than half an hour old, and marks it used. Without such an answer the guard behaves as before (Claude Code's own confirmation in the
+modes where that was tried, a block in the others). The agent cannot write the ledger or send the panel a question that already
+has its answers. Several approvals in one command need one answer each.
+
+Status: the recorder, the guard and `ppc ask` are tested, including that the label commands `ppc ask` prints are exactly what the
+guard accepts, and the recorder and guard were run through Spec Kit's real event dispatcher with a payload shaped like the one the
+probe recorded. **A person has not yet clicked through the whole flow** (panel, then the approval running with no second prompt), and
+pressing No on Claude Code's own confirmation has not been tried. It is a guard rail for an agent that cooperates, not a security
+boundary: an agent that can edit `.claude/settings.json` could register a hook that writes the ledger.
 
 ## Per project
 
@@ -65,6 +74,7 @@ The engine behind `/pp`; a person rarely types these. Each command either change
 |---|---|---|
 | `ppc approve [<id>] [--accept <reason> \| --drop]` | **a human** | The short form of the three approvals below. A slice id approves it to start, or its red tests when it is in progress in red; a `DEBT-` id decides the debt; with no id it takes the one decision that is waiting and refuses to guess when there are several |
 | `ppc show <id>` | anyone | The card of what is being decided, in plain words: a slice (does, does not, checked by, waits for), its red tests, a debt entry or a change request |
+| `ppc ask <id>` | anyone | The question for the panel that decides it: the options that carry out the decision end with the exact command. A debt option that accepts records the fixed reason "accepted in the panel"; a change request that is rejected, "rejected in the panel" (the panel cannot carry free text) |
 | `ppc next --json` | anyone | The same next step as data, for the `/pp` skill: `kind` is `decision`, `human-step`, `agent-step`, `run` or `none` |
 | `ppc approve-slice <slice> [--by <name>]` | **a human** | `planned` → `ready`. The only way a slice becomes ready to start |
 | `ppc start <slice>` | anyone | `ready` → in progress, in the red phase (strict) or the build phase (light), and records the mode. Refuses a slice that is not approved, has unfinished dependencies, or when another slice is in progress |
@@ -88,7 +98,7 @@ The engine behind `/pp`; a person rarely types these. Each command either change
 | `ppc prompt [<slice>] [--task <t>]` | anyone | Writes the system, negative and (when it applies) design prompt for one task under `.sddpp/prompts/`. Offered files: edit or ignore them; it will not overwrite without `--force` |
 | `ppc overview` | anyone | One screen: slices by status, progress per capability, debt per component, contract problems |
 
-Approvals are human-only. The guard blocks the agent from running `ppc approve-*` and from writing any
+Approvals are human-only. The guard stops the agent from running `ppc approve-*` unless the person chose that command in the panel, and blocks it from writing any
 field that records a human decision into `.sddpp/`; in the default, accept-edits and auto permission modes
 Claude Code shows the person the exact command and asks, and if nobody answers the command does not run ([spike](ask-spike.md) and [probe](ask-panel-probe.md): a person saw the dialog in the VS Code extension, in auto mode, and pressed Yes; pressing No was not tried). In any other mode the guard blocks and the person runs the command in a terminal (the CLI
 also takes it after `!`; the VS Code extension has no `!`). Like the test lock, this stops an agent that
