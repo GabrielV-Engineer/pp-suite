@@ -197,9 +197,9 @@ No price computed. Wall time 10.5 hours, mostly idle.
 
 | Id | Finding | Verified | State |
 |---|---|---|---|
-| F-B4 | `uv.lock` counted as production | Yes | Open; a one-line addition to the list plus a test |
-| F-B5 | A skeleton that sets up two toolchains does not fit 200 lines; configuration files count | Log, and the sizes above | Open: decide whether setup files count |
-| F-B6 | A generated file the project declares (`models.lock.json`) cannot be excluded | Yes | Open |
-| F-C1 | A budget change cannot be a change request without a fake component | Yes | Open |
-| (new) | `W03` on every planned slice after each change request, with no command to clear it | Yes | Open |
+| F-B4 | `uv.lock` counted as production | Yes | **Fixed**, with the other well-known lockfiles (`bun.lock`, `deno.lock`, `Pipfile.lock`, `pdm.lock`, `pubspec.lock`, `mix.lock`, `Podfile.lock`) |
+| F-B5 | A skeleton that sets up two toolchains does not fit 200 lines; configuration files count | Log, and the sizes above | Open: a decision for the owner, not a bug (the owner raised the budget to 500) |
+| F-B6 | A generated file the project declares (`models.lock.json`) cannot be excluded | Yes | **Fixed**: `budgets.generated_paths` in the blueprint. In psyBook it takes a change request to add it, now possible with `--budgets` |
+| F-C1 | A budget change cannot be a change request without a fake component | Yes | **Fixed**: `ppc change-request --budgets` |
+| (new) | `W03` on every planned slice after each change request, with no command to clear it | Yes | **Fixed**: `ppc reread`, human-only and offered by `/pp` as a decision with `ppc show reread` |
 | F-H1, F-H2, F-S1 | See the second review | | Open |

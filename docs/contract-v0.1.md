@@ -28,12 +28,14 @@ blueprint `revision` is bumped when Architect.PP applies it. The life of a reque
 
 | Status | How it gets there | Who |
 |---|---|---|
-| `open` | `ppc change-request --slice ... --problem ... --proposal ...` (records the design revision it was opened at) | an agent or a person |
+| `open` | `ppc change-request --slice ... --problem ... --proposal ...` and what it affects: `--component`, `--adr`, `--qa`, or `--budgets` for a change to the blueprint's budgets or generated-file globs, which belong to no component (records the design revision it was opened at) | an agent or a person |
 | `accepted` / `rejected` | `ppc decide-change CR-NNNN --accept` or `--reject --reason ...` | **a person**; the guard blocks agents |
 | `applied` | `/speckit-architect-pp-apply-change CR-NNNN` revises `.architect/` and raises `revision`; then `ppc apply-change` checks that the revision rose (`T17`) and that the constitution follows the design | Architect.PP, then the tool |
 
 Slices planned against the older revision are flagged (`W03`, and listed by `ppc next`); nothing updates their
-`blueprint_revision` automatically, since that is the reader saying "I read what changed".
+`blueprint_revision` automatically, since that is the reader saying "I read what changed". The person says it with
+`ppc reread --all` (or `ppc reread SL-003 ...`), after `ppc show reread` has told them which change requests were applied since;
+the command changes that one field of unfinished slices and nothing else, and the guard keeps it from an agent like the approvals.
 
 **The project rules.** `ppc constitution` writes one short block (about 1,300 characters) into `CLAUDE.md`, which Claude Code reads at
 the start of every session, between `<!-- pp-suite:begin -->` and `<!-- pp-suite:end -->` markers. It says how to work here
@@ -173,8 +175,10 @@ of the repository the project lives in, for every slice that has an audit:
 - a `red` commit changes no production code (`C03`);
 - `production_lines` and `test_lines` equal the lines added plus deleted, in hand-written production code and
   in test files, across the listed commits; renames count as a delete plus an add and binary files as zero
-  (`C04`). Contract bookkeeping (`.sddpp/`, `.architect/`) and generated lockfiles are neither measured nor
-  checked. **Only `production_lines` counts against the budget** (`max_slice_production_lines` in the
+  (`C04`). Contract bookkeeping (`.sddpp/`, `.architect/`), generated lockfiles (`package-lock.json`, `uv.lock`, `Cargo.lock` and
+  the other well-known names) and the globs in `budgets.generated_paths` (for a lock the project writes itself, such as `models.lock.json`,
+  or a cache folder; `*` stays inside one folder and `**` crosses folders) are neither measured nor checked, and mutation testing
+  leaves them out. **Only `production_lines` counts against the budget** (`max_slice_production_lines` in the
   blueprint): a slice may carry large tests, but then `test_lines` tells the reviewer how much there is to read;
 - the first `red` commit is an ancestor of the first `green` commit (`C05`).
 

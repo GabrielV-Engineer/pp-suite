@@ -76,6 +76,7 @@ The engine behind `/pp`; a person rarely types these. Each command either change
 | `ppc show <id>` | anyone | The card of what is being decided, in plain words: a slice (does, does not, checked by, waits for), its red tests, a debt entry or a change request |
 | `ppc ask <id>` | anyone | The question for the panel that decides it: the options that carry out the decision end with the exact command. A debt option that accepts records the fixed reason "accepted in the panel"; a change request that is rejected, "rejected in the panel" (the panel cannot carry free text) |
 | `ppc next --json` | anyone | The same next step as data, for the `/pp` skill: `kind` is `decision`, `human-step`, `agent-step`, `run` or `none` |
+| `ppc reread (--all \| <slice>...)` | **a human** | Says the person read what changed in the design since those slices were planned; sets their `blueprint_revision` to the current one, which clears `W03`. `ppc show reread` lists the change requests applied since. Only unfinished slices that are behind |
 | `ppc approve-slice <slice> [--by <name>]` | **a human** | `planned` → `ready`. The only way a slice becomes ready to start |
 | `ppc start <slice>` | anyone | `ready` → in progress, in the red phase (strict) or the build phase (light), and records the mode. Refuses a slice that is not approved, has unfinished dependencies, or when another slice is in progress |
 | `ppc approve-red --by <name>` | **a human** | Strict only. Approves the committed red tests and enters green. Refuses if code is uncommitted |
@@ -89,7 +90,7 @@ The engine behind `/pp`; a person rarely types these. Each command either change
 | `ppc status` | anyone | What is in progress |
 | `ppc next` | anyone | Whose turn it is (human, agent or anyone) and the exact command to run, from the slice's phase and the git history. Also lists what else waits for a person and which slices are blocked. Before the design exists (pp-suite installed, `.architect/` empty) it points at The Architect's interview and the hand-off |
 | `ppc schedule-debt DEBT-ID --slice SL-NNN` | anyone | Assigns an approved (open) debt to a planned refactor slice that touches its component, and lists it in the slice's `pays` |
-| `ppc change-request --slice ... --problem ... --proposal ...` | anyone | A slice asks for a design change. Records the revision it was opened at |
+| `ppc change-request --slice ... --problem ... --proposal ... (--component ... \| --adr ... \| --qa ... \| --budgets)` | anyone | A slice asks for a design change; `--budgets` is for a change to the budgets or generated-file globs, which belong to no component. Records the revision it was opened at |
 | `ppc decide-change CR-NNNN --accept \| --reject --reason ... --by <name>` | **a human** | Accepts or rejects it |
 | `ppc apply-change CR-NNNN` | anyone | Marks an accepted request applied, once the design revision rose and the constitution is current |
 | `ppc constitution [--check]` | anyone | Writes the short block of project rules (about 1,300 characters, nothing copied from the design) into `CLAUDE.md` |
