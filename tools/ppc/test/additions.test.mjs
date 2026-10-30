@@ -307,11 +307,20 @@ test('decide-addition: the batch refuses what it cannot do, and then changes not
   fails(() => batch(dir, { cut: ['ADD-099'] }), /unknown addition/);
   fails(() => batch(dir, { cut: ['ADD-001'], keep: ['ADD-001'], reason: 'twice named' }), /ADD-001.*both|both.*ADD-001/s);
   fails(() => batch(dir, { cut: ['ADD-003'] }), /ADD-004/);
-  fails(() => batch(dir, { cut: ['ADD-003'], keep: ['ADD-004'], reason: 'split on purpose' }), /ADD-003.*ADD-004|ADD-004.*ADD-003/s);
   fails(() => decideAddition(dir, null, { cut: ['ADD-001'], by: 'owner' }), /accept-recommended/);
   assert.equal(read(dir), before);
   decideAddition(dir, 'ADD-001', { decision: 'cut', by: 'owner' });
   fails(() => batch(dir, { cut: ['ADD-001'] }), /already decided/);
+});
+
+test('decide-addition: an overlapping pair may be split in the batch, because both are named in the same command', (t) => {
+  // psyBook: the owner cut the focus rules and kept the contrast target, two additions that overlap
+  const { dir } = setup(t, mixed());
+  const result = batch(dir, { cut: ['ADD-003'], keep: ['ADD-004'], reason: 'Contrast is cheap and the palette needs it' });
+  assert.equal(result.decided['ADD-003'], 'cut');
+  assert.equal(result.decided['ADD-004'], 'keep');
+  assert.equal(entryOf(dir, 'ADD-004').reason, 'Contrast is cheap and the palette needs it');
+  assert.equal(entryOf(dir, 'ADD-005').decision, 'pending');
 });
 
 test('CLI: one command accepts the recommendations and decides the rest, with the name from git', (t) => {

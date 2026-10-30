@@ -206,11 +206,11 @@ export function decideAddition(root, id, { decision, by, reason, acceptRecommend
     const both = (cut ?? []).filter((one) => (keep ?? []).includes(one));
     if (both.length) fail(`${both.join(', ')} is named both to cut and to keep`);
     if ((keep ?? []).length && (!reason || reason.trim().length < 5)) fail('keeping an addition needs a --reason of at least 5 characters: why it stays');
-    for (const [ids, outcome] of named) {
-      for (const one of ids) {
-        const missing = overlapping(one).filter((g) => !ids.includes(g));
-        if (missing.length) fail(`${one} overlaps ${missing.join(', ')}, which you did not ${outcome} with it, so they cannot be decided differently without a contradiction in between. Name them together under --but-${outcome}`);
-      }
+    // an overlapping group is decided in one command, so no half-decided state exists; a deliberate split is allowed
+    const every = [...(cut ?? []), ...(keep ?? [])];
+    for (const one of every) {
+      const missing = overlapping(one).filter((g) => !every.includes(g));
+      if (missing.length) fail(`${one} overlaps ${missing.join(', ')}, which you did not name. Name every member of an overlapping group in the same command, under --but-cut or --but-keep (they may differ: a split is a decision), so nothing is left half decided`);
     }
     for (const [ids, outcome] of named) {
       for (const one of ids) {
