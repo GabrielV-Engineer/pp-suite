@@ -12,6 +12,7 @@ import { spawnSync } from 'node:child_process';
 import { homedir } from 'node:os';
 import { applyChange, decideChange, openChange } from '../src/changes.mjs';
 import { sessionContext, gitSubjects, gitUserName } from '../src/session.mjs';
+import { renderAdditions } from '../src/additions.mjs';
 import { buildPrompts, resolveTarget, writePrompts } from '../src/prompts.mjs';
 import { start, approveSlice, approveRed, approveDebt, scheduleDebt, decideAddition, toRefactor, finish, mutate, status, LifecycleError } from '../src/lifecycle.mjs';
 
@@ -55,6 +56,7 @@ const USAGE = `ppc — pp-suite contract tool
                                          together (--alone decides one on purpose)
     ppc decide-addition --accept-recommended [--but-cut ADD-1,ADD-2] [--but-keep ADD-3 --reason <why>] [--by <name>] [dir]
                                          HUMAN ONLY: keep or cut something the design contains that the person did not ask for
+    ppc additions [dir]                  the additions in plain words: what needs you, what a recommendation settles
     ppc refactor [dir]                   green -> refactor
     ppc finish <slice> --audit <file.json> [--budget-reason <text>] [--mutation-reason <text>] [dir]
                                          close the slice; the diff size is measured from git.
@@ -154,6 +156,11 @@ switch (command) {
       return done;
     });
     break;
+  case 'additions': {
+    const list = loadProject(dirAt(0)).additions?.data.additions;
+    process.stdout.write(list?.length ? renderAdditions(list) : 'There are no additions to review (no .architect/additions.yaml, or it is empty).\n');
+    break;
+  }
   case 'change-request': {
     const list = (v) => (v ? v.split(',').map((x) => x.trim()).filter(Boolean) : []);
     transition(() => openChange(dirAt(0), { slice: options.get('slice'), title: options.get('title'), problem: options.get('problem'), proposal: options.get('proposal'), components: list(options.get('component')), adrs: list(options.get('adr')), qas: list(options.get('qa')) }));

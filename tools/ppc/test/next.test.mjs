@@ -174,6 +174,17 @@ test('next: additions nobody decided come before planning slices, and are a pers
   assert.match(first(r).command, /decide-addition/);
   assert.match(first(r).what, /ADD-001/);
   assert.doesNotMatch(first(r).what, /ADD-002/);
+  assert.match(first(r).what, /ppc additions/, 'it says where to read them');
+  assert.match(first(r).command, /--accept-recommended/);
+});
+
+test('next: many undecided additions are summarised as a range, not listed one by one', () => {
+  const m = designOnly();
+  const add = (n) => ({ id: `ADD-${String(n).padStart(3, '0')}`, what: `Thing ${n}`, origin: 'tool_added', cost: 'A column and a filter', if_cut: 'Nothing is lost', later: { effort: 'easy', revisit_when: 'After a mistake' }, recommendation: { action: 'cut', reason: 'Not asked for' }, decision: 'pending' });
+  m.additions = { file: '.architect/additions.yaml', data: { additions: Array.from({ length: 13 }, (_, i) => add(i + 1)) } };
+  const what = first(nextSteps(m, [], errorsOf(m))).what;
+  assert.match(what, /13 additions \(ADD-001 to ADD-013\)/);
+  assert.doesNotMatch(what, /ADD-005/);
 });
 
 // ── installed, but no design yet ─────────────────────────────────

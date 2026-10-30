@@ -6,6 +6,7 @@ import { join } from 'node:path';
 import { loadProject } from '../src/load.mjs';
 import { validateModel, designFindings, RULES } from '../src/validate.mjs';
 import { decideAddition, LifecycleError } from '../src/lifecycle.mjs';
+import { renderAdditions } from '../src/additions.mjs';
 import { CLI, EXAMPLE, repo } from './helpers.mjs';
 
 const addition = (over = {}) => ({
@@ -328,4 +329,61 @@ test('CLI: --but-cut and --but-keep need --accept-recommended', (t) => {
   const out = spawnSync('node', [CLI, 'decide-addition', '--but-cut', 'ADD-001', r.dir], { encoding: 'utf8', env: NO_GIT_NAME });
   assert.equal(out.status, 1);
   assert.match(out.stderr, /accept-recommended/);
+});
+
+// ── reading the additions before deciding ─────────────────────────
+const cards = (list) => renderAdditions(list);
+
+test('additions report: what needs the person comes first, then what a recommendation settles', () => {
+  const text = cards(mixed());
+  assert.match(text, /5 additions: 2 settled by a recommendation, 3 need you/);
+  assert.ok(text.indexOf('NEED YOU') < text.indexOf('RECOMMENDED: CUT'), 'need-you section first');
+  assert.ok(text.indexOf('RECOMMENDED: CUT') < text.indexOf('RECOMMENDED: KEEP'));
+  for (const id of ['ADD-001', 'ADD-002', 'ADD-003', 'ADD-004', 'ADD-005']) assert.match(text, new RegExp(id));
+});
+
+test('additions report: each card says what it is, what it costs, what is lost and why it is recommended, in plain words', () => {
+  const text = cards([addition({ id: 'ADD-001', origin: 'stronger_than_asked', recommendation: { action: 'cut', reason: 'The person only said "maybe delete"' }, later: { effort: 'needs_migration', revisit_when: 'Two mistaken deletes' } })]);
+  assert.match(text, /A recoverable delete: the row stays in the file/);
+  assert.match(text, /Costs: +A column, a filter/);
+  assert.match(text, /If cut: +A mistaken delete cannot be undone/);
+  assert.match(text, /Recommended: +cut .*maybe delete/);
+  assert.match(text, /stronger version of what you asked for/);
+  assert.match(text, /Later: +needs a migration.*Two mistaken deletes/);
+  for (const raw of ['stronger_than_asked', 'needs_migration', 'tool_added', 'implied_by_request', 'not_requested']) assert.doesNotMatch(text, new RegExp(raw));
+});
+
+test('additions report: overlapping additions are shown together and say they are decided together', () => {
+  const text = cards(mixed());
+  assert.match(text, /ADD-003, ADD-004 .*decided together/);
+  assert.match(text, /recommended differently/);
+  assert.match(text, /ADD-005 .*for the person to decide/);
+});
+
+test('additions report: ends with the one command that settles it, built from the same split the command uses', () => {
+  const text = cards(mixed());
+  assert.match(text, /ppc decide-addition --accept-recommended --but-cut <ids> --but-keep <ids> --reason "<why>"/);
+  assert.match(text, /tell your assistant/i);
+});
+
+test('additions report: decided ones are listed briefly, and when none is left it points at the next step', () => {
+  const list = [addition({ id: 'ADD-001', decision: 'cut', decided_by: 'owner' }), addition({ id: 'ADD-002', affects: [], decision: 'keep', decided_by: 'owner', reason: 'Baseline practice stays' })];
+  const text = cards(list);
+  assert.match(text, /Every addition is decided/);
+  assert.match(text, /DECIDED/);
+  assert.match(text, /ADD-001 +cut/);
+  assert.match(text, /ADD-002 +keep +Baseline practice stays/);
+  assert.match(text, /apply-cuts/);
+  assert.doesNotMatch(text, /NEED YOU|ppc decide-addition/);
+});
+
+test('CLI: ppc additions prints the report, and says so when there is nothing to review', (t) => {
+  const r = setup(t, mixed());
+  const out = spawnSync('node', [CLI, 'additions', r.dir], { encoding: 'utf8' });
+  assert.equal(out.status, 0, out.stderr);
+  assert.match(out.stdout, /5 additions: 2 settled by a recommendation, 3 need you/);
+  const none = repo(t);
+  const empty = spawnSync('node', [CLI, 'additions', none.dir], { encoding: 'utf8' });
+  assert.equal(empty.status, 0);
+  assert.match(empty.stdout, /no additions/i);
 });
