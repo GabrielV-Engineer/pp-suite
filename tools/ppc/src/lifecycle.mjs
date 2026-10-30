@@ -7,6 +7,8 @@ import { checkGit, dirtyPaths, measure } from './gitcheck.mjs';
 import { runMutation, sliceProductionFiles } from './mutation.mjs';
 import { modeOf, testPolicy } from './policy.mjs';
 import { overlapGroup, triage } from './additions.mjs';
+import { nextSteps } from './next.mjs';
+import { gitSubjects } from './session.mjs';
 
 /** A refused transition. The message says why; nothing was changed. */
 export class LifecycleError extends Error {}
@@ -250,6 +252,38 @@ export function decideAddition(root, id, { decision, by, reason, acceptRecommend
   }
   return result;
 }
+
+/**
+ * The short form of the approvals: `ppc approve [id]`. A slice id approves that slice to start (or its red tests, when it is in
+ * progress in the red phase); a debt id decides the debt; with no id it takes the one decision `ppc next` is asking for, and
+ * refuses to guess when there are several. A change request is decided with `ppc decide-change`, which needs accept or reject.
+ */
+export function approve(root, id, { by, accept, drop } = {}) {
+  if (!by || !by.trim()) fail('no name to record: set one with `git config user.name "<your name>"` or pass --by <name>');
+  if (id) {
+    if (id.startsWith('SL-')) {
+      const entry = loadValid(root).slices.find((s) => s.data.id === id);
+      return entry?.data.status === 'in_progress' && entry.data.phase === 'red' ? approveRed(root, by) : approveSlice(root, id, by);
+    }
+    if (id.startsWith('DEBT-')) return approveDebt(root, id, { by, accept, drop });
+    if (id.startsWith('CR-')) fail(`${id} is a change request: decide it with \`ppc decide-change ${id} --accept\` or \`--reject --reason <why>\``);
+    fail(`${id} is not something to approve here: a slice (SL-…) or a debt entry (DEBT-…)`);
+  }
+  const model = loadValid(root);
+  const next = nextSteps(model, gitSubjects(root), []);
+  // a slice whose red tests wait for a person comes first: it is the work in progress
+  const red = next.actions.find((a) => a.decision?.type === 'red');
+  if (red) return approveRed(root, by);
+  const byId = new Map(model.slices.map((s) => [s.data.id, s.data]));
+  const approvable = model.slices.map((s) => s.data).filter((s) => s.status === 'planned' && (s.depends_on ?? []).every((d) => byId.get(d)?.status === 'done'));
+  if (approvable.length > 1) fail(`which one? ${approvable.map((s) => s.id).join(', ')}: name it with \`ppc approve <id>\``);
+  if (!approvable.length) {
+    const waiting = next.waiting.filter((a) => a.decision).map((a) => a.decision.id ?? a.decision.type);
+    fail(`nothing is waiting for an approval right now${waiting.length ? `, except: ${waiting.join(', ')}; name one with \`ppc approve <id>\`` : ''}`);
+  }
+  return approveSlice(root, approvable[0].id, by);
+}
+
 
 /**
  * HUMAN ONLY: decide on a debt entry the AI proposed. Default: it becomes open (a real debt to pay);

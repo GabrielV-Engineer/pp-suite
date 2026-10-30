@@ -444,7 +444,7 @@ test('CLI: next tells whose turn it is, following the real git history', (t) => 
   assert.equal(ppc(dir, 'start', 'SL-001', dir).status, 0);
   assert.match(ppc(dir, 'next', dir).stdout, /\[agent\][\s\S]*sddpp-cycle-red/);
   commit('red(SL-001): health', RED);
-  assert.match(ppc(dir, 'next', dir).stdout, /\[human\][\s\S]*ppc approve-red --by/);
+  assert.match(ppc(dir, 'next', dir).stdout, /\[human\][\s\S]*ppc approve\b/);
   const overviewOut = ppc(dir, 'overview', dir);
   assert.equal(overviewOut.status, 0);
   assert.match(overviewOut.stdout, /In progress: SL-001/);
@@ -454,7 +454,15 @@ test('CLI: approve-slice records the approver', (t) => {
   const { dir } = repo(t);
   assert.equal(ppc(dir, 'approve-slice', 'SL-002', '--by', 'reviewer', dir).status, 0);
   assert.match(ppc(dir, 'status', dir).stdout, /SL-002/);
-  assert.equal(ppc(dir, 'approve-slice', 'SL-003', dir).status, 1); // no --by
+});
+
+test('CLI: approve-slice takes the name from git, and refuses when git has none either', (t) => {
+  const r = repo(t);
+  assert.equal(ppc(r.dir, 'approve-slice', 'SL-003', r.dir).status, 0, 'git user.name of the repository');
+  r.git('config', '--unset', 'user.name');
+  const noName = spawnSync(process.execPath, [CLI, 'approve-slice', 'SL-004', r.dir], { encoding: 'utf8', env: { ...process.env, GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_SYSTEM: '/dev/null' } });
+  assert.equal(noName.status, 1);
+  assert.match(noName.stderr, /--by/);
 });
 
 test('CLI: a refused transition prints why and exits 1', (t) => {

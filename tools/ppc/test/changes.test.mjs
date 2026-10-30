@@ -184,7 +184,9 @@ test('CLI: open, decide and apply', (t) => {
   const opened = ppc('change-request', '--slice', 'SL-004', '--title', 'Define the title limit', '--problem', PROBLEM, '--proposal', PROPOSAL, '--qa', 'QA-004');
   assert.equal(opened.status, 0, opened.stderr);
   assert.match(opened.stdout, /CR-0002/);
-  assert.equal(ppc('decide-change', 'CR-0002', '--accept').status, 1, 'needs --by');
+  r.git('config', '--unset', 'user.name');
+  const noName = spawnSync(process.execPath, [CLI, 'decide-change', 'CR-0002', '--accept', r.dir], { encoding: 'utf8', env: { ...process.env, GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_SYSTEM: '/dev/null' } });
+  assert.equal(noName.status, 1, 'no --by and no git user.name');
   assert.equal(ppc('decide-change', 'CR-0002', '--accept', '--by', 'owner').status, 0);
   assert.equal(ppc('apply-change', 'CR-0002').status, 1, 'the design has not moved');
   raiseRevision(r);

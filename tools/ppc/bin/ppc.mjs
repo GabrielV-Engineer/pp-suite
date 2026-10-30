@@ -4,7 +4,7 @@ import { join, resolve } from 'node:path';
 import { loadProject } from '../src/load.mjs';
 import { validateModel, designFindings, RULES } from '../src/validate.mjs';
 import { checkGit } from '../src/gitcheck.mjs';
-import { designState, nextSteps, noDesignNext, overview, renderNext } from '../src/next.mjs';
+import { designState, nextSteps, nextJson, noDesignNext, overview, renderNext } from '../src/next.mjs';
 import { execFileSync } from 'node:child_process';
 import { checkConstitution, writeConstitution, ConstitutionError } from '../src/constitution.mjs';
 import { apply, plan as installPlan, renderPlan, InstallError } from '../src/install.mjs';
@@ -13,8 +13,9 @@ import { homedir } from 'node:os';
 import { applyChange, decideChange, openChange } from '../src/changes.mjs';
 import { sessionContext, gitSubjects, gitUserName } from '../src/session.mjs';
 import { renderAdditions } from '../src/additions.mjs';
+import { renderDecision, redCommitFiles } from '../src/decisions.mjs';
 import { buildPrompts, resolveTarget, writePrompts } from '../src/prompts.mjs';
-import { start, approveSlice, approveRed, approveDebt, scheduleDebt, decideAddition, toRefactor, finish, mutate, status, LifecycleError } from '../src/lifecycle.mjs';
+import { start, approve, approveSlice, approveRed, approveDebt, scheduleDebt, decideAddition, toRefactor, finish, mutate, status, LifecycleError } from '../src/lifecycle.mjs';
 
 const USAGE = `ppc — pp-suite contract tool
 
@@ -129,10 +130,30 @@ switch (command) {
     transition(() => start(dirAt(1), positionals[0]));
     break;
   case 'approve-slice':
-    transition(() => approveSlice(dirAt(1), positionals[0], options.get('by')));
+    transition(() => approveSlice(dirAt(1), positionals[0], options.get('by') ?? gitUserName(dirAt(1))));
     break;
+  case 'approve': {
+    // `ppc approve [id] [dir]`: the id starts with SL- or DEBT-; anything else is the directory
+    const isId = (p) => /^(SL|DEBT|CR|[A-Z]+)-/.test(p) && !p.includes('/');
+    const id = positionals.find(isId);
+    const root = resolve(positionals.find((p) => p !== id) ?? '.');
+    transition(() => approve(root, id, { by: options.get('by') ?? gitUserName(root), accept: options.get('accept'), drop: flags.has('--drop') }));
+    break;
+  }
+  case 'show': {
+    const id = positionals.find((p) => /^[A-Z]+-/.test(p) && !p.includes('/'));
+    const root = resolve(positionals.find((p) => p !== id) ?? '.');
+    const model = loadProject(root);
+    const card = id ? renderDecision(model, id, { redFiles: redCommitFiles(root, id) }) : null;
+    if (!card) {
+      console.error(id ? `${id}: there is nothing with that id (a slice SL-…, a debt entry DEBT-… or a change request CR-…)` : 'usage: ppc show <id> [dir]');
+      process.exit(1);
+    }
+    process.stdout.write(card);
+    break;
+  }
   case 'approve-debt':
-    transition(() => approveDebt(dirAt(1), positionals[0], { by: options.get('by'), accept: options.get('accept'), drop: flags.has('--drop') }));
+    transition(() => approveDebt(dirAt(1), positionals[0], { by: options.get('by') ?? gitUserName(dirAt(1)), accept: options.get('accept'), drop: flags.has('--drop') }));
     break;
   case 'schedule-debt':
     transition(() => scheduleDebt(dirAt(1), positionals[0], options.get('slice')));
@@ -168,13 +189,13 @@ switch (command) {
     break;
   }
   case 'decide-change':
-    transition(() => decideChange(dirAt(1), positionals[0], { decision: flags.has('--accept') ? 'accept' : flags.has('--reject') ? 'reject' : undefined, by: options.get('by'), reason: options.get('reason') }));
+    transition(() => decideChange(dirAt(1), positionals[0], { decision: flags.has('--accept') ? 'accept' : flags.has('--reject') ? 'reject' : undefined, by: options.get('by') ?? gitUserName(dirAt(1)), reason: options.get('reason') }));
     break;
   case 'apply-change':
     transition(() => applyChange(dirAt(1), positionals[0]));
     break;
   case 'approve-red':
-    transition(() => approveRed(dirAt(0), options.get('by')));
+    transition(() => approveRed(dirAt(0), options.get('by') ?? gitUserName(dirAt(0))));
     break;
   case 'refactor':
     transition(() => toRefactor(dirAt(0)));
@@ -218,7 +239,8 @@ switch (command) {
     }
     // not a git repository: the phase alone decides, as if no commit had been made yet
     const subjects = gitSubjects(root);
-    process.stdout.write(renderNext(nextSteps(model, subjects, findings.filter((f) => f.severity === 'error'))));
+    const next = nextSteps(model, subjects, findings.filter((f) => f.severity === 'error'));
+    process.stdout.write(flags.has('--json') ? `${JSON.stringify(nextJson(next), null, 2)}\n` : renderNext(next));
     break;
   }
   case 'constitution': {

@@ -31,7 +31,7 @@ test('next: with nothing ready, the human approves the first planned slice whose
   Object.assign(s, { status: 'done' });
   const r = nextSteps(m, []);
   assert.equal(first(r).who, 'human');
-  assert.match(first(r).command, /ppc approve-slice SL-002 --by/);
+  assert.match(first(r).command, /^ppc approve SL-002$/);
 });
 
 test('next: it never proposes approving a slice whose dependencies are unfinished, even if it comes first', () => {
@@ -40,7 +40,7 @@ test('next: it never proposes approving a slice whose dependencies are unfinishe
   delete slice(m, 'SL-001').approved_by;
   slice(m, 'SL-001').depends_on = ['SL-002']; // first by id, but it waits for SL-002
   slice(m, 'SL-002').depends_on = [];
-  assert.match(first(nextSteps(m, [])).command, /approve-slice SL-002/);
+  assert.match(first(nextSteps(m, [])).command, /ppc approve SL-002/);
 });
 
 test('next: slices that wait on unfinished work are reported as blocked, with what they wait for', () => {
@@ -48,7 +48,7 @@ test('next: slices that wait on unfinished work are reported as blocked, with wh
   slice(m, 'SL-001').status = 'planned';
   delete slice(m, 'SL-001').approved_by;
   const r = nextSteps(m, []);
-  assert.match(first(r).command, /ppc approve-slice SL-001/);
+  assert.match(first(r).command, /ppc approve SL-001/);
   assert.ok(r.blocked.some((b) => b.slice === 'SL-002' && b.waits_for.includes('SL-001')));
 });
 
@@ -70,7 +70,7 @@ test('next: red phase with no red commit yet is the agent\'s turn', () => {
 test('next: red phase with a red commit is the human\'s turn to read and approve the tests', () => {
   const r = nextSteps(inProgress(base(), 'SL-002', 'red'), ['red(SL-002): create a task', 'chore: start']);
   assert.equal(first(r).who, 'human');
-  assert.match(first(r).command, /ppc approve-red --by/);
+  assert.match(first(r).command, /^ppc approve$/);
 });
 
 test('next: a red commit of another slice does not count', () => {
@@ -101,7 +101,7 @@ test('next: the refactor phase of a work slice leads to the audit once refactori
 // ── what else is waiting, and a broken contract ───────────────────
 test('next: debt the AI proposed is listed as waiting for a human, whatever else is happening', () => {
   const r = nextSteps(inProgress(base(), 'SL-002', 'green'), []);
-  assert.ok(r.waiting.some((w) => w.who === 'human' && /ppc approve-debt DEBT-BE-001 --by/.test(w.command)));
+  assert.ok(r.waiting.some((w) => w.who === 'human' && /^ppc approve DEBT-BE-001$/.test(w.command)));
 });
 
 test('next: a contract error comes first, because every other step assumes a valid project', () => {
@@ -115,7 +115,7 @@ test('next: a contract error comes first, because every other step assumes a val
 test('renderNext: names who acts, the exact command, and what else is waiting', () => {
   const text = renderNext(nextSteps(inProgress(base(), 'SL-002', 'red'), ['red(SL-002): x']));
   assert.match(text, /human/i);
-  assert.match(text, /ppc approve-red --by/);
+  assert.match(text, /ppc approve\b/);
   assert.match(text, /waiting/i);
 });
 

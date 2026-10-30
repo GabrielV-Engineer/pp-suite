@@ -40,7 +40,7 @@ function inProgressActions(s, subjects) {
     }
     return {
       headline: head,
-      actions: [{ who: 'human', what: 'Read the committed tests. They are the specification; approve them only if they say what you want', command: 'ppc approve-red --by <your name>' }],
+      actions: [{ who: 'human', what: 'Read the committed tests. They are the specification; approve them only if they say what you want', command: 'ppc approve', decision: { type: 'red', id } }],
     };
   }
   if (s.phase === 'green') {
@@ -73,7 +73,7 @@ export function nextSteps(model, subjects, errors = []) {
 
   const waiting = model.debt.flatMap((d) => d.data.entries)
     .filter((e) => e.status === 'proposed')
-    .map((e) => ({ who: 'human', what: `Decide on proposed debt ${e.id}: ${e.title}`, command: `ppc approve-debt ${e.id} --by <your name>` }));
+    .map((e) => ({ who: 'human', what: `Decide on proposed debt ${e.id}: ${e.title}`, command: `ppc approve ${e.id}`, decision: { type: 'debt', id: e.id } }));
   const blocked = live
     .filter((s) => ['planned', 'ready'].includes(s.status) && unfinished(s, byId).length)
     .map((s) => ({ slice: s.id, waits_for: unfinished(s, byId) }));
@@ -81,7 +81,7 @@ export function nextSteps(model, subjects, errors = []) {
   // Design changes: what a person must decide, what Architect.PP must revise, and what is stale afterwards.
   const crs = model.changeRequests.map((c) => c.data).sort((a, b) => a.id.localeCompare(b.id));
   const changeAction = (c) => (c.status === 'open'
-    ? { who: 'human', what: `Decide on change request ${c.id}: ${c.title} (raised by ${c.raised_by})`, command: `ppc decide-change ${c.id} --accept|--reject --by <your name>` }
+    ? { who: 'human', what: `Decide on change request ${c.id}: ${c.title} (raised by ${c.raised_by})`, command: `ppc decide-change ${c.id} --accept|--reject`, decision: { type: 'change', id: c.id } }
     : { who: 'agent', what: `Revise the design for ${c.id}: ${c.title}`, command: `/speckit-architect-pp-apply-change ${c.id}` });
   const pending = crs.filter((c) => ['open', 'accepted'].includes(c.status));
   const revision = model.blueprint.data.revision;
@@ -103,7 +103,7 @@ export function nextSteps(model, subjects, errors = []) {
     const undecided = (model.additions?.data.additions ?? []).filter((a) => a.decision === 'pending');
     if (undecided.length) {
       return result('The design has additions nobody decided; decide them before planning slices, or the plan would be built on things you may cut.', [
-        { who: 'human', what: `Decide on ${undecided.length === 1 ? undecided[0].id : undecided.length <= 4 ? undecided.map((a) => a.id).join(', ') : `${undecided.length} additions (${undecided[0].id} to ${undecided.at(-1).id})`}: read them with \`ppc additions\`, then tell your assistant what to cut or keep, or accept the recommended ones`, command: 'ppc decide-addition --accept-recommended [--but-cut <ids>] [--but-keep <ids> --reason <why>]' },
+        { who: 'human', what: `Decide on ${undecided.length === 1 ? undecided[0].id : undecided.length <= 4 ? undecided.map((a) => a.id).join(', ') : `${undecided.length} additions (${undecided[0].id} to ${undecided.at(-1).id})`}: read them with \`ppc additions\`, then tell your assistant what to cut or keep, or accept the recommended ones`, command: 'ppc decide-addition --accept-recommended [--but-cut <ids>] [--but-keep <ids> --reason <why>]', decision: { type: 'additions' } },
       ]);
     }
     const unapplied = (model.additions?.data.additions ?? []).filter((a) => a.decision === 'cut' && a.applied !== true);
@@ -134,7 +134,7 @@ export function nextSteps(model, subjects, errors = []) {
   const approvable = live.find((s) => s.status === 'planned' && !unfinished(s, byId).length);
   if (approvable) {
     return result(`Nothing is approved to start. ${approvable.id} "${approvable.title}" is the next planned slice.`, [
-      { who: 'human', what: 'Read the slice (behavior, acceptance, out of scope) and approve it to start', command: `ppc approve-slice ${approvable.id} --by <your name>` },
+      { who: 'human', what: 'Read the slice (behavior, acceptance, out of scope) and approve it to start', command: `ppc approve ${approvable.id}`, decision: { type: 'slice', id: approvable.id } },
     ]);
   }
 
@@ -207,5 +207,29 @@ export function noDesignNext() {
     waiting: [],
     blocked: [],
     changes: [],
+  };
+}
+
+/**
+ * The same next step as data, for a skill to read. `kind` is what the reader does with it: `decision` (a person decides, the
+ * assistant carries it out), `human-step` (a person does something that is not an approval), `agent-step` (run the skill in
+ * `skill`), `run` (a plain `ppc` command) or `none`.
+ */
+export function nextJson(next) {
+  const first = next.actions[0];
+  const kind = !first ? 'none' : first.decision ? 'decision' : first.who === 'human' ? 'human-step' : first.command.startsWith('/') ? 'agent-step' : 'run';
+  const slim = (a) => ({ who: a.who, what: a.what, command: a.command, decision: a.decision ?? null });
+  return {
+    headline: next.headline,
+    kind,
+    who: first?.who ?? null,
+    what: first?.what ?? null,
+    command: first?.command ?? null,
+    skill: kind === 'agent-step' ? first.command.split(' ')[0] : null,
+    decision: first?.decision ?? null,
+    optional: next.actions.slice(1).map(slim),
+    waiting: next.waiting.map(slim),
+    changes: next.changes.map(slim),
+    blocked: next.blocked,
   };
 }
