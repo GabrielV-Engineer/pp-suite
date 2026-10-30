@@ -4,7 +4,7 @@ import { join, resolve } from 'node:path';
 import { loadProject } from '../src/load.mjs';
 import { validateModel, designFindings, RULES } from '../src/validate.mjs';
 import { checkGit } from '../src/gitcheck.mjs';
-import { nextSteps, overview, renderNext } from '../src/next.mjs';
+import { designState, nextSteps, noDesignNext, overview, renderNext } from '../src/next.mjs';
 import { execFileSync } from 'node:child_process';
 import { checkConstitution, writeConstitution, ConstitutionError } from '../src/constitution.mjs';
 import { apply, plan as installPlan, renderPlan, InstallError } from '../src/install.mjs';
@@ -190,6 +190,11 @@ switch (command) {
     const model = loadProject(root);
     const findings = validateModel(model);
     if (!model.blueprint) {
+      // set up, no design yet: the first step, not an error (`ppc validate` still reports the missing files)
+      if (command === 'next' && designState(root) === 'no-design') {
+        process.stdout.write(renderNext(noDesignNext()));
+        break;
+      }
       report(findings);
       process.exit(1);
     }

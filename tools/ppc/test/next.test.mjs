@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { loadProject } from '../src/load.mjs';
 import { validateModel } from '../src/validate.mjs';
-import { nextSteps, overview, renderNext } from '../src/next.mjs';
+import { nextSteps, noDesignNext, overview, renderNext } from '../src/next.mjs';
 import { EXAMPLE } from './helpers.mjs';
 
 const base = () => loadProject(EXAMPLE);
@@ -174,4 +174,18 @@ test('next: additions nobody decided come before planning slices, and are a pers
   assert.match(first(r).command, /decide-addition/);
   assert.match(first(r).what, /ADD-001/);
   assert.doesNotMatch(first(r).what, /ADD-002/);
+});
+
+// ── installed, but no design yet ─────────────────────────────────
+test('next: with no design yet, the person runs the interview and the agent then does the hand-off', () => {
+  const r = noDesignNext();
+  assert.match(r.headline, /no design/i);
+  assert.equal(r.actions[0].who, 'human');
+  assert.match(r.actions[0].command, /\/architect\b/);
+  assert.equal(r.actions[1].who, 'agent');
+  assert.match(r.actions[1].command, /\/speckit-architect-pp-handoff <blueprint file>/);
+  assert.deepEqual([r.waiting, r.blocked, r.changes], [[], [], []]);
+  const text = renderNext(r);
+  assert.match(text, /\[human\]/);
+  assert.match(text, /ppc validate --design/);
 });

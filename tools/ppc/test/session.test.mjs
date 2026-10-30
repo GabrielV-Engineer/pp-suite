@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { sessionContext, CAP } from '../src/session.mjs';
@@ -54,4 +54,58 @@ test('CLI: session always exits 0, prints the context in a project and nothing e
   const elsewhere = spawnSync(process.execPath, [CLI, 'session', empty], { encoding: 'utf8' });
   assert.equal(elsewhere.status, 0);
   assert.equal(elsewhere.stdout, '');
+});
+
+// ── installed, but no design yet ─────────────────────────────────
+const scratch = (t, { installed = true, architect = null } = {}) => {
+  const dir = mkdtempSync(join(tmpdir(), 'ppc-nodesign-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  if (installed) {
+    mkdirSync(join(dir, '.specify/extensions/architect-pp'), { recursive: true });
+    writeFileSync(join(dir, '.specify/extensions/architect-pp/extension.yml'), 'extension:\n  id: architect-pp\n');
+  }
+  if (architect) {
+    mkdirSync(join(dir, '.architect'), { recursive: true });
+    for (const file of architect) writeFileSync(join(dir, '.architect', file), '');
+  }
+  return dir;
+};
+const run = (command, dir) => spawnSync(process.execPath, [CLI, command, dir], { encoding: 'utf8' });
+
+test('session: installed and no design yet, it says so and what to run, within the cap', (t) => {
+  const out = sessionContext(scratch(t));
+  assert.match(out.split('\n')[0], /^pp-suite: .*no design yet/i);
+  assert.match(out, /\/speckit-architect-pp-handoff/);
+  assert.ok(out.length <= CAP + 200);
+  assert.equal(sessionContext(scratch(t, { architect: [] })).split('\n')[0], out.split('\n')[0], 'an empty .architect/ counts as no design');
+});
+
+test('session: not installed, it stays silent even with no design', (t) => {
+  assert.equal(sessionContext(scratch(t, { installed: false })), '');
+});
+
+test('session: a half-written .architect/ is not "no design yet"', (t) => {
+  const out = sessionContext(scratch(t, { architect: ['architecture.md'] }));
+  assert.doesNotMatch(out, /no design yet/i);
+});
+
+test('CLI: next in an installed project with no design is not an error', (t) => {
+  const r = run('next', scratch(t));
+  assert.equal(r.status, 0);
+  assert.match(r.stdout, /No design yet/);
+  assert.match(r.stdout, /\/speckit-architect-pp-handoff/);
+});
+
+test('CLI: next still reports the missing files when pp-suite is not installed or the design is half-written', (t) => {
+  for (const dir of [scratch(t, { installed: false }), scratch(t, { architect: ['architecture.md'] })]) {
+    const r = run('next', dir);
+    assert.equal(r.status, 1);
+    assert.match(r.stdout + r.stderr, /R00 .*blueprint\.yaml/);
+  }
+});
+
+test('CLI: session exits 0 in all three states', (t) => {
+  for (const dir of [scratch(t), scratch(t, { installed: false }), scratch(t, { architect: ['architecture.md'] })]) {
+    assert.equal(run('session', dir).status, 0);
+  }
 });

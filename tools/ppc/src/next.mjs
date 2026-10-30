@@ -4,6 +4,8 @@
 // The aim: a person who comes back to the project after an hour or a month is told, without reading anything,
 // whose turn it is and which command to run.
 
+import { existsSync, readdirSync } from 'node:fs';
+import { join } from 'node:path';
 import { modeOf } from './policy.mjs';
 
 const RED = '/speckit-sddpp-cycle-red';
@@ -12,6 +14,10 @@ const BUILD = '/speckit-sddpp-cycle-build';
 const REFACTOR = '/speckit-sddpp-cycle-refactor';
 const AUDIT = '/speckit-sddpp-cycle-audit';
 const SLICES = '/speckit-sddpp-cycle-slices';
+const HANDOFF = '/speckit-architect-pp-handoff';
+
+// Installed means the extension that provides the hand-off is there, so the advice below can be followed.
+const INSTALLED = '.specify/extensions/architect-pp/extension.yml';
 
 const unfinished = (s, byId) => (s.depends_on ?? []).filter((d) => byId.get(d)?.status !== 'done');
 const committed = (subjects, kind, id) => subjects.some((line) => line.startsWith(`${kind}(${id})`));
@@ -167,4 +173,33 @@ export function overview(model, findings = []) {
   const errors = findings.filter((f) => f.severity === 'error').length;
   out.push('', `Contract: ${errors} error(s), ${findings.length - errors} warning(s)`);
   return out.join('\n') + '\n';
+}
+
+/**
+ * Where a project stands before there is a model to read: 'not-set-up' (pp-suite is not installed), 'no-design' (installed,
+ * and `.architect/` is absent or empty) or 'has-design'. A half-written `.architect/` counts as 'has-design': the missing
+ * files are then a real fault and `ppc validate` names them.
+ */
+export function designState(root) {
+  if (!existsSync(join(root, INSTALLED))) return 'not-set-up';
+  const dir = join(root, '.architect');
+  try {
+    return readdirSync(dir).length ? 'has-design' : 'no-design';
+  } catch {
+    return existsSync(dir) ? 'has-design' : 'no-design';
+  }
+}
+
+/** The next step of a project that is set up but has no design: not a fault, the first step. Same shape as `nextSteps`. */
+export function noDesignNext() {
+  return {
+    headline: 'No design yet. pp-suite is set up; the design comes first.',
+    actions: [
+      { who: 'human', what: 'Answer The Architect\'s interview; it writes a blueprint file', command: '/architect' },
+      { who: 'agent', what: 'Convert the blueprint into the design files (.architect/), then check them with `ppc validate --design`', command: `${HANDOFF} <blueprint file>` },
+    ],
+    waiting: [],
+    blocked: [],
+    changes: [],
+  };
 }

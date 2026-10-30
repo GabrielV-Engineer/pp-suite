@@ -3,7 +3,7 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { loadProject } from './load.mjs';
 import { validateModel } from './validate.mjs';
-import { nextSteps, renderNext } from './next.mjs';
+import { designState, nextSteps, noDesignNext, renderNext } from './next.mjs';
 
 // What a session is told when it starts: whose turn it is. A hook runs `ppc session` and Claude Code adds the output to the
 // conversation, so an agent starts oriented without anyone typing a command. It is silent outside a pp-suite project, never
@@ -21,7 +21,10 @@ export function gitSubjects(root) {
 }
 
 export function sessionContext(root) {
-  if (!existsSync(join(root, '.architect/blueprint.yaml'))) return '';
+  if (!existsSync(join(root, '.architect/blueprint.yaml'))) {
+    // set up but not designed yet: the first step, not silence; anywhere else the hook stays silent
+    return designState(root) === 'no-design' ? `pp-suite: set up, no design yet. State from \`ppc next\`:\n\n${renderNext(noDesignNext())}` : '';
+  }
   try {
     const model = loadProject(root);
     if (!model.blueprint) return 'pp-suite: this project has a design file that could not be read. `ppc validate` says why.\n';
