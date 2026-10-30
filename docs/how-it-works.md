@@ -62,13 +62,13 @@ Each command either changes the project or refuses and leaves it untouched.
 | `ppc decide-addition <ADD-ID> (--keep --reason <why> \| --cut) --by <name>` or `--accept-recommended --by <name>` | **a human** | Keeps or cuts something the design contains that the person did not ask for (`.architect/additions.yaml`). Cutting records the decision; carrying it out in the design is a separate step. See [scope review](scope-review.md) |
 | `ppc validate --design` | anyone | Judges only the design (`.architect/`) with the rules that concern it, before any slice or debt register exists. Used to check the hand-off |
 | `ppc status` | anyone | What is in progress |
-| `ppc next` | anyone | Whose turn it is (human, agent or anyone) and the exact command to run, from the slice's phase and the git history. Also lists what else waits for a person and which slices are blocked |
+| `ppc next` | anyone | Whose turn it is (human, agent or anyone) and the exact command to run, from the slice's phase and the git history. Also lists what else waits for a person and which slices are blocked. Before the design exists (pp-suite installed, `.architect/` empty) it points at The Architect's interview and the hand-off |
 | `ppc schedule-debt DEBT-ID --slice SL-NNN` | anyone | Assigns an approved (open) debt to a planned refactor slice that touches its component, and lists it in the slice's `pays` |
 | `ppc change-request --slice ... --problem ... --proposal ...` | anyone | A slice asks for a design change. Records the revision it was opened at |
 | `ppc decide-change CR-NNNN --accept \| --reject --reason ... --by <name>` | **a human** | Accepts or rejects it |
 | `ppc apply-change CR-NNNN` | anyone | Marks an accepted request applied, once the design revision rose and the constitution is current |
 | `ppc constitution [--check]` | anyone | Writes the short block of project rules (about 1,300 characters, nothing copied from the design) into `CLAUDE.md` |
-| `ppc session` | the hook | Prints the state for the start of a session (what `ppc next` says); silent outside a project. Claude Code adds it to the conversation |
+| `ppc session` | the hook | Prints the state for the start of a session (what `ppc next` says, including "no design yet" in a project that is set up); silent where pp-suite is not installed. Claude Code adds it to the conversation |
 | `ppc init [--apply] [--shim]` | anyone | Checks the machine and project against pinned versions; sets them up |
 | `ppc prompt [<slice>] [--task <t>]` | anyone | Writes the system, negative and (when it applies) design prompt for one task under `.sddpp/prompts/`. Offered files: edit or ignore them; it will not overwrite without `--force` |
 | `ppc overview` | anyone | One screen: slices by status, progress per capability, debt per component, contract problems |
