@@ -1,4 +1,4 @@
-# First real project: psyBook (design stage only)
+# First real project: psyBook
 
 Date reviewed: 2026-10-30. One run (n=1), no control arm. Source: the build session's own log
 (`psyBook/PPSUITE-LOG.md`, written by the agent), the project's git history, `ppc` run against the project, and the
@@ -70,3 +70,72 @@ feature as named, proposed-and-accepted or not named. That tagging was done by t
 
 Run `/speckit-architect-pp-handoff blueprints/psybook-blueprint.md` in psyBook. That is where the 16 unnamed items meet
 the additions review, and the first test of the claim that matters most: whether a person ends up deciding what was added.
+
+---
+
+# Second review: hand-off, additions and slice planning (same day, 03:49)
+
+Sources: the log (`PPSUITE-LOG.md`, lines 381 to 563), `.architect/`, `.sddpp/`, `ppc validate`, `ppc validate --design`,
+`ppc check-git` and `ppc overview` run against the project, and the session transcript's counts. Still one run, no control arm,
+and nothing built yet: no slice is approved, started or closed, so the build, the audit, the test lock, the budget and the
+integrity checks `C08` and `C09` have not been exercised.
+
+## What happened
+
+| Step | Time | Result |
+|---|---|---|
+| Hand-off (`/speckit-architect-pp-handoff`) | 02:49 to 02:54, 5 min | 17 files under `.architect/`, 13 additions flagged, `validate --design`: 0 errors, 13 `X01` warnings |
+| Additions decided | about 03:05 to 03:10 | 9 kept, 4 cut, all by the owner; cuts applied by `/speckit-architect-pp-apply-cuts`, revision 1 to 2, 0 errors and 0 warnings after |
+| Project `CLAUDE.md` with the owner | about 03:25 | 8 questions, written outside the pp-suite markers |
+| Slice planning (`/speckit-sddpp-cycle-slices`) | 03:30 to 03:40, 10 min | 21 slices, all `planned`; `validate`, `validate --design` and `check-git` give 0 errors and 0 warnings |
+
+Session so far: 187 assistant messages, about 200,000 output tokens, 47 million cache-read tokens, 410,000 cache-creation tokens,
+`claude-opus-5-5`; wall time 2 h 04 (01:37 to 03:41, -06:00), which includes the owner's time (22 user messages). 3 tool calls were
+refused by the guard. No price was computed.
+
+## Verified by me
+
+- `.architect/additions.yaml`: 9 keep, 4 cut (3 recommended cut, plus ADD-010, which was recommended `decide`), all `decided_by` the
+  owner, the cuts marked `applied`. Of 13 recommendations, the owner's outcome matched 12; ADD-010 was left to them and they cut it,
+  with their own reason (a manual option instead of a re-review after each session). The 9 keeps carry only 2 distinct reasons.
+- The owner **split** the overlapping pair ADD-004 (cut) and ADD-005 (keep). The batch decision I had just built refused that.
+  Fixed; see the findings.
+- The scope check worked in part. The build session had listed 16 items "named by nobody"; by the names, 12 of them are among the 13
+  additions. The other 4 are in the design and not in `additions.yaml` (checked by search): the zero-outbound-connections test, the
+  segment merge and split rule, the engine decision file, and the screen that marks an analysis reviewed. Also, by the hand-off's own
+  choice (F-H2), 11 proposals the owner accepted in the interview were treated as asked and not flagged.
+- F-H5 reproduced on a copy: with a cut decided and not applied, `ppc validate --design` warned (`X04`) and `ppc next` said the
+  design was ready.
+
+## What it cost the person
+
+The strongest result of the run is not in the numbers above. The owner tried to run the human-only commands three times before one
+worked: first with a `!` prefix (the VS Code extension has no `!`), then pasting the four lines inside a chat message, then by asking
+the assistant ("ejecutalos tu todos"), which the guard refused. The decisions took effect when they ran them in a terminal. The docs and the
+guard message all said "prefix it with `!`".
+
+## Findings from this part
+
+| Id | Finding | Verified | State |
+|---|---|---|---|
+| F-H4 | `!` does not exist in the VS Code extension; the docs and the guard message promised it | Log, and the owner's own attempts | **Fixed**: the message and the docs say to use a terminal; the guard asks in Claude Code's own prompt in the default and accept-edits modes ([spike](ask-spike.md)); the prompt itself was not seen by a person |
+| F-H5 | `ppc next` skips applying decided cuts | Yes | **Fixed** (`a6f9a1f`) |
+| (new) | The batch decision refused to split an overlapping pair | Yes | **Fixed** (`f137144`); the rule "one recommendation per overlap group" was dropped |
+| F-H3 | The guard blocks `--help` of a human-only command | Log | Open, together with F-E1 for `approve-*` |
+| F-H1 | Nothing checks that the hand-off carried over the risks | Log | Open |
+| F-H2 | No rule for interview proposals the person accepted; 11 went unflagged | Log | Open: decide whether an accepted proposal is "asked" |
+| F-S1 | Planning a subset of capabilities is impossible: `T06` blocks every approval and start | Log, and code (`loadValid`) | Open: decide between allowing phase-2 capabilities to be deferred and keeping the rule |
+
+## Not answered yet
+
+- **Orientation** (fact 4): the session began before pp-suite was installed, so the session-start hook has not been seen at a session
+  start. A new session in psyBook would show it now (it would print the pending `ppc approve-slice SL-001`).
+- **Whether the design stays the owner's** under a build: nothing has been built.
+- **The friction question** was not asked after stage D.
+
+## Next
+
+Open a new session in psyBook (this tests the hook), update its copies of the guard and the project rules (`ppc init . --apply --update`
+and `ppc constitution`, with a clean tree), approve SL-001 and run one slice end to end. That is the first test of the part of pp-suite
+that the run has not reached.
+
