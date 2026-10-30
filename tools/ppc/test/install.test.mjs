@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -12,12 +12,16 @@ const SUITE = fileURLToPath(new URL('../../../', import.meta.url)).replace(/\/$/
 const pins = readPins(SUITE);
 
 /** A scratch directory that is a git repository, with a clean tree. */
-function project(t, { git = true, specify = false } = {}) {
+function project(t, { git = true, specify = false, pp = specify } = {}) {
   const dir = mkdtempSync(join(tmpdir(), 'ppc-install-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   if (git) {
     for (const args of [['init', '-q', '-b', 'main'], ['config', 'user.email', 't@example.com'], ['config', 'user.name', 'T'], ['config', 'commit.gpgsign', 'false']]) spawnSync('git', args, { cwd: dir });
     writeFileSync(join(dir, 'README.md'), 'x\n');
+    if (pp) {
+      mkdirSync(join(dir, '.claude/skills/pp'), { recursive: true });
+      writeFileSync(join(dir, '.claude/skills/pp/SKILL.md'), readFileSync(join(SUITE, 'sdd-pp/skills/pp/SKILL.md'), 'utf8'));
+    }
     spawnSync('git', ['add', '-A'], { cwd: dir });
     spawnSync('git', ['commit', '-q', '-m', 'base'], { cwd: dir });
   }
@@ -55,9 +59,16 @@ test('the pins name exact versions and full commits, not ranges', () => {
 });
 
 // ── checking the machine ─────────────────────────────────────────
+const PP_SKILL = join(SUITE, 'sdd-pp/skills/pp/SKILL.md');
+const withPpSkill = (dir, text) => {
+  mkdirSync(join(dir, '.claude/skills/pp'), { recursive: true });
+  writeFileSync(join(dir, '.claude/skills/pp/SKILL.md'), text);
+  return dir;
+};
+
 test('plan: a machine with everything in place has every check ok and nothing left to run', (t) => {
   const p = plan(project(t, { specify: true }), env(machine(installed)));
-  for (const id of ['node', 'git', 'git-repo', 'python', 'specify', 'specify-project', 'extension-architect-pp', 'extension-sddpp-guard', 'extension-sddpp-cycle']) assert.equal(check(p, id).status, 'ok', id);
+  for (const id of ['node', 'git', 'git-repo', 'python', 'specify', 'specify-project', 'extension-architect-pp', 'extension-sddpp-guard', 'extension-sddpp-cycle', 'pp-skill']) assert.equal(check(p, id).status, 'ok', id);
   assert.deepEqual(p.blocked, []);
   assert.deepEqual(p.steps.filter((s) => !s.done), []);
 });
@@ -104,7 +115,7 @@ test('plan: a directory that is not a git repository blocks, since ppc reads git
 test('plan: a fresh project gets specify init, the three extensions and the removal of the Spec Kit skills this flow does not use, in that order, none done', (t) => {
   const p = plan(project(t), env(machine()));
   const ids = p.steps.filter((s) => !s.done).map((s) => s.id);
-  assert.deepEqual(ids.filter((id) => id !== 'npm-ci'), ['specify-init', 'extension-architect-pp', 'extension-sddpp-guard', 'extension-sddpp-cycle', ...DROPPED_SKILLS.map((n) => `drop-${n}`)]);
+  assert.deepEqual(ids.filter((id) => id !== 'npm-ci'), ['specify-init', 'extension-architect-pp', 'extension-sddpp-guard', 'extension-sddpp-cycle', ...DROPPED_SKILLS.map((n) => `drop-${n}`), 'pp-skill']);
   const init = p.steps.find((s) => s.id === 'specify-init');
   assert.deepEqual(init.command.slice(0, 2), ['specify', 'init']);
   for (const flag of ['--here', '--force', '--non-interactive']) assert.ok(init.command.includes(flag), flag);
@@ -248,7 +259,7 @@ test('apply: runs the steps that are not done, in order, inside the project', (t
   const fresh = project(t);
   const log2 = [];
   const r2 = apply(fresh, env(machine()), { run: runner(log2) });
-  assert.deepEqual(r2.ran.filter((id) => id !== 'npm-ci'), ['specify-init', 'extension-architect-pp', 'extension-sddpp-guard', 'extension-sddpp-cycle', ...DROPPED_SKILLS.map((n) => `drop-${n}`)]);
+  assert.deepEqual(r2.ran.filter((id) => id !== 'npm-ci'), ['specify-init', 'extension-architect-pp', 'extension-sddpp-guard', 'extension-sddpp-cycle', ...DROPPED_SKILLS.map((n) => `drop-${n}`), 'pp-skill']);
   assert.ok(log2.every((l) => l.cwd === fresh || l.command[0] === 'npm'));
 });
 
@@ -369,4 +380,45 @@ test('apply --update: runs the removal first, then the installation, in the proj
 test('CLI: init --update is accepted', (t) => {
   const out = spawnSync(process.execPath, [CLI, 'init', project(t), '--update'], { encoding: 'utf8', env: { ...process.env, PATH: '/usr/bin:/bin' } });
   assert.match(out.stdout, /Checks:/);
+});
+
+// ── the /pp skill ────────────────────────────────────────────────
+test('the /pp skill ships with this repository, is named pp and reads the state through ppc', () => {
+  const text = readFileSync(PP_SKILL, 'utf8');
+  assert.match(text, /^---\nname: pp\n/);
+  assert.match(text, /ppc next --json/);
+  assert.match(text, /allowed-tools:.*Bash\(ppc next/);
+  assert.doesNotMatch(text.match(/allowed-tools:.*/)[0], /approve|decide-change/, 'the approvals are not pre-approved: Claude Code asks the person');
+});
+
+test('plan: the /pp skill is a step that writes the file, and a check that is missing until it is there', (t) => {
+  const dir = project(t, { specify: true, pp: false });
+  const p = plan(dir, env(machine(installed)));
+  assert.equal(check(p, 'pp-skill').status, 'missing');
+  const step = p.steps.find((s) => s.id === 'pp-skill');
+  assert.equal(step.target, join(dir, '.claude/skills/pp/SKILL.md'));
+  assert.equal(step.content, readFileSync(PP_SKILL, 'utf8'));
+  assert.equal(step.done, false);
+});
+
+test('plan: a /pp skill that differs from this repository is reported, left alone, and rewritten only with --update', (t) => {
+  const dir = withPpSkill(project(t, { specify: true }), '---\nname: pp\n---\nan older version\n');
+  const reported = plan(dir, env(machine(installed)));
+  assert.equal(check(reported, 'pp-skill').status, 'differs');
+  assert.match(check(reported, 'pp-skill').fix, /--update/);
+  assert.equal(reported.steps.find((s) => s.id === 'pp-skill').done, true, 'not rewritten without --update');
+  assert.deepEqual(reported.blocked, [], 'it informs, it does not block');
+  assert.equal(plan(dir, env(machine(installed)), { update: true }).steps.find((s) => s.id === 'pp-skill').done, false);
+});
+
+test('apply: writes the /pp skill as a plain file, and a second run does nothing', (t) => {
+  const dir = project(t, { specify: true, pp: false });
+  const m = machine(installed);
+  const result = apply(dir, env(m), { run: () => ({ status: 0 }) });
+  assert.ok(result.ran.includes('pp-skill'));
+  assert.equal(readFileSync(join(dir, '.claude/skills/pp/SKILL.md'), 'utf8'), readFileSync(PP_SKILL, 'utf8'));
+  assert.equal(statSync(join(dir, '.claude/skills/pp/SKILL.md')).mode & 0o111, 0, 'not executable');
+  spawnSync('git', ['add', '-A'], { cwd: dir });
+  spawnSync('git', ['commit', '-q', '-m', 'pp'], { cwd: dir });
+  assert.deepEqual(apply(dir, env(machine(installed)), { run: () => ({ status: 0 }) }).ran.filter((id) => id === 'pp-skill'), []);
 });

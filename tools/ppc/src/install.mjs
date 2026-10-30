@@ -30,6 +30,9 @@ const GUARD_SCRIPT = '.specify/extensions/sddpp-guard/scripts/python/guard.py';
 const HOOK_NAME = 'speckit.sddpp-guard.pre-tool';
 const SESSION_SCRIPT = '.specify/extensions/sddpp-cycle/scripts/python/session.py';
 const SESSION_HOOK_NAME = 'speckit.sddpp-cycle.session-start';
+// `/pp`: the one command a person types. It is not a Spec Kit command, so it is written into the project directly.
+const PP_SKILL_SOURCE = 'sdd-pp/skills/pp/SKILL.md';
+const PP_SKILL_TARGET = '.claude/skills/pp/SKILL.md';
 
 const manifestVersion = (suite, file, key) => String(parseYaml(readFileSync(join(suite, file), 'utf8'))[key].version);
 const shimText = (suite) => `#!/bin/sh\nexec node "${join(suite, 'tools/ppc/bin/ppc.mjs')}" "$@"\n`;
@@ -137,6 +140,12 @@ export function plan(root, env, { shim = false, allowUntested = false, update = 
   }
   add({ id: 'session-hook', label: 'the session-start hook is registered (shows whose turn it is when a session begins)', status: sessionHook && existsSync(join(root, SESSION_SCRIPT)) ? 'ok' : 'missing', fix: 'ppc init --apply --update' });
 
+  const ppSource = readFileSync(join(suite, PP_SKILL_SOURCE), 'utf8');
+  const ppTarget = join(root, PP_SKILL_TARGET);
+  const ppThere = existsSync(ppTarget);
+  const ppStatus = !ppThere ? 'missing' : readFileSync(ppTarget, 'utf8') === ppSource ? 'ok' : 'differs';
+  add({ id: 'pp-skill', label: 'the /pp skill is installed (the one command a person types)', status: ppStatus, fix: ppStatus === 'differs' ? 'ppc init --apply --update' : 'ppc init --apply' });
+
   // ── the steps that would fix what is missing ──
   const steps = [
     { id: 'npm-ci', title: 'Install the dependencies of ppc', command: ['npm', 'ci'], cwd: join(suite, 'tools/ppc'), done: depsOk },
@@ -146,6 +155,8 @@ export function plan(root, env, { shim = false, allowUntested = false, update = 
       { id: `extension-${id}`, title: `Install the ${id} extension`, command: [specify, 'extension', 'add', join(suite, dir), '--dev'], cwd: root, done: extensionOk[id] },
     ]),
     ...DROPPED_SKILLS.map((name) => ({ id: `drop-${name}`, title: `Remove the ${name} skill, which this flow does not use`, remove: join(root, '.claude/skills', name), done: hasSpecify && !existsSync(join(root, '.claude/skills', name)) })),
+    // missing: written; different: left alone unless --update, since a person may have edited it
+    { id: 'pp-skill', title: 'Install the /pp skill', target: ppTarget, content: ppSource, mode: 0o644, done: ppStatus === 'ok' || (ppStatus === 'differs' && !update) },
   ];
   if (shim) {
     const dir = pathDirs.find((d) => d === join(home, '.local/bin'));
@@ -176,7 +187,7 @@ export function apply(root, env, { run, shim = false, allowUntested = false, upd
     } else if (step.target) {
       mkdirSync(join(step.target, '..'), { recursive: true });
       writeFileSync(step.target, step.content);
-      chmodSync(step.target, 0o755);
+      chmodSync(step.target, step.mode ?? 0o755);
     } else {
       const result = run(step.command, step.cwd);
       if (result.status !== 0) fail(`step ${step.id} failed (${step.command.join(' ')}):\n${String(result.stderr ?? '').trim()}`);
