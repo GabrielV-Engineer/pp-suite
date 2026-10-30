@@ -11,7 +11,7 @@ import { apply, plan as installPlan, renderPlan, InstallError } from '../src/ins
 import { spawnSync } from 'node:child_process';
 import { homedir } from 'node:os';
 import { applyChange, decideChange, openChange } from '../src/changes.mjs';
-import { sessionContext, gitSubjects } from '../src/session.mjs';
+import { sessionContext, gitSubjects, gitUserName } from '../src/session.mjs';
 import { buildPrompts, resolveTarget, writePrompts } from '../src/prompts.mjs';
 import { start, approveSlice, approveRed, approveDebt, scheduleDebt, decideAddition, toRefactor, finish, mutate, status, LifecycleError } from '../src/lifecycle.mjs';
 
@@ -53,7 +53,7 @@ const USAGE = `ppc — pp-suite contract tool
     ppc decide-addition <ADD-ID>... (--keep --reason <why> | --cut) [--alone] --by <name> [dir]
                                          several ids are decided the same way; additions that overlap must be decided
                                          together (--alone decides one on purpose)
-    ppc decide-addition --accept-recommended --by <name> [dir]
+    ppc decide-addition --accept-recommended [--but-cut ADD-1,ADD-2] [--but-keep ADD-3 --reason <why>] [--by <name>] [dir]
                                          HUMAN ONLY: keep or cut something the design contains that the person did not ask for
     ppc refactor [dir]                   green -> refactor
     ppc finish <slice> --audit <file.json> [--budget-reason <text>] [--mutation-reason <text>] [dir]
@@ -69,7 +69,7 @@ const USAGE = `ppc — pp-suite contract tool
     ppc overview [dir]                   where the project stands: slices, capabilities, debt, contract
 `;
 
-const VALUE_OPTIONS = new Set(['--by', '--audit', '--files', '--slice', '--accept', '--budget-reason', '--mutation-reason', '--reason', '--task', '--specify', '--title', '--problem', '--proposal', '--component', '--adr', '--qa']);
+const VALUE_OPTIONS = new Set(['--by', '--audit', '--files', '--slice', '--accept', '--budget-reason', '--mutation-reason', '--reason', '--task', '--specify', '--title', '--problem', '--proposal', '--component', '--adr', '--qa', '--but-cut', '--but-keep']);
 const [command, ...rest] = process.argv.slice(2);
 const positionals = [];
 const flags = new Set();
@@ -138,12 +138,18 @@ switch (command) {
     transition(() => {
       const ids = positionals.filter((p) => /^ADD-\d{3}$/.test(p));
       const root = resolve(positionals.find((p) => !/^ADD-\d{3}$/.test(p)) ?? '.');
-      if (flags.has('--accept-recommended')) return decideAddition(root, null, { acceptRecommended: true, by: options.get('by') });
+      const by = options.get('by') ?? gitUserName(root);
+      const list = (v) => (v ? v.split(',').map((x) => x.trim()).filter(Boolean) : []);
       const hint = () => {
         const left = (loadProject(root).additions?.data.additions ?? []).filter((a) => a.decision === 'pending').length;
         if (!left) console.error('Every addition is decided. Next: apply the cuts (/speckit-architect-pp-apply-cuts) if any were cut, then write the constitution with `ppc constitution`.');
       };
-      const done = decideAddition(root, ids.length === 1 ? ids[0] : ids, { decision: flags.has('--cut') ? 'cut' : flags.has('--keep') ? 'keep' : undefined, by: options.get('by'), reason: options.get('reason'), alone: flags.has('--alone') });
+      if (flags.has('--accept-recommended') || options.has('but-cut') || options.has('but-keep')) {
+        const done = decideAddition(root, null, { acceptRecommended: flags.has('--accept-recommended'), by, cut: list(options.get('but-cut')), keep: list(options.get('but-keep')), reason: options.get('reason') });
+        hint();
+        return done;
+      }
+      const done = decideAddition(root, ids.length === 1 ? ids[0] : ids, { decision: flags.has('--cut') ? 'cut' : flags.has('--keep') ? 'keep' : undefined, by, reason: options.get('reason'), alone: flags.has('--alone') });
       hint();
       return done;
     });

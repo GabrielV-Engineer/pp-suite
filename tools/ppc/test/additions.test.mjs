@@ -112,6 +112,8 @@ test('the loader reads .architect/additions.yaml, and reports a broken one', (t)
 });
 
 // ── the human decision ───────────────────────────────────────────
+// no git identity from the machine: the repository's own configuration is all there is
+const NO_GIT_NAME = { ...process.env, GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_SYSTEM: '/dev/null' };
 const yamlOf = (list) => `additions:\n${list.map((a) => `  - ${JSON.stringify(a)}`).join('\n')}\n`;
 const read = (dir) => readFileSync(join(dir, '.architect/additions.yaml'), 'utf8');
 const entryOf = (dir, id) => loadProject(dir).additions.data.additions.find((a) => a.id === id);
@@ -163,9 +165,11 @@ test('decide-addition: --accept-recommended decides every pending addition the w
 });
 
 test('CLI: decide-addition works from the command line, and needs a name', (t) => {
-  const { dir } = setup(t, [addition({ id: 'ADD-001', non_goal: 'A recoverable delete' })]);
-  const run = (...args) => spawnSync('node', [CLI, ...args, dir], { encoding: 'utf8' });
-  assert.equal(run('decide-addition', 'ADD-001', '--cut').status, 1);
+  const r = setup(t, [addition({ id: 'ADD-001', non_goal: 'A recoverable delete' })]);
+  const { dir } = r;
+  const run = (...args) => spawnSync('node', [CLI, ...args, dir], { encoding: 'utf8', env: NO_GIT_NAME });
+  r.git('config', '--unset', 'user.name');
+  assert.equal(run('decide-addition', 'ADD-001', '--cut').status, 1, 'no --by and no git user.name');
   assert.equal(run('decide-addition', 'ADD-001', '--cut', '--by', 'owner').status, 0);
   assert.equal(entryOf(dir, 'ADD-001').decision, 'cut');
   writeFileSync(join(dir, '.architect/additions.yaml'), yamlOf([addition({ id: 'ADD-001', non_goal: 'A recoverable delete' })]));
@@ -261,4 +265,67 @@ test('CLI: decide-addition takes several ids and --alone', (t) => {
   assert.deepEqual(decidedOf(dir), { 'ADD-001': 'cut', 'ADD-002': 'cut' });
   writeFileSync(join(dir, '.architect/additions.yaml'), yamlOf(pair()));
   assert.equal(cli('ADD-001', '--cut', '--alone', '--by', 'o', dir).status, 0);
+});
+
+// ── accept the recommendations and decide the rest in one command ─
+// ADD-001 recommended cut, ADD-002 recommended keep, ADD-003 and ADD-004 overlap and are recommended differently,
+// ADD-005 is left to the person: the shape of a real design, where most are settled and a few need the person.
+const mixed = () => [
+  addition({ id: 'ADD-001', non_goal: 'No keyboard shortcuts' }),
+  addition({ id: 'ADD-002', affects: [], recommendation: { action: 'keep', reason: 'A skeleton needs a health route' } }),
+  addition({ id: 'ADD-003', affects: [], non_goal: 'No focus rules', overlaps: ['ADD-004'] }),
+  addition({ id: 'ADD-004', affects: [], recommendation: { action: 'keep', reason: 'Contrast is cheap' }, overlaps: ['ADD-003'] }),
+  addition({ id: 'ADD-005', affects: [], recommendation: { action: 'decide', reason: 'A redesign' } }),
+];
+const batch = (dir, over = {}) => decideAddition(dir, null, { acceptRecommended: true, by: 'owner', ...over });
+
+test('decide-addition: accept the recommendations and decide the rest in the same command', (t) => {
+  const { dir } = setup(t, mixed());
+  const result = batch(dir, { cut: ['ADD-003', 'ADD-004'], keep: ['ADD-005'], reason: 'The owner needs the redesign later' });
+  assert.deepEqual(result.decided, { 'ADD-003': 'cut', 'ADD-004': 'cut', 'ADD-005': 'keep', 'ADD-001': 'cut', 'ADD-002': 'keep' });
+  assert.deepEqual(result.left_to_the_person, []);
+  assert.deepEqual(decidedOf(dir), { 'ADD-001': 'cut', 'ADD-002': 'keep', 'ADD-003': 'cut', 'ADD-004': 'cut', 'ADD-005': 'keep' });
+  assert.equal(entryOf(dir, 'ADD-005').reason, 'The owner needs the redesign later');
+  assert.equal(entryOf(dir, 'ADD-005').decided_by, 'owner');
+  assert.equal(entryOf(dir, 'ADD-002').reason, 'A skeleton needs a health route', 'a recommendation keeps its own reason');
+});
+
+test('decide-addition: a named decision overrides the recommendation', (t) => {
+  const { dir } = setup(t, mixed());
+  const result = batch(dir, { cut: ['ADD-002'] });
+  assert.equal(result.decided['ADD-002'], 'cut');
+  assert.deepEqual(result.left_to_the_person, ['ADD-003', 'ADD-004', 'ADD-005'], 'what was not named and not settled stays with the person');
+  assert.equal(entryOf(dir, 'ADD-005').decision, 'pending');
+});
+
+test('decide-addition: the batch refuses what it cannot do, and then changes nothing', (t) => {
+  const { dir } = setup(t, mixed());
+  const before = read(dir);
+  fails(() => batch(dir, { keep: ['ADD-005'] }), /needs a --reason of at least 5/);
+  fails(() => batch(dir, { keep: ['ADD-005'], reason: 'no' }), /needs a --reason of at least 5/);
+  fails(() => batch(dir, { cut: ['ADD-099'] }), /unknown addition/);
+  fails(() => batch(dir, { cut: ['ADD-001'], keep: ['ADD-001'], reason: 'twice named' }), /ADD-001.*both|both.*ADD-001/s);
+  fails(() => batch(dir, { cut: ['ADD-003'] }), /ADD-004/);
+  fails(() => batch(dir, { cut: ['ADD-003'], keep: ['ADD-004'], reason: 'split on purpose' }), /ADD-003.*ADD-004|ADD-004.*ADD-003/s);
+  fails(() => decideAddition(dir, null, { cut: ['ADD-001'], by: 'owner' }), /accept-recommended/);
+  assert.equal(read(dir), before);
+  decideAddition(dir, 'ADD-001', { decision: 'cut', by: 'owner' });
+  fails(() => batch(dir, { cut: ['ADD-001'] }), /already decided/);
+});
+
+test('CLI: one command accepts the recommendations and decides the rest, with the name from git', (t) => {
+  const r = setup(t, mixed());
+  const run = (...args) => spawnSync('node', [CLI, 'decide-addition', ...args, r.dir], { encoding: 'utf8', env: NO_GIT_NAME });
+  const done = run('--accept-recommended', '--but-cut', 'ADD-003,ADD-004', '--but-keep', 'ADD-005', '--reason', 'Needed for the redesign later');
+  assert.equal(done.status, 0, done.stderr);
+  assert.deepEqual(decidedOf(r.dir), { 'ADD-001': 'cut', 'ADD-002': 'keep', 'ADD-003': 'cut', 'ADD-004': 'cut', 'ADD-005': 'keep' });
+  assert.equal(entryOf(r.dir, 'ADD-005').decided_by, 'Test', 'the repository\'s git user.name');
+  assert.match(done.stderr, /Every addition is decided/);
+});
+
+test('CLI: --but-cut and --but-keep need --accept-recommended', (t) => {
+  const r = setup(t, mixed());
+  const out = spawnSync('node', [CLI, 'decide-addition', '--but-cut', 'ADD-001', r.dir], { encoding: 'utf8', env: NO_GIT_NAME });
+  assert.equal(out.status, 1);
+  assert.match(out.stderr, /accept-recommended/);
 });

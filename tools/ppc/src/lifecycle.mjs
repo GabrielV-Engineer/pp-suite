@@ -171,8 +171,9 @@ function setDebtFields(root, register, id, fields) {
  * members were all recommended the same way (cut or keep) and leaves the rest to the person.
  * Cutting only records the decision; carrying it out in the design is a separate step.
  */
-export function decideAddition(root, id, { decision, by, reason, acceptRecommended, alone } = {}) {
-  if (!by || !by.trim()) fail('--by <name> is required: a person decides what stays in the design');
+export function decideAddition(root, id, { decision, by, reason, acceptRecommended, alone, cut, keep } = {}) {
+  if (!by || !by.trim()) fail('--by <name> is required (or set git config user.name): a person decides what stays in the design');
+  if ((cut?.length || keep?.length) && !acceptRecommended) fail('--but-cut and --but-keep go with --accept-recommended; to decide only some additions, name them: ppc decide-addition <ADD-ID>... (--keep --reason <why> | --cut)');
   const file = '.architect/additions.yaml';
   const abs = join(root, file);
   if (!existsSync(abs)) fail('there is no .architect/additions.yaml');
@@ -194,7 +195,30 @@ export function decideAddition(root, id, { decision, by, reason, acceptRecommend
 
   let result;
   if (acceptRecommended) {
-    const { settled, needsPerson } = triage(plain);
+    // what the person named is decided first, and wins over the recommendation
+    const named = [[cut ?? [], 'cut'], [keep ?? [], 'keep']];
+    for (const [ids] of named) {
+      for (const one of ids) {
+        const item = byId.get(one) ?? fail(`unknown addition ${one}`);
+        if (!pending(item)) fail(`${one} is already decided (${item.get('decision')})`);
+      }
+    }
+    const both = (cut ?? []).filter((one) => (keep ?? []).includes(one));
+    if (both.length) fail(`${both.join(', ')} is named both to cut and to keep`);
+    if ((keep ?? []).length && (!reason || reason.trim().length < 5)) fail('keeping an addition needs a --reason of at least 5 characters: why it stays');
+    for (const [ids, outcome] of named) {
+      for (const one of ids) {
+        const missing = overlapping(one).filter((g) => !ids.includes(g));
+        if (missing.length) fail(`${one} overlaps ${missing.join(', ')}, which you did not ${outcome} with it, so they cannot be decided differently without a contradiction in between. Name them together under --but-${outcome}`);
+      }
+    }
+    for (const [ids, outcome] of named) {
+      for (const one of ids) {
+        apply(byId.get(one), outcome, reason?.trim());
+        decided[one] = outcome;
+      }
+    }
+    const { settled, needsPerson } = triage(items.map((i) => i.toJSON()));
     for (const { ids, action } of settled) {
       for (const g of ids) {
         apply(byId.get(g), action, byId.get(g).getIn(['recommendation', 'reason']));

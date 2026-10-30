@@ -20,6 +20,15 @@ export function gitSubjects(root) {
   }
 }
 
+/** The name git would put on a commit here; undefined when none is configured. */
+export function gitUserName(root) {
+  try {
+    return execFileSync('git', ['config', 'user.name'], { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim() || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export function sessionContext(root) {
   if (!existsSync(join(root, '.architect/blueprint.yaml'))) {
     // set up but not designed yet: the first step, not silence; anywhere else the hook stays silent
