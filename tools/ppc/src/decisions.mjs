@@ -74,3 +74,45 @@ export function redCommitFiles(root, id) {
     return [];
   }
 }
+
+// ── the question for the panel ───────────────────────────────────
+// The option that carries out a decision ends with ` — <the exact command>`. A person who picks it is choosing that command, and
+// the guard (sddpp-guard) lets exactly that command through once. Words before the dash may be put in the person's language;
+// the command may not change. The reasons recorded by the debt and change options are fixed text: the panel cannot carry free text.
+export const ACCEPT_REASON = 'accepted in the panel';
+export const REJECT_REASON = 'rejected in the panel';
+const SAY_NO = [
+  { label: 'I want to change something', description: 'Nothing is decided; say what to change' },
+  { label: 'Not yet', description: 'Leave it for later' },
+];
+const choose = (words, command, description) => ({ label: `${words} — ${command}`, description });
+
+/** The panel question (the input of the AskUserQuestion tool) for a decision, or null when there is nothing to decide on that id. */
+export function askFor(model, id, { redFiles } = {}) {
+  const slice = model.slices.find((s) => s.data.id === id)?.data;
+  if (slice?.status === 'planned') {
+    return { questions: [{ question: `Approve ${id} "${slice.title}" to start?`, header: 'Slice', multiSelect: false, options: [choose('Yes, approve it', `ppc approve ${id}`, 'The slice becomes ready to start'), ...SAY_NO] }] };
+  }
+  if (slice?.status === 'in_progress' && slice.phase === 'red') {
+    const files = redFiles?.length ? ` (${redFiles.join(', ')})` : '';
+    return { questions: [{ question: `Do the red tests of ${id}${files} say what you want? They are the specification.`, header: 'Red tests', multiSelect: false, options: [choose('Yes, approve the tests', 'ppc approve', 'The slice moves to green'), ...SAY_NO] }] };
+  }
+  const debt = model.debt.flatMap((d) => d.data.entries).find((e) => e.id === id);
+  if (debt?.status === 'proposed') {
+    return { questions: [{ question: `What do we do with ${id} "${debt.title}"?`, header: 'Debt', multiSelect: false, options: [
+      choose('Pay it later', `ppc approve ${id}`, 'It becomes a real debt to schedule'),
+      choose('Live with it', `ppc approve ${id} --accept "${ACCEPT_REASON}"`, 'Accepted, with the reason recorded'),
+      choose('Drop it', `ppc approve ${id} --drop`, 'Discarded'),
+      { label: 'Not yet', description: 'Leave it for later' },
+    ] }] };
+  }
+  const change = model.changeRequests.find((c) => c.data.id === id)?.data;
+  if (change?.status === 'open') {
+    return { questions: [{ question: `${id} "${change.title}": change the design as proposed?`, header: 'Change', multiSelect: false, options: [
+      choose('Yes, accept it', `ppc decide-change ${id} --accept`, 'The design will be revised'),
+      choose('No, reject it', `ppc decide-change ${id} --reject --reason "${REJECT_REASON}"`, 'The design stays as it is'),
+      { label: 'Not yet', description: 'Leave it for later' },
+    ] }] };
+  }
+  return null;
+}

@@ -13,7 +13,7 @@ import { homedir } from 'node:os';
 import { applyChange, decideChange, openChange } from '../src/changes.mjs';
 import { sessionContext, gitSubjects, gitUserName } from '../src/session.mjs';
 import { renderAdditions } from '../src/additions.mjs';
-import { renderDecision, redCommitFiles } from '../src/decisions.mjs';
+import { renderDecision, askFor, redCommitFiles } from '../src/decisions.mjs';
 import { buildPrompts, resolveTarget, writePrompts } from '../src/prompts.mjs';
 import { start, approve, approveSlice, approveRed, approveDebt, scheduleDebt, decideAddition, toRefactor, finish, mutate, status, LifecycleError } from '../src/lifecycle.mjs';
 
@@ -58,6 +58,7 @@ const USAGE = `ppc — pp-suite contract tool
     ppc decide-addition --accept-recommended [--but-cut ADD-1,ADD-2] [--but-keep ADD-3 --reason <why>] [--by <name>] [dir]
                                          keep or cut something the design contains that the person did not ask for. The person
                                          decides; an assistant may run it for what the person told it in the conversation
+    ppc ask <id> [dir]                   the question for the panel that decides it: the option that approves ends with the exact command
     ppc additions [dir]                  the additions in plain words: what needs you, what a recommendation settles
     ppc refactor [dir]                   green -> refactor
     ppc finish <slice> --audit <file.json> [--budget-reason <text>] [--mutation-reason <text>] [dir]
@@ -150,6 +151,17 @@ switch (command) {
       process.exit(1);
     }
     process.stdout.write(card);
+    break;
+  }
+  case 'ask': {
+    const id = positionals.find((p) => /^[A-Z]+-/.test(p) && !p.includes('/'));
+    const root = resolve(positionals.find((p) => p !== id) ?? '.');
+    const question = id ? askFor(loadProject(root), id, { redFiles: redCommitFiles(root, id) }) : null;
+    if (!question) {
+      console.error(id ? `${id}: there is nothing to decide on that id right now` : 'usage: ppc ask <id> [dir]');
+      process.exit(1);
+    }
+    process.stdout.write(`${JSON.stringify(question, null, 2)}\n`);
     break;
   }
   case 'approve-debt':

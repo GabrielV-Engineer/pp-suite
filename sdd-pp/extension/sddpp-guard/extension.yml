@@ -4,7 +4,7 @@ extension:
   id: "sddpp-guard"
   name: "SDD.PP Guard"
   version: "0.1.0"
-  description: "Locks test files in the green and refactor phases, and keeps approvals human-only."
+  description: "Locks test files in the green and refactor phases, and keeps approvals human-only (a person's choice in the question panel is what lets one through)."
   author: "GabrielV-Engineer"
   repository: "https://github.com/GabrielV-Engineer/pp-suite"
   license: "MIT"
@@ -17,7 +17,12 @@ provides:
     - name: "speckit.sddpp-guard.pre-tool"
       file: "commands/pre-tool.md"
       description: "Runtime event handler: lock test files during the green phase"
+    - name: "speckit.sddpp-guard.record-answer"
+      file: "commands/record-answer.md"
+      description: "Runtime event handler: remember the question-panel answers that name a ppc command"
 
 events:
   pre_tool_use:
     command: speckit.sddpp-guard.pre-tool
+  post_tool_use:
+    command: speckit.sddpp-guard.record-answer
