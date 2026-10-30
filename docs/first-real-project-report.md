@@ -139,3 +139,67 @@ Open a new session in psyBook (this tests the hook), update its copies of the gu
 and `ppc constitution`, with a clean tree), approve SL-001 and run one slice end to end. That is the first test of the part of pp-suite
 that the run has not reached.
 
+
+---
+
+# Third review: the first two slices built (same day, 12:10)
+
+Sources: the log (`PPSUITE-LOG.md`, lines 564 to 670), the git history, `ppc validate`, `ppc check-git` and `ppc overview` run
+against the project, both session transcripts (counted, not read in full) and the code of `ppc`. Still one run, no control arm.
+SL-001 and SL-002 are done; 19 slices are planned. Both slices ran in the **light** cycle, so the strict cycle and the test lock have
+still not been exercised.
+
+## What happened
+
+| Step | Time (-06:00) | Result |
+|---|---|---|
+| SL-001 build | 03:47 to 04:05 | Window served on loopback with a CSP; 13 pytest and 3 vitest; stopped once for **CR-0001** (the strict CSP blocks pywebview's `js_api`), opened 03:54, decided and applied by 04:00 |
+| SL-001 close | 04:05 | `B01`: 942 production lines against 200; the owner recorded the exception |
+| SL-002 build | 04:15 to 04:19 | Model fetch with a sha256 lock and audio normalization; 11 test cases written first (self-reported) |
+| SL-002 stall | 04:19 to 11:44 | A model download hung for about 7 hours (no timeout, buffered output); fixed with a timeout and a test. Not a pp-suite fault |
+| CR-0002 and SL-002 close | 11:50 to 12:03 | The owner raised the slice budget from 200 to 500 lines through a change request; SL-002 closed at 295 lines |
+| `/pp` test | 12:07 | A new session started with the hook's state (the first real session start with the hook), `/pp` explained SL-003 and opened the panel in Spanish, keeping the command suffix intact. **Waiting for the click**: SL-003 is still `planned` and `.sddpp/answers.jsonl` does not exist yet |
+
+Session so far: 290 assistant messages, about 270,000 output tokens, 29 user messages, 3 refusals by the guard (all before 04:00).
+No price computed. Wall time 10.5 hours, mostly idle.
+
+## Verified by me
+
+- `ppc validate` and `ppc check-git`: 0 errors, 19 `W03` warnings. `ppc overview`: 2 of 21 slices done, 2 of 2 closed work slices
+  changed tests. Nothing edited `.architect/` from a build, and no slice touched files outside its components (`C08` and `C09` did not
+  fire); the two design changes went through change requests.
+- F-B4 (`uv.lock` counted as production): the list of generated names in `tools/ppc/src/testpaths.mjs:8` has the other lockfiles and
+  not `uv.lock`. Of SL-001's 942 lines 539 are `uv.lock`; with it excluded SL-001 is 403, still above 200.
+- F-C1 (a change request must name a component, a decision or a quality attribute): `tools/ppc/src/changes.mjs:28` refuses otherwise,
+  so a change to the budget had to pretend to affect SL-002's components.
+- F-B6 (a file a project generates, like `models.lock.json`, counts as production): the only mechanism is that fixed list of names.
+- The hand-written part of both slices was above the original budget: about 295 (SL-001, with 108 lines of configuration) and
+  232 (SL-002). The slices the agent planned as thin were 1.2 to 1.5 times the 200 lines the contract allows.
+- The session-start hook worked: the second session received `pp-suite: psyBook (blueprint revision 4)` and the pending approval.
+
+## How it is going
+
+- **Strongest evidence so far for the method:** the walking skeleton found a real conflict in its first slice. An addition the owner
+  kept (ADD-008, a strict CSP) clashed with a decision already taken (ADR-0001, pywebview's `js_api`), invisible in the design and
+  found the moment the window ran. The slice stopped, a person chose, the design was revised, the project rules were regenerated,
+  and the build resumed within 6 minutes. One instance.
+- **The budget did its job once and was then moved.** It stopped both slices and made a person decide; the second time the person
+  changed the number. It cannot be said yet that the fence kept slices small.
+- **Cost of the design-change path:** every change request raises the revision, and 19 planned slices now carry a `W03` warning that
+  nothing clears. With two requests that is noise; with more it would hide real warnings. The command to mark slices as re-read
+  (ROADMAP, "Not built") is now needed.
+- **Not tested:** the strict cycle, the test lock, mutation testing, anything about long-run drift. Tests written first is
+  self-reported: in the light cycle one commit holds tests and code, so git cannot show the order.
+- **The approvals** of SL-001, SL-002 and both change requests were made in a terminal. The first approval through the panel
+  is pending.
+
+## Findings from this part
+
+| Id | Finding | Verified | State |
+|---|---|---|---|
+| F-B4 | `uv.lock` counted as production | Yes | Open; a one-line addition to the list plus a test |
+| F-B5 | A skeleton that sets up two toolchains does not fit 200 lines; configuration files count | Log, and the sizes above | Open: decide whether setup files count |
+| F-B6 | A generated file the project declares (`models.lock.json`) cannot be excluded | Yes | Open |
+| F-C1 | A budget change cannot be a change request without a fake component | Yes | Open |
+| (new) | `W03` on every planned slice after each change request, with no command to clear it | Yes | Open |
+| F-H1, F-H2, F-S1 | See the second review | | Open |
