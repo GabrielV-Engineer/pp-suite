@@ -15,7 +15,7 @@ import { sessionContext, gitSubjects, gitUserName } from '../src/session.mjs';
 import { renderAdditions } from '../src/additions.mjs';
 import { renderDecision, askFor, redCommitFiles } from '../src/decisions.mjs';
 import { buildPrompts, resolveTarget, writePrompts } from '../src/prompts.mjs';
-import { start, approve, approveSlice, approveRed, approveDebt, scheduleDebt, decideAddition, toRefactor, finish, mutate, status, LifecycleError } from '../src/lifecycle.mjs';
+import { start, approve, reread, approveSlice, approveRed, approveDebt, scheduleDebt, decideAddition, toRefactor, finish, mutate, status, LifecycleError } from '../src/lifecycle.mjs';
 
 const USAGE = `ppc — pp-suite contract tool
 
@@ -37,7 +37,7 @@ const USAGE = `ppc — pp-suite contract tool
 
   Design changes (a slice asks, a person decides, Architect.PP revises)
     ppc change-request --slice <id> --title <t> --problem <what it found> --proposal <what should change>
-                       [--component a,b] [--adr ADR-0001] [--qa QA-001] [dir]
+                       [--component a,b] [--adr ADR-0001] [--qa QA-001] [--budgets] [dir]
                                          open a change request: the design is wrong or silent about something a slice needs
     ppc decide-change <CR-ID> (--accept | --reject --reason <why>) --by <name> [dir]
                                          HUMAN ONLY: accept or reject it
@@ -58,6 +58,8 @@ const USAGE = `ppc — pp-suite contract tool
     ppc decide-addition --accept-recommended [--but-cut ADD-1,ADD-2] [--but-keep ADD-3 --reason <why>] [--by <name>] [dir]
                                          keep or cut something the design contains that the person did not ask for. The person
                                          decides; an assistant may run it for what the person told it in the conversation
+    ppc reread (--all | SL-001 ...) [dir]
+                                         HUMAN ONLY: say you read what changed in the design since the slices were planned (clears W03)
     ppc ask <id> [dir]                   the question for the panel that decides it: the option that approves ends with the exact command
     ppc additions [dir]                  the additions in plain words: what needs you, what a recommendation settles
     ppc refactor [dir]                   green -> refactor
@@ -142,7 +144,7 @@ switch (command) {
     break;
   }
   case 'show': {
-    const id = positionals.find((p) => /^[A-Z]+-/.test(p) && !p.includes('/'));
+    const id = positionals.find((p) => /^([A-Z]+-|reread$)/.test(p) && !p.includes('/'));
     const root = resolve(positionals.find((p) => p !== id) ?? '.');
     const model = loadProject(root);
     const card = id ? renderDecision(model, id, { redFiles: redCommitFiles(root, id) }) : null;
@@ -154,7 +156,7 @@ switch (command) {
     break;
   }
   case 'ask': {
-    const id = positionals.find((p) => /^[A-Z]+-/.test(p) && !p.includes('/'));
+    const id = positionals.find((p) => /^([A-Z]+-|reread$)/.test(p) && !p.includes('/'));
     const root = resolve(positionals.find((p) => p !== id) ?? '.');
     const question = id ? askFor(loadProject(root), id, { redFiles: redCommitFiles(root, id) }) : null;
     if (!question) {
@@ -162,6 +164,12 @@ switch (command) {
       process.exit(1);
     }
     process.stdout.write(`${JSON.stringify(question, null, 2)}\n`);
+    break;
+  }
+  case 'reread': {
+    const ids = positionals.filter((p) => /^SL-\d+$/.test(p));
+    const root = resolve(positionals.find((p) => !/^SL-\d+$/.test(p)) ?? '.');
+    transition(() => reread(root, { ids, all: flags.has('--all') }));
     break;
   }
   case 'approve-debt':
@@ -197,7 +205,7 @@ switch (command) {
   }
   case 'change-request': {
     const list = (v) => (v ? v.split(',').map((x) => x.trim()).filter(Boolean) : []);
-    transition(() => openChange(dirAt(0), { slice: options.get('slice'), title: options.get('title'), problem: options.get('problem'), proposal: options.get('proposal'), components: list(options.get('component')), adrs: list(options.get('adr')), qas: list(options.get('qa')) }));
+    transition(() => openChange(dirAt(0), { slice: options.get('slice'), title: options.get('title'), problem: options.get('problem'), proposal: options.get('proposal'), components: list(options.get('component')), adrs: list(options.get('adr')), qas: list(options.get('qa')), budgets: flags.has('--budgets') }));
     break;
   }
   case 'decide-change':

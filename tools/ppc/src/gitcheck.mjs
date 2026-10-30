@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { isGeneratedPath, isTestPath } from './testpaths.mjs';
+import { generatedGlobs, isGeneratedPath, isTestPath } from './testpaths.mjs';
 import { matchesGlob } from './globs.mjs';
 
 const SHA = /^[0-9a-f]{7,40}$/;
@@ -25,7 +25,7 @@ function resolve(root, sha) {
 }
 
 /** Hand-written files a commit changed, with changed-line counts. Renames count as delete plus add; binaries as 0. */
-function changes(root, full) {
+function changes(root, full, generated = []) {
   const raw = git(root, ['diff-tree', '--no-commit-id', '--numstat', '-r', '--root', '--no-renames', '-z', full]);
   return raw
     .split('\0')
@@ -35,7 +35,7 @@ function changes(root, full) {
       const count = (n) => (n === '-' ? 0 : Number(n));
       return { path: path.join('\t'), lines: count(added) + count(deleted) };
     })
-    .filter((f) => !isBookkeeping(f.path) && !isGeneratedPath(f.path));
+      .filter((f) => !isBookkeeping(f.path) && !isGeneratedPath(f.path, generated));
 }
 
 /** Every path a commit changed, bookkeeping and generated files included. */
@@ -44,10 +44,10 @@ function allPaths(root, full) {
 }
 
 /** What one commit changed, or null if it does not exist. */
-export function measure(root, sha) {
+export function measure(root, sha, generated = []) {
   const full = resolve(root, sha);
   if (!full) return null;
-  const files = changes(root, full);
+  const files = changes(root, full, generated);
   const lines = (list) => list.reduce((sum, f) => sum + f.lines, 0);
   return { full, files, production_lines: lines(files.filter((f) => !isTestPath(f.path))), test_lines: lines(files.filter((f) => isTestPath(f.path))) };
 }
@@ -71,9 +71,9 @@ function isAncestor(root, older, newer) {
 }
 
 /** Hand-written test files that differ between two commits. */
-function testPathsChanged(root, from, to) {
+function testPathsChanged(root, from, to, generated = []) {
   const raw = git(root, ['diff', '--name-only', '-z', '--no-renames', from, to]);
-  return raw.split('\0').filter(Boolean).filter((p) => !isBookkeeping(p) && !isGeneratedPath(p) && isTestPath(p));
+  return raw.split('\0').filter(Boolean).filter((p) => !isBookkeeping(p) && !isGeneratedPath(p, generated) && isTestPath(p));
 }
 
 /** The `test` script of package.json at a revision; undefined when there is no readable package.json. */
@@ -100,6 +100,7 @@ export function checkGit(model, root, { tips = new Map() } = {}) {
   const out = [];
   const add = (rule, file, message) => out.push({ rule, severity: 'error', file, message });
 
+  const generated = generatedGlobs(model.blueprint?.data);
   for (const { file, data: s } of model.slices) {
     if (!s.audit) continue;
     let production = 0;
@@ -111,7 +112,7 @@ export function checkGit(model, root, { tips = new Map() } = {}) {
     const reported = new Set(); // paths C02 already flagged, so C06 does not repeat them
 
     for (const { sha, kind } of s.audit.commits) {
-      const m = measure(root, sha);
+      const m = measure(root, sha, generated);
       if (!m) {
         add('C01', file, `${s.id}: commit ${sha} was not found in git history`);
         allFound = false;
@@ -138,7 +139,7 @@ export function checkGit(model, root, { tips = new Map() } = {}) {
       const claimed = (model.blueprint?.data.components ?? []).filter((c) => c.paths?.length);
       if (claimed.length) {
         const foreign = new Map();
-        for (const p of paths.filter((x) => !isBookkeeping(x) && !isTestPath(x) && !isGeneratedPath(x))) {
+        for (const p of paths.filter((x) => !isBookkeeping(x) && !isTestPath(x) && !isGeneratedPath(x, generated))) {
           const owners = claimed.filter((c) => c.paths.some((pattern) => matchesGlob(pattern, p))).map((c) => c.id);
           if (owners.length && !owners.some((id) => s.components.includes(id))) foreign.set(p, owners);
         }
@@ -156,7 +157,7 @@ export function checkGit(model, root, { tips = new Map() } = {}) {
     // whether or not the audit lists the commit that changed it.
     const tip = tips.has(s.id) ? resolve(root, tips.get(s.id) === 'HEAD' ? git(root, ['rev-parse', 'HEAD']).trim() : tips.get(s.id)) : latestOf(root, found);
     if (lastRed && tip && isAncestor(root, lastRed, tip)) {
-      const changed = testPathsChanged(root, lastRed, tip).filter((p) => !reported.has(p));
+      const changed = testPathsChanged(root, lastRed, tip, generated).filter((p) => !reported.has(p));
       if (changed.length) add('C06', file, `${s.id}: ${changed.join(', ')} changed between the red commit ${lastRed.slice(0, 7)} and ${tip.slice(0, 7)}; the approved tests are locked`);
       const before = testScriptAt(root, lastRed);
       const after = testScriptAt(root, tip);

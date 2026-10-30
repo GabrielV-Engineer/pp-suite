@@ -51,8 +51,25 @@ function changeCard(entry) {
   return out.join('\n');
 }
 
-/** The card for a slice, debt entry or change request id, or null when there is none. */
+function rereadCard(model) {
+  const revision = model.blueprint.data.revision;
+  const behind = model.slices.map((s) => s.data).filter((s) => !['done', 'dropped'].includes(s.status) && s.blueprint_revision < revision);
+  if (!behind.length) return null;
+  const oldest = Math.min(...behind.map((s) => s.blueprint_revision));
+  const changes = model.changeRequests.map((c) => c.data).filter((c) => c.status === 'applied' && (c.blueprint_revision ?? 0) >= oldest);
+  const out = [`The design is at revision ${revision}; ${behind.length} slice${behind.length === 1 ? '' : 's'} were planned against an older one`];
+  out.push(row('Changed since', changes.length ? '' : 'a revision without an applied change request (see the design)'), ...changes.map((c) => `      - ${c.id}: ${c.title}`));
+  out.push(row('Slices behind', behind.map((s) => `${s.id} (revision ${s.blueprint_revision})`).join(', ')));
+  out.push('', 'Reading them means you looked at what changed and the slices still fit.', '', 'To say so for all of them:  ppc reread --all', 'For some:  ppc reread SL-003 SL-004');
+  return out.join('\n');
+}
+
+/** The card for a slice, debt entry or change request id, or null when there is none. The word `reread` is the slices behind the design. */
 export function renderDecision(model, id, extra = {}) {
+  if (id === 'reread') {
+    const card = rereadCard(model);
+    return card ? `${card}\n` : null;
+  }
   const slice = model.slices.find((s) => s.data.id === id);
   if (slice) return `${sliceCard(slice, extra)}\n`;
   for (const register of model.debt) {
@@ -89,6 +106,11 @@ const choose = (words, command, description) => ({ label: `${words} — ${comman
 
 /** The panel question (the input of the AskUserQuestion tool) for a decision, or null when there is nothing to decide on that id. */
 export function askFor(model, id, { redFiles } = {}) {
+  if (id === 'reread') {
+    const behind = model.slices.map((s) => s.data).filter((s) => !['done', 'dropped'].includes(s.status) && s.blueprint_revision < model.blueprint.data.revision);
+    if (!behind.length) return null;
+    return { questions: [{ question: `The design changed after ${behind.length} slice${behind.length === 1 ? ' was' : 's were'} planned (${behind.map((s) => s.id).join(', ')}). Did you read what changed, and do they still fit?`, header: 'Design', multiSelect: false, options: [choose('Yes, I read it', 'ppc reread --all', 'The slices are marked as planned against the current design'), ...SAY_NO] }] };
+  }
   const slice = model.slices.find((s) => s.data.id === id)?.data;
   if (slice?.status === 'planned') {
     return { questions: [{ question: `Approve ${id} "${slice.title}" to start?`, header: 'Slice', multiSelect: false, options: [choose('Yes, approve it', `ppc approve ${id}`, 'The slice becomes ready to start'), ...SAY_NO] }] };

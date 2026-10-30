@@ -294,13 +294,15 @@ test('CLI: ppc ask prints the panel question as JSON, and an unknown id is an er
 test('the commands in the labels are exactly what the guard accepts once the person has chosen them (Node and Python agree)', (t) => {
   const r = repo(t);
   planSl001(r);
+  const bp = '.architect/blueprint.yaml'; // the design moved on, so there is a "read what changed" decision too
+  r.write({ [bp]: readFileSync(join(r.dir, bp), 'utf8').replace(/^revision: 1$/m, 'revision: 3') });
   const model = loadProject(r.dir);
   const scratch = mkdtempSync(join(tmpdir(), 'ppc-ledger-'));
   t.after(() => rmSync(scratch, { recursive: true, force: true }));
   const env = { ...process.env, CLAUDE_PROJECT_DIR: scratch };
   const py = (script, payload) => spawnSync('python3', ['-I', join(GUARD_SCRIPTS, script)], { input: JSON.stringify(payload), encoding: 'utf8', env, cwd: scratch });
   let n = 0;
-  for (const id of ['SL-001', 'DEBT-BE-001', 'CR-0001']) {
+  for (const id of ['SL-001', 'DEBT-BE-001', 'CR-0001', 'reread']) {
     for (const option of withCommand(askFor(model, id))) {
       n += 1;
       const command = option.label.split(' — ').at(-1);
@@ -310,5 +312,5 @@ test('the commands in the labels are exactly what the guard accepts once the per
       assert.equal(verdict.status, 0, `${command}: ${verdict.stderr}`);
     }
   }
-  assert.ok(n >= 5);
+  assert.ok(n >= 6);
 });

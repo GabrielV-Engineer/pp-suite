@@ -17,7 +17,8 @@
       "properties": {
         "components": { "type": "array", "items": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" } },
         "adrs": { "type": "array", "items": { "type": "string", "pattern": "^ADR-\\d{4}$" } },
-        "quality_attributes": { "type": "array", "items": { "type": "string", "pattern": "^QA-\\d{3}$" } }
+        "quality_attributes": { "type": "array", "items": { "type": "string", "pattern": "^QA-\\d{3}$" } },
+        "budgets": { "const": true, "description": "The request changes the blueprint's budgets or the generated-file globs, which belong to no component." }
       }
     },
     "blueprint_revision": { "type": "integer", "minimum": 1, "description": "The design revision when the request was opened. It is applied only once the design has moved past it." },

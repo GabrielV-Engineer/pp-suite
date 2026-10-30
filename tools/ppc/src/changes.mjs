@@ -17,7 +17,7 @@ const slug = (title) => title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(
 const find = (model, id) => model.changeRequests.find((c) => c.data.id === id) ?? fail(`unknown change request ${id}`);
 
 /** Any agent may open one: it only asks. The ids it names must exist, and it must say what it affects. */
-export function openChange(root, { slice, title, problem, proposal, components = [], adrs = [], qas = [] } = {}) {
+export function openChange(root, { slice, title, problem, proposal, components = [], adrs = [], qas = [], budgets = false } = {}) {
   return transact(root, () => {
     const model = loadValid(root);
     const bp = model.blueprint.data;
@@ -25,14 +25,14 @@ export function openChange(root, { slice, title, problem, proposal, components =
     if (!title || title.trim().length < 5) fail('the title needs at least 5 characters');
     if (!problem || problem.trim().length < 15) fail('the problem needs at least 15 characters: what the slice found');
     if (!proposal || proposal.trim().length < 15) fail('the proposal needs at least 15 characters: what should change in the design');
-    if (!components.length && !adrs.length && !qas.length) fail('say what it affects: at least one component, decision or quality attribute');
+    if (!components.length && !adrs.length && !qas.length && !budgets) fail('say what it affects: at least one component, decision or quality attribute (--component, --adr, --qa), or the blueprint\'s budgets (--budgets)');
     for (const c of components) if (!bp.components.some((x) => x.id === c)) fail(`the design has no component ${c}`);
     for (const q of qas) if (!bp.quality_attributes.some((x) => x.id === q)) fail(`the design has no quality attribute ${q}`);
     for (const a of adrs) if (!model.adrs.some((x) => x.data.id === a)) fail(`the design has no decision ${a}`);
 
     const numbers = model.changeRequests.map((c) => Number(c.data.id.slice(3)));
     const id = `CR-${String(Math.max(0, ...numbers) + 1).padStart(4, '0')}`;
-    const affects = { ...(components.length ? { components } : {}), ...(adrs.length ? { adrs } : {}), ...(qas.length ? { quality_attributes: qas } : {}) };
+    const affects = { ...(components.length ? { components } : {}), ...(adrs.length ? { adrs } : {}), ...(qas.length ? { quality_attributes: qas } : {}), ...(budgets ? { budgets: true } : {}) };
     const front = stringify({ id, title: title.trim(), status: 'open', raised_by: slice, blueprint_revision: bp.revision, affects }, { lineWidth: 0, flowCollectionPadding: false });
     const file = `${DIR}/${id}-${slug(title)}.md`;
     mkdirSync(join(root, DIR), { recursive: true });

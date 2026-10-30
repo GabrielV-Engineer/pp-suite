@@ -6,6 +6,7 @@ import { validateModel } from './validate.mjs';
 import { checkGit, dirtyPaths, measure } from './gitcheck.mjs';
 import { runMutation, sliceProductionFiles } from './mutation.mjs';
 import { modeOf, testPolicy } from './policy.mjs';
+import { generatedGlobs } from './testpaths.mjs';
 import { overlapGroup, triage } from './additions.mjs';
 import { nextSteps } from './next.mjs';
 import { gitSubjects } from './session.mjs';
@@ -254,6 +255,35 @@ export function decideAddition(root, id, { decision, by, reason, acceptRecommend
 }
 
 /**
+ * HUMAN ONLY: say that the person read what changed in the design since the slices were planned. A change request raises the design
+ * revision; nothing may update `blueprint_revision` of a slice but the reader saying they read it. `ids` names slices, `all` takes
+ * every unfinished slice that is behind. Changes that field and nothing else.
+ */
+export function reread(root, { ids = [], all = false } = {}) {
+  return transact(root, () => {
+    const model = loadValid(root);
+    const revision = model.blueprint.data.revision;
+    const behind = model.slices.filter((s) => !['done', 'dropped'].includes(s.data.status) && s.data.blueprint_revision < revision);
+    let chosen;
+    if (all) {
+      chosen = behind;
+      if (!chosen.length) fail(`nothing to read: no unfinished slice is behind the design (revision ${revision})`);
+    } else {
+      if (!ids.length) fail(behind.length ? `say which: ${behind.map((s) => s.data.id).join(', ')}, or --all` : 'say which slices, or --all; none is behind the design right now');
+      chosen = ids.map((id) => {
+        const entry = model.slices.find((s) => s.data.id === id) ?? fail(`unknown slice ${id}`);
+        if (['done', 'dropped'].includes(entry.data.status)) fail(`${id} is ${entry.data.status}: there is nothing left to plan against the design`);
+        if (entry.data.blueprint_revision >= revision) fail(`${id} is already at the current revision (${revision})`);
+        return entry;
+      });
+    }
+    for (const entry of chosen) editFrontmatter(root, entry.file, (doc) => doc.set('blueprint_revision', revision));
+    ensureValid(root);
+    return { revision, reread: chosen.map((s) => s.data.id) };
+  });
+}
+
+/**
  * The short form of the approvals: `ppc approve [id]`. A slice id approves that slice to start (or its red tests, when it is in
  * progress in the red phase); a debt id decides the debt; with no id it takes the one decision `ppc next` is asking for, and
  * refuses to guess when there are several. A change request is decided with `ppc decide-change`, which needs accept or reject.
@@ -446,7 +476,7 @@ export function finish(root, id, input, { mutationRunner, now = new Date() } = {
     } else {
       if (!Array.isArray(input?.commits) || input.commits.length === 0) fail('the audit needs "commits": [{ "sha": "...", "kind": "red|green|refactor|structural|docs" }]');
       for (const c of input.commits) {
-        const m = measure(root, String(c.sha));
+        const m = measure(root, String(c.sha), generatedGlobs(model.blueprint.data));
         if (!m) fail(`commit ${c.sha} was not found in git history`);
         production_lines += m.production_lines;
         test_lines += m.test_lines;
@@ -459,7 +489,7 @@ export function finish(root, id, input, { mutationRunner, now = new Date() } = {
       let mutation_score = null;
       const gate = model.blueprint.data.budgets.min_mutation_score;
       if (gate !== undefined && WORK_TYPES.includes(s.type)) {
-        const result = runMutation(root, sliceProductionFiles(root, input.commits), mutationRunner);
+        const result = runMutation(root, sliceProductionFiles(root, input.commits, generatedGlobs(model.blueprint.data)), mutationRunner);
         mutation_score = result.score;
         if (mutation_score !== null && mutation_score < gate && !input.mutation_override_reason) {
           const shown = result.survivors.slice(0, 10).map((m) => `  ${m.file}:${m.line} ${m.mutator} -> ${String(m.replacement).slice(0, 50)}`);
@@ -513,9 +543,10 @@ export function mutate(root, { files, slice } = {}, mutationRunner) {
   if (!files && !slice) fail('say what to mutate: --files <a,b> or --slice <id>');
   let targets = files;
   if (slice) {
-    const entry = loadProject(root).slices.find((s) => s.data.id === slice) ?? fail(`unknown slice ${slice}`);
+    const model = loadProject(root);
+    const entry = model.slices.find((s) => s.data.id === slice) ?? fail(`unknown slice ${slice}`);
     if (!entry.data.audit) fail(`${slice} has no audit yet, so its files are not known; pass --files`);
-    targets = sliceProductionFiles(root, entry.data.audit.commits);
+    targets = sliceProductionFiles(root, entry.data.audit.commits, generatedGlobs(model.blueprint?.data));
   }
   return runMutation(root, targets, mutationRunner);
 }

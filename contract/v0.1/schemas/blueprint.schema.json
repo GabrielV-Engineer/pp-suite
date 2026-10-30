@@ -96,6 +96,7 @@
       "required": ["max_slice_production_lines"],
       "properties": {
         "max_slice_production_lines": { "type": "integer", "minimum": 20, "maximum": 2000, "description": "Budget for hand-written production code per slice. Tests, lockfiles and contract bookkeeping do not count." },
+        "generated_paths": { "type": "array", "uniqueItems": true, "items": { "type": "string", "minLength": 1 }, "description": "Globs of files the project's own tools write (a lock it generates, a cache folder). They are left out of the size of a slice and of its mutation targets, like the lockfiles ppc knows by name. `*` stays inside one folder, `**` crosses folders." },
         "min_mutation_score": { "type": "number", "minimum": 0, "maximum": 1, "description": "Optional gate: the share of mutants the tests of a work slice must detect. When set, ppc finish runs mutation testing on the slice's production files and refuses a lower score unless a human records a reason." }
       }
     }

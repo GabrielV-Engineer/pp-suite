@@ -193,3 +193,21 @@ test('CLI: open, decide and apply', (t) => {
   assert.equal(ppc('apply-change', 'CR-0002').status, 0);
   assert.equal(cr(r.dir, 'CR-0002').status, 'applied');
 });
+
+// ── a change to the budgets has no component to name ──────────────
+test('open: a change to the budgets is a design change that names none of the others', (t) => {
+  const r = repo(t);
+  assert.throws(() => openChange(r.dir, { slice: 'SL-004', title: 'Raise the slice budget', problem: PROBLEM, proposal: PROPOSAL }), (e) => e instanceof LifecycleError && /--budgets/.test(e.message));
+  const { change, file } = openChange(r.dir, { slice: 'SL-004', title: 'Raise the slice budget', problem: PROBLEM, proposal: PROPOSAL, budgets: true });
+  assert.match(change, /^CR-\d{4}$/);
+  assert.equal(cr(r.dir, change).affects.budgets, true);
+  assert.deepEqual(validateModel(loadProject(r.dir)).filter((f) => f.severity === 'error'), []);
+  assert.match(readFileSync(join(r.dir, file), 'utf8'), /budgets: true/);
+});
+
+test('CLI: change-request --budgets opens one', (t) => {
+  const r = repo(t);
+  const out = spawnSync(process.execPath, [CLI, 'change-request', '--slice', 'SL-004', '--title', 'Raise the slice budget', '--problem', PROBLEM, '--proposal', PROPOSAL, '--budgets', r.dir], { encoding: 'utf8' });
+  assert.equal(out.status, 0, out.stderr);
+  assert.match(out.stdout, /CR-\d{4}/);
+});

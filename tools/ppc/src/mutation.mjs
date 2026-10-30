@@ -15,10 +15,10 @@ const MISSED = new Set(['Survived', 'NoCoverage']);
  * The hand-written source files the given commits changed and that still exist: what mutation testing
  * should look at. Tests, bookkeeping and generated files are left out by `measure`.
  */
-export function sliceProductionFiles(root, commits) {
+export function sliceProductionFiles(root, commits, generated = []) {
   const files = new Set();
   for (const { sha } of commits) {
-    const m = measure(root, String(sha));
+    const m = measure(root, String(sha), generated);
     if (!m) continue;
     for (const f of m.files) {
       if (!isTestPath(f.path) && SOURCE_EXTENSIONS.has(extname(f.path)) && existsSync(join(root, f.path))) files.add(f.path);

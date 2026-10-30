@@ -28,6 +28,10 @@ agent steps without them.
   - For the additions (`type: additions`): `ppc additions`, ask the person which to cut or keep in the chat, then
     `ppc decide-addition --accept-recommended --but-cut <ids> --but-keep <ids> --reason "<why>"`.
   - Afterwards run `ppc next --json` and report in two lines.
+  - Decisions can also wait in `waiting` (a debt entry) or in `changes` (a change request, or slices planned against an older design,
+    `type: reread`). After the main step, say in one line that they wait and offer to decide them now; if the person agrees, handle
+    each the same way. For `reread`, `ppc show reread` says what changed in the design; do not run `ppc reread` before the person has
+    read it and chosen the option.
 - **`agent-step`**: run the skill named in `skill` with the Skill tool (pass the id from `$ARGUMENTS`, if any).
 - **`run`**: run the `command` (for example `ppc start SL-001`), then `ppc next --json`.
 - **`human-step`**: tell the person what to do and with which command (for example The Architect's interview). Do not run it.

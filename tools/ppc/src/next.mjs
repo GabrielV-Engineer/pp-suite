@@ -86,7 +86,7 @@ export function nextSteps(model, subjects, errors = []) {
   const pending = crs.filter((c) => ['open', 'accepted'].includes(c.status));
   const revision = model.blueprint.data.revision;
   const stale = live.filter((s) => s.status !== 'done' && s.blueprint_revision < revision);
-  const staleNote = stale.length ? [{ who: 'anyone', what: `Slices planned against an older design (now revision ${revision}): ${stale.map((s) => `${s.id} (revision ${s.blueprint_revision})`).join(', ')}. Read what changed, then update their blueprint_revision` }] : [];
+  const staleNote = stale.length ? [{ who: 'human', what: `${stale.length} slice${stale.length === 1 ? ' was' : 's were'} planned against an older design (now revision ${revision}): ${stale.map((s) => `${s.id} (revision ${s.blueprint_revision})`).join(', ')}. Read what changed (\`ppc show reread\`), then say so`, command: 'ppc reread --all', decision: { type: 'reread' } }] : [];
   const result = (headline, actions, paused) => ({ headline, actions, waiting, blocked, changes: [...pending.filter((c) => c !== paused).map(changeAction), ...staleNote] });
 
   // Before any slice exists the rule "every capability has a slice" fires for all of them: that is not a fault, it is
