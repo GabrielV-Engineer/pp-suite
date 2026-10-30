@@ -187,6 +187,19 @@ test('next: many undecided additions are summarised as a range, not listed one b
   assert.doesNotMatch(what, /ADD-005/);
 });
 
+test('next: cuts that were decided but not applied to the design come before planning slices, and are the agent\'s turn', () => {
+  const m = designOnly();
+  const add = (id, extra) => ({ id, what: `Thing ${id}`, origin: 'tool_added', cost: 'A column and a filter', if_cut: 'Nothing is lost', later: { effort: 'easy', revisit_when: 'After a mistake' }, recommendation: { action: 'cut', reason: 'Not asked for' }, non_goal: `No ${id}`, ...extra });
+  m.additions = { file: '.architect/additions.yaml', data: { additions: [add('ADD-001', { decision: 'cut', decided_by: 'owner' }), add('ADD-003', { decision: 'keep', decided_by: 'owner', reason: 'It stays' })] } };
+  const r = nextSteps(m, [], errorsOf(m));
+  assert.equal(first(r).who, 'agent');
+  assert.match(first(r).command, /speckit-architect-pp-apply-cuts/);
+  assert.match(first(r).what, /ADD-001/);
+  assert.doesNotMatch(first(r).what, /ADD-003/);
+  m.additions.data.additions.shift(); // nothing left to apply: only the kept one
+  assert.match(first(nextSteps(m, [], errorsOf(m))).command, /speckit-sddpp-cycle-slices/, 'with no cut waiting, the slices are next');
+});
+
 // ── installed, but no design yet ─────────────────────────────────
 test('next: with no design yet, the person runs the interview and the agent then does the hand-off', () => {
   const r = noDesignNext();

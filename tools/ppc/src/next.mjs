@@ -106,6 +106,12 @@ export function nextSteps(model, subjects, errors = []) {
         { who: 'human', what: `Decide on ${undecided.length === 1 ? undecided[0].id : undecided.length <= 4 ? undecided.map((a) => a.id).join(', ') : `${undecided.length} additions (${undecided[0].id} to ${undecided.at(-1).id})`}: read them with \`ppc additions\`, then tell your assistant what to cut or keep, or accept the recommended ones`, command: 'ppc decide-addition --accept-recommended [--but-cut <ids>] [--but-keep <ids> --reason <why>]' },
       ]);
     }
+    const unapplied = (model.additions?.data.additions ?? []).filter((a) => a.decision === 'cut' && a.applied !== true);
+    if (unapplied.length) {
+      return result('Additions were decided to be cut but the design still contains them; carry the cuts out before planning slices (rule X04).', [
+        { who: 'agent', what: `Remove ${unapplied.map((a) => a.id).join(', ')} from the design and record them as non-goals`, command: '/speckit-architect-pp-apply-cuts' },
+      ]);
+    }
     return result('The design is ready and no slices are planned yet.', [{ who: 'agent', what: 'Plan the thin vertical slices from the design; the person approves the list before it is written', command: SLICES }]);
   }
 
