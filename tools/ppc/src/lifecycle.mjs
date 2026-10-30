@@ -6,6 +6,7 @@ import { validateModel } from './validate.mjs';
 import { checkGit, dirtyPaths, measure } from './gitcheck.mjs';
 import { runMutation, sliceProductionFiles } from './mutation.mjs';
 import { modeOf, testPolicy } from './policy.mjs';
+import { overlapGroup, triage } from './additions.mjs';
 
 /** A refused transition. The message says why; nothing was changed. */
 export class LifecycleError extends Error {}
@@ -179,9 +180,9 @@ export function decideAddition(root, id, { decision, by, reason, acceptRecommend
   const doc = parseDocument(original);
   const items = doc.get('additions')?.items ?? [];
   const byId = new Map(items.map((i) => [i.get('id'), i]));
+  const plain = items.map((i) => i.toJSON());
   const pending = (i) => i.get('decision') === 'pending';
   const decided = {};
-  const left = [];
 
   const apply = (item, outcome, why) => {
     item.set('decision', outcome);
@@ -189,38 +190,18 @@ export function decideAddition(root, id, { decision, by, reason, acceptRecommend
     if (outcome === 'keep') item.set('reason', why);
     if (outcome === 'cut' && !item.get('non_goal')) item.set('non_goal', String(item.get('what')).trim());
   };
-
-  // Undecided additions that overlap `start`, in either direction and through other additions.
-  const overlapping = (start) => {
-    const seen = new Set([start]);
-    const queue = [start];
-    while (queue.length) {
-      const current = queue.shift();
-      const links = new Set(byId.get(current).get('overlaps')?.toJSON() ?? []);
-      for (const [other, item] of byId) if ((item.get('overlaps')?.toJSON() ?? []).includes(current)) links.add(other);
-      for (const other of links) if (byId.has(other) && pending(byId.get(other)) && !seen.has(other)) (seen.add(other), queue.push(other));
-    }
-    return [...seen];
-  };
+  const overlapping = (start) => overlapGroup(plain, start);
 
   let result;
   if (acceptRecommended) {
-    const done = new Set();
-    for (const item of items.filter(pending)) {
-      const first = item.get('id');
-      if (done.has(first)) continue;
-      const group = overlapping(first);
-      group.forEach((g) => done.add(g));
-      const actions = new Set(group.map((g) => byId.get(g).getIn(['recommendation', 'action'])));
-      const [action] = actions;
-      if (actions.size === 1 && (action === 'cut' || action === 'keep')) {
-        for (const g of group) {
-          apply(byId.get(g), action, byId.get(g).getIn(['recommendation', 'reason']));
-          decided[g] = action;
-        }
-      } else left.push(...group);
+    const { settled, needsPerson } = triage(plain);
+    for (const { ids, action } of settled) {
+      for (const g of ids) {
+        apply(byId.get(g), action, byId.get(g).getIn(['recommendation', 'reason']));
+        decided[g] = action;
+      }
     }
-    result = { decided, left_to_the_person: left };
+    result = { decided, left_to_the_person: needsPerson.flatMap((group) => group.ids) };
   } else {
     if (!['keep', 'cut'].includes(decision)) fail('the decision must be keep or cut');
     const ids = Array.isArray(id) ? id : [id];
