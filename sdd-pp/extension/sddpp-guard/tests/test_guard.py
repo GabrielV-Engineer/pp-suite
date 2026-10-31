@@ -275,6 +275,7 @@ class GuardTest(unittest.TestCase):
             ("Edit", {"file_path": ".sddpp/debt.yaml", "old_string": "approved_by: reviewer", "new_string": "approved_by: me"}),
             ("Edit", {"file_path": ".sddpp/debt.yaml", "old_string": "status: scheduled", "new_string": "status: paid\n    decided_by: me"}),
             ("Write", {"file_path": ".sddpp/debt.yaml", "content": existing + "    accepted_reason: because I said so\n"}),
+            ("Write", {"file_path": ".sddpp/debt.yaml", "content": existing + "    dropped_reason: because I said so\n"}),
             ("Write", {"file_path": ".sddpp/other.yaml", "content": "approved_by: me\n"}),
         ):
             with self.subTest(tool=tool, args=args):

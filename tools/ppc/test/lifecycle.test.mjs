@@ -129,6 +129,19 @@ test('approve-debt: accepting records the reason, dropping records only the appr
   assertConsistent(d.dir);
 });
 
+test('approve-debt: dropping can record why, and the reason is only for a drop', (t) => {
+  const why = 'The app will not run on the Mac until the MVP is done.';
+  const d = repo(t);
+  assert.deepEqual(approveDebt(d.dir, 'DEBT-BE-001', { by: 'reviewer', drop: true, reason: ` ${why} ` }), { debt: 'DEBT-BE-001', status: 'dropped' });
+  assert.equal(debtEntry(d.dir, 'DEBT-BE-001').dropped_reason, why, 'stored as written, trimmed');
+  assertConsistent(d.dir);
+  const { dir } = repo(t);
+  fails(() => approveDebt(dir, 'DEBT-BE-001', { by: 'r', reason: why }), /--reason goes with --drop/);
+  fails(() => approveDebt(dir, 'DEBT-BE-001', { by: 'r', accept: why, reason: why }), /--reason goes with --drop/);
+  fails(() => approveDebt(dir, 'DEBT-BE-001', { by: 'r', drop: true, reason: 'short' }), /at least 10 characters/);
+  assert.equal(debtEntry(dir, 'DEBT-BE-001').status, 'proposed', 'nothing changed');
+});
+
 test('approve-debt: refuses without a name, for unknown or already decided entries, and for conflicting options', (t) => {
   const { dir } = repo(t);
   fails(() => approveDebt(dir, 'DEBT-BE-001', {}), /--by/);

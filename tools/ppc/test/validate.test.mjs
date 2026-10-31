@@ -78,6 +78,7 @@ const conditionals = {
   },
   'green phase needs the human-approved red tests': (m) => Object.assign(slice(m, 'SL-001').data, { status: 'in_progress', phase: 'green' }),
   'accepted debt needs a reason': (m) => delete debtEntryOf(m, 'database').accepted_reason,
+  'a dropped reason, when given, is a sentence': (m) => Object.assign(debtEntryOf(m, 'frontend'), { status: 'dropped', dropped_reason: 'short' }),
   'scheduled debt needs paid_by': (m) => delete debtEntryOf(m, 'frontend').paid_by,
   'non-proposed debt needs approved_by': (m) => delete debtEntryOf(m, 'frontend').approved_by,
   'an accepted ADR needs drivers': (m) => (m.adrs[0].data.drivers = []),
@@ -90,6 +91,13 @@ for (const [name, mutate] of Object.entries(conditionals)) {
     assert.ok(has(run(m), 'SCHEMA', 'error'));
   });
 }
+
+test('a dropped debt entry may carry the reason it was dropped, and has no error for it', () => {
+  const m = base();
+  Object.assign(debtEntryOf(m, 'frontend'), { status: 'dropped', dropped_reason: 'Not testing on the Mac before the MVP.' });
+  delete debtEntryOf(m, 'frontend').paid_by;
+  assert.equal(run(m).filter((f) => f.severity === 'error' && f.rule === 'SCHEMA').length, 0);
+});
 
 // ── traceability ─────────────────────────────────────────────────
 const traceability = {

@@ -43,7 +43,7 @@ APPROVAL = re.compile(
 )
 
 # Fields that record a human decision. An agent never writes them: a person does, or `ppc` on a person's behalf.
-DECISION_FIELD = re.compile(r"(approved_by|red_approved_by|decided_by|accepted_reason|budget_override_reason|mutation_override_reason)[\"']?\s*:")
+DECISION_FIELD = re.compile(r"(approved_by|red_approved_by|decided_by|accepted_reason|dropped_reason|budget_override_reason|mutation_override_reason)[\"']?\s*:")
 CONTRACT_DIR = re.compile(r"(^|/)(\.sddpp/|\.architect/additions\.yaml$)")
 
 TEST_PATH = re.compile(
@@ -221,7 +221,7 @@ def decide(payload, root: Path):
     if isinstance(payload, dict) and _writes_a_decision(payload, root):
         return 2, (
             "SDD.PP guard: approvals and exceptions are human decisions. Do not write approved_by, "
-            "red_approved_by, decided_by, accepted_reason, budget_override_reason or mutation_override_reason; ask the human to "
+            "red_approved_by, decided_by, accepted_reason, dropped_reason, budget_override_reason or mutation_override_reason; ask the human to "
             "record them (ppc approve-slice, ppc approve-red, or an edit by hand)."
         )
 

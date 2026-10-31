@@ -288,14 +288,16 @@ export function reread(root, { ids = [], all = false } = {}) {
  * progress in the red phase); a debt id decides the debt; with no id it takes the one decision `ppc next` is asking for, and
  * refuses to guess when there are several. A change request is decided with `ppc decide-change`, which needs accept or reject.
  */
-export function approve(root, id, { by, accept, drop } = {}) {
+export function approve(root, id, { by, accept, drop, reason } = {}) {
   if (!by || !by.trim()) fail('no name to record: set one with `git config user.name "<your name>"` or pass --by <name>');
+  // Options that mean something only for a debt entry are not ignored elsewhere: ignoring them would approve what the person meant to drop.
+  if (!id?.startsWith('DEBT-') && (accept !== undefined || drop || reason !== undefined)) fail('--accept, --drop and --reason apply to a debt entry: name it with `ppc approve DEBT-… --drop`');
   if (id) {
     if (id.startsWith('SL-')) {
       const entry = loadValid(root).slices.find((s) => s.data.id === id);
       return entry?.data.status === 'in_progress' && entry.data.phase === 'red' ? approveRed(root, by) : approveSlice(root, id, by);
     }
-    if (id.startsWith('DEBT-')) return approveDebt(root, id, { by, accept, drop });
+    if (id.startsWith('DEBT-')) return approveDebt(root, id, { by, accept, drop, reason });
     if (id.startsWith('CR-')) fail(`${id} is a change request: decide it with \`ppc decide-change ${id} --accept\` or \`--reject --reason <why>\``);
     fail(`${id} is not something to approve here: a slice (SL-…) or a debt entry (DEBT-…)`);
   }
@@ -317,20 +319,22 @@ export function approve(root, id, { by, accept, drop } = {}) {
 
 /**
  * HUMAN ONLY: decide on a debt entry the AI proposed. Default: it becomes open (a real debt to pay);
- * `accept` records that it will be lived with, and why; `drop` discards it.
+ * `accept` records that it will be lived with, and why; `drop` discards it, optionally with the `reason`.
  */
-export function approveDebt(root, id, { by, accept, drop } = {}) {
+export function approveDebt(root, id, { by, accept, drop, reason } = {}) {
   return transact(root, () => {
     if (!by || !by.trim()) fail('--by <name> is required: a human decides on technical debt');
     if (accept !== undefined && drop) fail('use --accept <reason> or --drop, not both');
     if (accept !== undefined && accept.trim().length < 10) fail('--accept needs a reason of at least 10 characters');
+    if (reason !== undefined && !drop) fail('--reason goes with --drop (to accept, the reason is the value of --accept)');
+    if (reason !== undefined && reason.trim().length < 10) fail('--reason needs at least 10 characters');
     const model = loadValid(root);
     const register = model.debt.find((d) => d.data.entries.some((e) => e.id === id)) ?? fail(`unknown debt ${id}`);
     const entry = register.data.entries.find((e) => e.id === id);
     if (entry.status !== 'proposed') fail(`${id} is ${entry.status}; only a proposed entry can be decided`);
     const status = accept !== undefined ? 'accepted' : drop ? 'dropped' : 'open';
 
-    setDebtFields(root, register, id, { status, approved_by: by.trim(), ...(status === 'accepted' ? { accepted_reason: accept.trim() } : {}) });
+    setDebtFields(root, register, id, { status, approved_by: by.trim(), ...(status === 'accepted' ? { accepted_reason: accept.trim() } : {}), ...(status === 'dropped' && reason !== undefined ? { dropped_reason: reason.trim() } : {}) });
     ensureValid(root);
     return { debt: id, status };
   });

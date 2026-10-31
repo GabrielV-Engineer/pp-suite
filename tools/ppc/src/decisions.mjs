@@ -37,7 +37,7 @@ function debtCard(register, entry) {
   const out = [`${entry.id}  ${entry.title}`, row('Component', entry.component), row('What', oneLine(entry.description ?? ''))];
   if (entry.cost_of_delay) out.push(row('Cost of waiting', `${entry.cost_of_delay.level} — ${entry.cost_of_delay.rationale}`));
   if (entry.trigger) out.push(row('Look again', entry.trigger));
-  out.push('', `To keep it as debt to pay:  ppc approve ${entry.id}`, `To live with it, with a reason:  ppc approve ${entry.id} --accept "<why>"`, `To drop it:  ppc approve ${entry.id} --drop`);
+  out.push('', `To keep it as debt to pay:  ppc approve ${entry.id}`, `To live with it, with a reason:  ppc approve ${entry.id} --accept "<why>"`, `To drop it:  ppc approve ${entry.id} --drop --reason "<why>"`);
   return out.join('\n');
 }
 
@@ -98,6 +98,7 @@ export function redCommitFiles(root, id) {
 // the command may not change. The reasons recorded by the debt and change options are fixed text: the panel cannot carry free text.
 export const ACCEPT_REASON = 'accepted in the panel';
 export const REJECT_REASON = 'rejected in the panel';
+export const DROP_REASON = 'dropped in the panel';
 const SAY_NO = [
   { label: 'I want to change something', description: 'Nothing is decided; say what to change' },
   { label: 'Not yet', description: 'Leave it for later' },
@@ -124,7 +125,7 @@ export function askFor(model, id, { redFiles } = {}) {
     return { questions: [{ question: `What do we do with ${id} "${debt.title}"?`, header: 'Debt', multiSelect: false, options: [
       choose('Pay it later', `ppc approve ${id}`, 'It becomes a real debt to schedule'),
       choose('Live with it', `ppc approve ${id} --accept "${ACCEPT_REASON}"`, 'Accepted, with the reason recorded'),
-      choose('Drop it', `ppc approve ${id} --drop`, 'Discarded'),
+      choose('Drop it', `ppc approve ${id} --drop --reason "${DROP_REASON}"`, 'Discarded, with the reason recorded'),
       { label: 'Not yet', description: 'Leave it for later' },
     ] }] };
   }

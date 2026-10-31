@@ -44,6 +44,7 @@
         "status": { "enum": ["proposed", "open", "scheduled", "paid", "accepted", "dropped"] },
         "approved_by": { "type": "string", "minLength": 1 },
         "accepted_reason": { "type": "string", "minLength": 10 },
+        "dropped_reason": { "type": "string", "minLength": 10, "description": "Why a person dropped the entry. Optional." },
         "paid_by": { "type": "string", "pattern": "^SL-\\d{3,}$" },
         "also_affects": { "type": "array", "items": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" }, "uniqueItems": true }
       },

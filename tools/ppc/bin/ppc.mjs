@@ -44,7 +44,7 @@ const USAGE = `ppc — pp-suite contract tool
     ppc apply-change <CR-ID> [dir]       mark it applied, once the design revision has risen and the constitution follows it
 
   Slice cycle (each step changes the project or nothing at all)
-    ppc approve [<id>] [--by <name>] [--accept <reason> | --drop] [dir]
+    ppc approve [<id>] [--by <name>] [--accept <reason> | --drop [--reason <why>]] [dir]
                                          HUMAN ONLY: approve a slice to start, its red tests, or decide a debt entry; with no id,
                                          the one decision that is waiting. --by defaults to the git user.name
     ppc show <id> | reread [dir]         the card of what is being decided, in plain words
@@ -52,8 +52,8 @@ const USAGE = `ppc — pp-suite contract tool
                                          HUMAN ONLY: planned -> ready
     ppc start <slice> [dir]              ready -> in progress, red phase
     ppc approve-red --by <name> [dir]    HUMAN ONLY: approve the committed red tests, enter green
-    ppc approve-debt <DEBT-ID> --by <name> [--accept <reason> | --drop] [dir]
-                                         HUMAN ONLY: decide on proposed debt (default: it becomes open)
+    ppc approve-debt <DEBT-ID> --by <name> [--accept <reason> | --drop [--reason <why>]] [dir]
+                                         HUMAN ONLY: decide on proposed debt (default: it becomes open; --reason records why it was dropped)
     ppc schedule-debt <DEBT-ID> --slice <refactor slice> [dir]
                                          assign an approved (open) debt to a planned refactor slice that touches its component
     ppc decide-addition <ADD-ID>... (--keep --reason <why> | --cut) [--alone] [--by <name>] [dir]
@@ -85,8 +85,8 @@ const VALUE_OPTIONS = new Set(['--by', '--audit', '--files', '--slice', '--accep
 // What each command accepts. Anything else is refused: an option that is silently ignored can turn a request for help, or a typo,
 // into an approval (`ppc approve --help` once approved the one slice that could be approved).
 const OPTIONS = {
-  rules: [], validate: ['--strict', '--design'], 'check-git': [], start: [], 'approve-slice': ['--by'], approve: ['--by', '--accept', '--drop'],
-  show: [], ask: [], reread: ['--all'], 'approve-debt': ['--by', '--accept', '--drop'], 'schedule-debt': ['--slice'],
+  rules: [], validate: ['--strict', '--design'], 'check-git': [], start: [], 'approve-slice': ['--by'], approve: ['--by', '--accept', '--drop', '--reason'],
+  show: [], ask: [], reread: ['--all'], 'approve-debt': ['--by', '--accept', '--drop', '--reason'], 'schedule-debt': ['--slice'],
   'decide-addition': ['--keep', '--cut', '--alone', '--by', '--reason', '--accept-recommended', '--but-cut', '--but-keep'], additions: [],
   'change-request': ['--slice', '--title', '--problem', '--proposal', '--component', '--adr', '--qa', '--budgets'],
   'decide-change': ['--accept', '--reject', '--by', '--reason'], 'apply-change': [], 'approve-red': ['--by'], refactor: [],
@@ -182,7 +182,7 @@ switch (command) {
     const isId = (p) => /^(SL|DEBT|CR|[A-Z]+)-/.test(p) && !p.includes('/');
     const id = positionals.find(isId);
     const root = resolve(positionals.find((p) => p !== id) ?? '.');
-    transition(() => approve(root, id, { by: options.get('by') ?? gitUserName(root), accept: options.get('accept'), drop: flags.has('--drop') }));
+    transition(() => approve(root, id, { by: options.get('by') ?? gitUserName(root), accept: options.get('accept'), drop: flags.has('--drop'), reason: options.get('reason') }));
     break;
   }
   case 'show': {
@@ -215,7 +215,7 @@ switch (command) {
     break;
   }
   case 'approve-debt':
-    transition(() => approveDebt(dirAt(1), positionals[0], { by: options.get('by') ?? gitUserName(dirAt(1)), accept: options.get('accept'), drop: flags.has('--drop') }));
+    transition(() => approveDebt(dirAt(1), positionals[0], { by: options.get('by') ?? gitUserName(dirAt(1)), accept: options.get('accept'), drop: flags.has('--drop'), reason: options.get('reason') }));
     break;
   case 'schedule-debt':
     transition(() => scheduleDebt(dirAt(1), positionals[0], options.get('slice')));

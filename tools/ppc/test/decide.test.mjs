@@ -103,6 +103,18 @@ test('approve: a debt id decides the debt, with --accept or --drop passed throug
   assert.deepEqual(approve(r.dir, 'DEBT-BE-001', { by: 'owner' }), { debt: 'DEBT-BE-001', status: 'open' });
   const again = repo(t);
   assert.deepEqual(approve(again.dir, 'DEBT-BE-001', { by: 'owner', drop: true }), { debt: 'DEBT-BE-001', status: 'dropped' });
+  const withReason = repo(t);
+  approve(withReason.dir, 'DEBT-BE-001', { by: 'owner', drop: true, reason: 'not testing on the Mac before the MVP' });
+  assert.match(readFileSync(join(withReason.dir, '.sddpp/debt.yaml'), 'utf8'), /dropped_reason: not testing on the Mac before the MVP/);
+});
+
+test('approve: --accept, --drop and --reason are for a debt entry, so a slice or a bare approve refuses them instead of approving', (t) => {
+  const r = repo(t);
+  planSl001(r);
+  for (const [id, extra] of [['SL-001', { drop: true }], ['SL-001', { accept: 'because we said so' }], [undefined, { drop: true }], ['SL-001', { reason: 'a reason long enough' }]]) {
+    fails(() => approve(r.dir, id, { by: 'owner', ...extra }), /apply to a debt entry/);
+  }
+  assert.equal(slice(r.dir, 'SL-001').status, 'planned', 'nothing was approved');
 });
 
 test('approve: a change request or an unknown id is not its job, and the message says what to run', (t) => {
@@ -152,6 +164,16 @@ test('CLI: ppc approve DEBT-… --drop drops the debt', (t) => {
   assert.match(readFileSync(join(r.dir, '.sddpp/debt.yaml'), 'utf8'), /status: dropped/);
 });
 
+test('CLI: --drop takes the reason the person gives, from approve and from approve-debt', (t) => {
+  for (const args of [['approve', 'DEBT-BE-001', '--drop', '--reason', 'not testing on the Mac before the MVP'],
+    ['approve-debt', 'DEBT-BE-001', '--drop', '--reason', 'not testing on the Mac before the MVP', '--by', 'Ana']]) {
+    const r = repo(t);
+    const out = spawnSync('node', [CLI, ...args, r.dir], { encoding: 'utf8', env: NO_GIT_NAME });
+    assert.equal(out.status, 0, out.stderr);
+    assert.match(readFileSync(join(r.dir, '.sddpp/debt.yaml'), 'utf8'), /dropped_reason: not testing on the Mac before the MVP/);
+  }
+});
+
 test('CLI: ppc next --json prints one JSON object a skill can read', (t) => {
   const r = repo(t);
   planSl001(r);
@@ -193,6 +215,7 @@ test('show: a debt card says where, what, what it costs to wait and when to look
   assert.match(text, /ppc approve DEBT-BE-001/);
   assert.match(text, /--accept/);
   assert.match(text, /--drop/);
+  assert.match(text, /--drop --reason "<why>"/, 'the card says a drop can carry a reason');
 });
 
 test('show: a change request card says the problem and the proposal', (t) => {
@@ -241,7 +264,7 @@ test('ask: a slice is approved or not, and the option that approves names the ex
 test('ask: the three outcomes of a debt entry are three different commands, and the reason it records is fixed', (t) => {
   const ask = askFor(loadProject(repo(t).dir), 'DEBT-BE-001');
   const commands = withCommand(ask).map((o) => o.label.split(' — ').at(-1));
-  assert.deepEqual(commands, ['ppc approve DEBT-BE-001', 'ppc approve DEBT-BE-001 --accept "accepted in the panel"', 'ppc approve DEBT-BE-001 --drop']);
+  assert.deepEqual(commands, ['ppc approve DEBT-BE-001', 'ppc approve DEBT-BE-001 --accept "accepted in the panel"', 'ppc approve DEBT-BE-001 --drop --reason "dropped in the panel"']);
   assert.ok(ask.questions[0].options.length <= 4);
 });
 
