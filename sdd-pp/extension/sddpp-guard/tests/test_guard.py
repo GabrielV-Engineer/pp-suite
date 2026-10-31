@@ -97,6 +97,15 @@ class GuardTest(unittest.TestCase):
             with self.subTest(cmd=cmd):
                 self.assertEqual(self.code(root, payload("Bash", command=cmd)), 0)
 
+    def test_green_allows_running_tests_whose_output_is_discarded_but_still_blocks_writes(self):
+        root = self.project({"slice": "SL-002", "phase": "green"})
+        for cmd in ("pytest tests/ -q 2>/dev/null", "pytest tests/ > /dev/null 2>&1", "node --test tests/ &>/dev/null"):
+            with self.subTest(cmd=cmd):
+                self.assertEqual(self.code(root, payload("Bash", command=cmd)), 0)
+        for cmd in ("echo x >> tests/a.test.js 2>/dev/null", "sed -i s/a/b/ tests/a.test.js 2>&1", "pytest tests/ -q > tests/out.txt"):
+            with self.subTest(cmd=cmd):
+                self.assertEqual(self.code(root, payload("Bash", command=cmd)), 2)
+
     def test_green_allows_other_tools(self):
         root = self.project({"slice": "SL-002", "phase": "green"})
         self.assertEqual(self.code(root, payload("Read", file_path="tests/math.test.js")), 0)

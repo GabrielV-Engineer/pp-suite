@@ -74,6 +74,30 @@ WRITES = re.compile(
     re.IGNORECASE,
 )
 
+# Redirections that only throw output away or join two streams: they write nothing, so they must not make a command look like a write.
+NO_WRITE_REDIRECT = re.compile(r"(\d*|&)>>?\s*/dev/null|\d*>&\d")
+
+
+def writes(command) -> bool:
+    """True when a shell command appears to write something (see WRITES), not counting `2>/dev/null` and `2>&1`."""
+    return bool(WRITES.search(NO_WRITE_REDIRECT.sub(" ", str(command))))
+
+
+# Text for `cat` to write to a file, in a heredoc whose delimiter is quoted: the shell expands and runs nothing in it, and `cat` only copies it.
+# `ppc approve` inside it is a note in a log, not an approval. An unquoted delimiter (the shell runs `$(...)` in the text), a pipe, `;`, `&`
+# or a backtick after the delimiter, or any command other than `cat` receiving the text, leaves it as it is.
+INERT_HEREDOC = re.compile(
+    r"(?P<head>\bcat\b[^\n|;&<`]*<<-?[ \t]*(?P<quote>['\"])(?P<tag>\w+)(?P=quote)[^\n|;&`$()]*\n)"
+    r"(?P<body>.*?)(?P<end>^[ \t]*(?P=tag)[ \t]*$)",
+    re.DOTALL | re.MULTILINE,
+)
+
+
+def without_inert_text(command) -> str:
+    """The command line without the text `cat` copies from quoted heredocs, so that a mention of an approval in it is not mistaken for one."""
+    return INERT_HEREDOC.sub(lambda m: m.group("head") + m.group("end"), str(command))
+
+
 # What `npm test` runs is part of the proof: changing it makes tests pass without touching a test file.
 PACKAGE_JSON = re.compile(r"(^|/)package\.json$")
 TEST_SCRIPT = re.compile(r"[\"']test[\"']\s*:")
@@ -110,7 +134,7 @@ def _changes_the_test_script(tool, args) -> bool:
         command = str(args.get("command", ""))
         if NPM_TEST_SCRIPT.search(command):
             return True
-        return bool("package.json" in command and WRITES.search(command) and re.search(r"\btest\b", command))
+        return bool("package.json" in command and writes(command) and re.search(r"\btest\b", command))
     return False
 
 
@@ -154,7 +178,7 @@ def _writes_a_decision(payload, root: Path) -> bool:
     if tool == "Bash":
         command = str(args.get("command", ""))
         # In a command line the path follows a space, so look for the folder anywhere in it.
-        return bool(".sddpp/" in command and DECISION_FIELD.search(command) and WRITES.search(command))
+        return bool(".sddpp/" in command and DECISION_FIELD.search(command) and writes(command))
     return False
 
 
@@ -167,7 +191,7 @@ def _writes_the_ledger(payload) -> bool:
         return str(args.get("file_path") or args.get("notebook_path") or "").replace("\\", "/").endswith("answers.jsonl")
     if tool == "Bash":
         command = str(args.get("command", ""))
-        return "answers.jsonl" in command and bool(WRITES.search(command))
+        return "answers.jsonl" in command and writes(command)
     return False
 
 
@@ -182,7 +206,7 @@ def decide(payload, root: Path):
     # Approvals belong to a human, whatever the phase. A human has decided when they picked, in the question panel, the option that
     # names exactly this command (`/pp` asks it that way); that answer is used up by the approval it allows.
     if isinstance(payload, dict) and payload.get("tool_name") == "Bash":
-        command = str((payload.get("tool_input") or {}).get("command", ""))
+        command = without_inert_text((payload.get("tool_input") or {}).get("command", ""))
         if APPROVAL.search(command):
             needed = [inv for inv in ledger.invocations(command) if APPROVAL.search(inv)]
             if not (needed and ledger.consume(root, needed, payload.get("session_id"), payload.get("tool_use_id"))):
@@ -226,7 +250,7 @@ def decide(payload, root: Path):
             )
     elif tool == "Bash":
         command = str(args.get("command", ""))
-        if COMMAND_TEST_PATH.search(command) and WRITES.search(command):
+        if COMMAND_TEST_PATH.search(command) and writes(command):
             return 2, f"SDD.PP guard: {prefix}this command appears to modify test files while {where}."
     return 0, ""
 

@@ -185,6 +185,35 @@ class LedgerTest(unittest.TestCase):
         self.assertEqual(self.decide(root, command)[0], 0)
         self.assertIn(self.decide(root, command)[0], (2, guard.ASK), "and the answer is used up")
 
+    # ── commands that only mention an approval, or only discard output, are not approvals or ledger writes ──
+    def test_log_text_in_a_quoted_heredoc_for_cat_is_not_an_approval(self):
+        root = self.project()
+        for command in ("cat >> LOG.md <<'EOF'\n- ran `ppc approve SL-003` and `ppc finish SL-003 --budget-reason why`\nEOF",
+                        "rm .sddpp/audit-input.json && cat >> LOG.md <<'EOF'\nCommand: `ppc finish SL-003 --audit a --budget-reason x`\nEOF\ngit add LOG.md",
+                        'cat >> LOG.md <<"END"\nppc approve SL-001\nEND'):
+            with self.subTest(command=command):
+                self.assertEqual(self.decide(root, command)[0], 0)
+
+    def test_a_heredoc_that_can_run_what_it_holds_is_still_an_approval(self):
+        root = self.project()
+        for command in ("cat >> LOG.md <<EOF\n$(ppc approve SL-001)\nEOF",  # unquoted: the shell runs the substitution
+                        "cat <<'EOF' | bash\nppc approve SL-001\nEOF",
+                        "bash <<'EOF'\nppc approve SL-001\nEOF",
+                        "cat notes.txt | bash <<'EOF'\nppc approve SL-001\nEOF",  # something else receives the text
+                        "cat notes.txt && bash <<'EOF'\nppc approve SL-001\nEOF",
+                        "cat >> LOG.md <<'EOF'\nnotes\nEOF\nppc approve SL-001",  # a real command after the text
+                        "cat <<'EOF' && ppc approve SL-001\nnotes\nEOF"):
+            with self.subTest(command=command):
+                self.assertIn(self.decide(root, command)[0], (2, guard.ASK))
+
+    def test_discarding_output_is_not_writing_the_ledger_but_writing_it_still_is(self):
+        root = self.project()
+        self.assertEqual(self.decide(root, 'git add .sddpp/answers.jsonl 2>/dev/null; git commit -q -m "record the answers"')[0], 0)
+        self.assertEqual(self.decide(root, "cat .sddpp/answers.jsonl > /dev/null 2>&1")[0], 0)
+        for command in ("echo '{}' >> .sddpp/answers.jsonl", "cat x >/dev/null; echo '{}' >> .sddpp/answers.jsonl", "sed -i s/a/b/ .sddpp/answers.jsonl 2>/dev/null"):
+            with self.subTest(command=command):
+                self.assertEqual(self.decide(root, command)[0], 2)
+
     # ── the agent cannot make the proof itself ───────────────────
     def test_the_agent_cannot_write_the_ledger(self):
         root = self.project()
