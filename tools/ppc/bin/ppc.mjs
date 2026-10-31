@@ -44,6 +44,10 @@ const USAGE = `ppc — pp-suite contract tool
     ppc apply-change <CR-ID> [dir]       mark it applied, once the design revision has risen and the constitution follows it
 
   Slice cycle (each step changes the project or nothing at all)
+    ppc approve [<id>] [--by <name>] [--accept <reason> | --drop] [dir]
+                                         HUMAN ONLY: approve a slice to start, its red tests, or decide a debt entry; with no id,
+                                         the one decision that is waiting. --by defaults to the git user.name
+    ppc show <id> | reread [dir]         the card of what is being decided, in plain words
     ppc approve-slice <slice> --by <name> [dir]
                                          HUMAN ONLY: planned -> ready
     ppc start <slice> [dir]              ready -> in progress, red phase
@@ -72,20 +76,58 @@ const USAGE = `ppc — pp-suite contract tool
                                          write the system, negative and (when it applies) design prompt for one task
                                          under .sddpp/prompts/; without a slice or task, the one in progress
     ppc status [dir]                     what is in progress
-    ppc next [dir]                       whose turn it is and the exact command to run
+    ppc next [dir] [--json]              whose turn it is and the exact command to run (--json: the same, for the /pp skill)
     ppc overview [dir]                   where the project stands: slices, capabilities, debt, contract
+    ppc help [<command>]                 this text, or only the lines of one command; \`ppc <command> --help\` does the same and nothing else
 `;
 
 const VALUE_OPTIONS = new Set(['--by', '--audit', '--files', '--slice', '--accept', '--budget-reason', '--mutation-reason', '--reason', '--task', '--specify', '--title', '--problem', '--proposal', '--component', '--adr', '--qa', '--but-cut', '--but-keep']);
+// What each command accepts. Anything else is refused: an option that is silently ignored can turn a request for help, or a typo,
+// into an approval (`ppc approve --help` once approved the one slice that could be approved).
+const OPTIONS = {
+  rules: [], validate: ['--strict', '--design'], 'check-git': [], start: [], 'approve-slice': ['--by'], approve: ['--by', '--accept', '--drop'],
+  show: [], ask: [], reread: ['--all'], 'approve-debt': ['--by', '--accept', '--drop'], 'schedule-debt': ['--slice'],
+  'decide-addition': ['--keep', '--cut', '--alone', '--by', '--reason', '--accept-recommended', '--but-cut', '--but-keep'], additions: [],
+  'change-request': ['--slice', '--title', '--problem', '--proposal', '--component', '--adr', '--qa', '--budgets'],
+  'decide-change': ['--accept', '--reject', '--by', '--reason'], 'apply-change': [], 'approve-red': ['--by'], refactor: [],
+  finish: ['--audit', '--budget-reason', '--mutation-reason'], mutation: ['--files', '--slice'], next: ['--json'], overview: [],
+  constitution: ['--check'], session: [], contract: [], init: ['--apply', '--shim', '--update', '--allow-untested', '--specify'],
+  prompt: ['--task', '--stdout', '--force'], status: [],
+};
+
+/** The usage lines of one command (its entry and the lines that continue it), or all of them when there is no such entry. */
+function usageFor(name) {
+  const blocks = [];
+  for (const line of USAGE.split('\n')) {
+    if (/^ {4}ppc /.test(line)) blocks.push({ name: line.trim().split(/\s+/)[1], lines: [line] });
+    else if (/^ {5,}\S/.test(line) && blocks.length) blocks.at(-1).lines.push(line);
+  }
+  const own = blocks.filter((b) => b.name === name);
+  return own.length ? `${own.flatMap((b) => b.lines).join('\n')}\n` : USAGE;
+}
+
 const [command, ...rest] = process.argv.slice(2);
+// Help never does anything else: it comes before any command is looked at.
+if (command === 'help' || command === '--help' || command === '-h' || rest.includes('--help') || rest.includes('-h')) {
+  const asked = command === 'help' ? rest[0] : command;
+  process.stdout.write(asked && OPTIONS[asked] ? usageFor(asked) : USAGE);
+  process.exit(0);
+}
 const positionals = [];
 const flags = new Set();
 const options = new Map();
+const unknown = [];
 for (let i = 0; i < rest.length; i++) {
   // `--accept` takes a reason in approve-debt, and is a plain flag in decide-change
+  const known = OPTIONS[command]?.includes(rest[i]);
   if (VALUE_OPTIONS.has(rest[i]) && !(rest[i] === '--accept' && command === 'decide-change')) options.set(rest[i].slice(2), rest[++i]);
-  else if (rest[i].startsWith('--')) flags.add(rest[i]);
+  else if (rest[i].startsWith('-') && rest[i].length > 1) flags.add(rest[i]);
   else positionals.push(rest[i]);
+  if (rest[i]?.startsWith('-') && rest[i].length > 1 && !known) unknown.push(rest[i]);
+}
+if (OPTIONS[command] && unknown.length) {
+  console.error(`ppc ${command}: unknown option ${unknown[0]} (ppc ${command} --help shows what it takes). Nothing was done.`);
+  process.exit(2);
 }
 const dirAt = (index) => resolve(positionals[index] ?? '.');
 
