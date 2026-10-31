@@ -203,3 +203,76 @@ No price computed. Wall time 10.5 hours, mostly idle.
 | F-C1 | A budget change cannot be a change request without a fake component | Yes | **Fixed**: `ppc change-request --budgets` |
 | (new) | `W03` on every planned slice after each change request, with no command to clear it | Yes | **Fixed**: `ppc reread`, human-only and offered by `/pp` as a decision with `ppc show reread` |
 | F-H1, F-H2, F-S1 | See the second review | | Open |
+
+
+---
+
+# Fourth review: three slices built, the first panel approvals (2026-10-31)
+
+Sources: the log (`PPSUITE-LOG.md`, lines 563 to 708), the git history, `.sddpp/answers.jsonl`, the second session transcript (parsed:
+tool calls, guard decisions, permission decisions), `ppc validate`, `ppc check-git`, `ppc overview`, `ppc next --json`, and the project's
+own tests, linter and type checker run by me. Still one run, no control arm. SL-001 to SL-003 are done, 18 slices are planned, all
+three ran in the **light** cycle, so the strict cycle, the test lock and mutation testing have still not been exercised.
+
+## What happened
+
+| Step | Time (-06:00) | Result |
+|---|---|---|
+| SL-003 approval | 10-30 12:13 | The first approval through the panel: `ppc approve SL-003` ran 2 seconds after the click, with no second prompt |
+| SL-003 build | 10-31 01:00 to 01:24 | Diarization (sherpa-onnx) and Parakeet; stopped once for **CR-0003** (sherpa-onnx 2.0 dropped espeak-ng, so the Piper test voices make no sound): opened 01:00, applied as revision 5 at 01:09 |
+| SL-003 audit | 01:35 to 02:05 | Two debt entries proposed and decided in the panel; `B01` (1117 lines against 500), the owner recorded an exception; the close took four attempts (below) |
+
+Session 2 so far: about 95 assistant messages, 60,000 output tokens, 22 user messages, 92 Bash calls (counted from the transcript,
+approximate). Active time for SL-003, from the first to the last commit: about 65 minutes. No price computed.
+
+## Verified by me
+
+- `ppc validate --strict` and `ppc check-git`: 0 errors, 0 warnings. `ppc next`: the owner must approve SL-004; nothing else waits.
+- The project's own tests, run by me: **34 passed in 31 s**, as the log says. `ruff check` clean, `mypy --strict src` clean. The largest
+  file is 143 lines (the limit in the project rules is 300). Hand-written production code in SL-003 is about 360 lines; 722 of the 1,117
+  counted lines are `models.lock.json`, written by `psybook models fetch`.
+- **The panel path works end to end.** `.sddpp/answers.jsonl` holds 6 answers; 5 were consumed, by the exact tool call that ran the
+  command (one approval and four debt decisions; two of the answers were consumed by one command). The guard returned no `ask`
+  for any of them.
+- It failed for the sixth, the budget exception (F-K1). The agent's own log says "the guard let it through"; the transcript says the
+  guard asked.
+
+## How it is going
+
+- **A second design change found by building.** CR-0003 is the second time a slice found something the design could not show. Two
+  instances; both took under 10 minutes from the stop to a revised design.
+- **The audit is honest.** SL-003 declares nine deviations and two debt entries, among them that the designed split of long turns was
+  not done because no criterion asked for it. This is self-reported; light mode leaves no way to check "no test was changed".
+- **Costs of the change path remain.** Every request raises the revision and every planned slice then needs re-reading (F-K3).
+- **Predicted, not observed:** SL-004 has two criteria (AC-3, AC-4) that only the owner can meet, by running a benchmark on three
+  machines. How `test_policy: required` and the audit treat a slice whose acceptance is a measurement is unknown.
+
+## Findings from this part
+
+| Id | Finding | Verified | State |
+|---|---|---|---|
+| F-K1 | The panel answer for `ppc finish … --budget-reason "…; …"` is not recognized: the guard splits the command on `;` even inside quotes, `shlex` then fails on each piece, and no command is found, so it falls back to Claude Code's confirmation. The owner got it three times (each retry of the close) | Yes: transcript (guard output `ask` at 08:00:59, 08:01:11, 08:02:02, none consumed) and `ledger.invocations()` returns `[]` for that command | Open. Safe direction (it asks), but it breaks the promise for the one decision that carries free text |
+| F-K2 | **`ppc approve --help` approves.** `--help` and any unknown `--flag` are silently ignored, and `ppc approve` with no id picks the one approvable slice. I hit it by running `ppc approve --help` in psyBook while reviewing: SL-004 became `ready`, approved in the owner's name. I restored the file with `git checkout`; nothing was committed. Reproduced in a copy | Yes | **Open, the most serious.** A person looking for help, or mistyping `--accept`, approves. There is no `--help` anywhere in `ppc` |
+| F-K3 | `blueprint_revision` of 19 slices was changed from 4 to 5 by hand, inside a commit titled "docs(log): record the SL-003 build, CR-0003 and two ppc findings" (`5e408fe`). Nothing logs that the person read the change, and nothing in the guard covers the field, so `ppc reread` (the human-only way) can be bypassed | Yes (diff and message) | Open: a decision for the owner (protect the field except for `ppc reread` and slice planning, or accept it) |
+| F-K4 | A change in how `ppc` counts lines made closed audits fail `C04` (SL-001 942 vs 403, SL-002 295 vs 267). The two numbers were corrected by hand, with the owner's yes. It came from the F-B4 fix: `ppc` runs from the pp-suite checkout and is not pinned | Yes | Open: no re-measure command; any future change in the counting hits every closed slice |
+| F-K5 | `ppc next` offers the audit as soon as a slice has one `build(...)` commit. SL-003's first commit only added dependencies, so after CR-0003 it offered the audit before any code existed (the log's F-D1) | Yes: `next.mjs:32` | Open: in light mode `ppc` cannot tell when building ends |
+| F-K6 | The guard asked about two commands that only wrote log text mentioning `ppc approve` or `ppc finish` (heredoc into `PPSUITE-LOG.md`) and rejected `git add .sddpp/answers.jsonl`. With the three prompts of F-K1, all 6 times the guard interrupted this session (5 confirmations, 1 rejection) were avoidable | Yes: transcript | Open: the known F-E1/F-H3 family, now with a count and a new case |
+| F-K7 | A debt entry decided with `--drop` stores no reason. The owner typed one; the panel cannot carry free text and the command takes none, so it exists only in the log | Yes: `debt.yaml` | Open: a decision (add an optional `--reason` to the command and the ledger match) |
+| F-D3 (log) | `models.lock.json` counted again | Yes | Already **fixed** by `budgets.generated_paths`; psyBook has not declared it, so SL-004 may hit it again |
+| F-D5 (log) | A design commit listed in the audit is refused with `C08` | Yes | Correct behavior; no change |
+| F-D2 (log) | `ppc change-request --help` prints `unknown slice undefined` | Yes | Part of F-K2: no command has help |
+
+## Limits of this review
+
+- One run, one project, one person; the owner approved most of what the agent proposed.
+- I did not run the application or the window, only its tests, linter and type checker.
+- Which of the five confirmations the owner answered and how long each took is not measured. The permission decisions show a user
+  accepting each one.
+- Claude Code's confirmation on **No** and the bypass mode are still untried.
+
+## Next
+
+Fix F-K2 first (reject unknown flags on the human-only commands, give every command `--help` that does nothing else), then F-K1
+(quote-aware splitting in the guard, with `;`, `&&`, `|` and apostrophes in a reason), then F-K6. F-K3, F-K4 and F-K7 need a decision
+from the owner before any change. In psyBook: commit the pp-suite update that is sitting in the working tree, and open a change
+request with `--budgets` to declare `models.lock.json` before SL-004.
