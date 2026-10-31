@@ -99,7 +99,7 @@ that component's code), and `also_affects` links the others. Status flow: `propo
 
 - Anything beyond `proposed` needs `approved_by`: the AI proposes, a human decides (`ppc approve-debt`).
 - `accepted` needs `accepted_reason`; `scheduled` and `paid` need `paid_by` (a refactor slice that lists
-  the debt in `pays`).
+  the debt in `pays`). `dropped` may carry `dropped_reason` (optional, at least 10 characters), the person's reason for discarding it.
 - `origin` says where it came from: a `slice`, a `decision` (ADR), the `blueprint`, or an `audit`.
 
 ## Rules checked by `ppc validate`

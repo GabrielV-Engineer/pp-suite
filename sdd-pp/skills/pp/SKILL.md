@@ -25,6 +25,9 @@ agent steps without them.
        Code will not ask a second time. If they picked anything else ("I want to change something", "Not yet", their own words), run
        no approval: for a change, ask what to change; otherwise stop.
     4. If the command is refused, say so and give the person the command to run in a terminal. Do not look for another way around.
+    5. A debt entry the person drops with their own words ("drop it, because …"): the panel option records a fixed reason. If they
+       want theirs kept, run `ppc approve <DEBT-ID> --drop --reason "<their words, as they said them>"`. That is not the command they
+       picked, so Claude Code will ask them to confirm it; say so first.
   - For the additions (`type: additions`): `ppc additions`, ask the person which to cut or keep in the chat, then
     `ppc decide-addition --accept-recommended --but-cut <ids> --but-keep <ids> --reason "<why>"`.
   - Afterwards run `ppc next --json` and report in two lines.
