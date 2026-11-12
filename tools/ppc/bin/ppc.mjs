@@ -11,7 +11,7 @@ import { apply, plan as installPlan, renderPlan, InstallError } from '../src/ins
 import { spawnSync } from 'node:child_process';
 import { homedir } from 'node:os';
 import { applyChange, decideChange, openChange } from '../src/changes.mjs';
-import { sessionContext, gitSubjects, gitUserName } from '../src/session.mjs';
+import { sessionContext, gitSubjects, gitUserName, buildFacts } from '../src/session.mjs';
 import { renderAdditions } from '../src/additions.mjs';
 import { renderDecision, askFor, redCommitFiles } from '../src/decisions.mjs';
 import { buildPrompts, resolveTarget, writePrompts } from '../src/prompts.mjs';
@@ -301,7 +301,7 @@ switch (command) {
     }
     // not a git repository: the phase alone decides, as if no commit had been made yet
     const subjects = gitSubjects(root);
-    const next = nextSteps(model, subjects, findings.filter((f) => f.severity === 'error'));
+    const next = nextSteps(model, subjects, findings.filter((f) => f.severity === 'error'), buildFacts(root));
     process.stdout.write(flags.has('--json') ? `${JSON.stringify(nextJson(next), null, 2)}\n` : renderNext(next));
     break;
   }

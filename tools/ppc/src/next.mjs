@@ -6,7 +6,7 @@
 
 import { existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { modeOf } from './policy.mjs';
+import { modeOf, testPolicy } from './policy.mjs';
 
 const RED = '/speckit-sddpp-cycle-red';
 const GREEN = '/speckit-sddpp-cycle-green';
@@ -22,7 +22,7 @@ const INSTALLED = '.specify/extensions/architect-pp/extension.yml';
 const unfinished = (s, byId) => (s.depends_on ?? []).filter((d) => byId.get(d)?.status !== 'done');
 const committed = (subjects, kind, id) => subjects.some((line) => line.startsWith(`${kind}(${id})`));
 
-function inProgressActions(s, subjects) {
+function inProgressActions(s, subjects, facts, blueprint) {
   const id = s.id;
   const head = `${id} "${s.title}" is in progress, ${s.phase} phase.`;
   if (s.type === 'spike') {
@@ -31,6 +31,11 @@ function inProgressActions(s, subjects) {
   if (s.phase === 'build') {
     if (!committed(subjects, 'build', id)) {
       return { headline: head, actions: [{ who: 'agent', what: 'Build the slice: tests and code together, in small commits', command: BUILD }] };
+    }
+    // A first commit that only adds dependencies is not a finished build: when tests are required and none of the slice's build
+    // commits holds one, the slice is still being built (it was paused by a change request, or the agent stopped early).
+    if (testPolicy(blueprint, s) === 'required' && facts?.buildsWithoutTests?.has(id)) {
+      return { headline: head, actions: [{ who: 'agent', what: 'Keep building: none of its commits holds a test yet, and this slice needs tests. When it is complete, audit it (record debt and deviations, and close)', command: BUILD }] };
     }
     return { headline: head, actions: [{ who: 'agent', what: 'Record debt and deviations, and close the slice', command: AUDIT }] };
   }
@@ -65,8 +70,9 @@ function inProgressActions(s, subjects) {
 /**
  * The next step. `subjects` are the commit subjects of the history, newest first or in any order.
  * `errors` are the contract errors from the validator; while there are any, fixing them is the next step.
+ * `facts` come from git beyond the subjects (see `buildFacts`); without them the subjects alone decide.
  */
-export function nextSteps(model, subjects, errors = []) {
+export function nextSteps(model, subjects, errors = [], facts = {}) {
   const slices = model.slices.map((s) => s.data).sort((a, b) => a.id.localeCompare(b.id));
   const byId = new Map(slices.map((s) => [s.id, s]));
   const live = slices.filter((s) => s.status !== 'dropped');
@@ -122,7 +128,7 @@ export function nextSteps(model, subjects, errors = []) {
       const why = asked.status === 'open' ? 'a person has not decided it yet' : 'it is accepted and waits for the design to be revised';
       return result(`${open.id} "${open.title}" is paused: it raised ${asked.id} ("${asked.title}"), and ${why}.`, [changeAction(asked)], asked);
     }
-    const { headline, actions } = inProgressActions(open, subjects);
+    const { headline, actions } = inProgressActions(open, subjects, facts, model.blueprint?.data);
     return result(headline, actions);
   }
 
