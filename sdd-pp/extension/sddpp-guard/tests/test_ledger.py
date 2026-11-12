@@ -81,6 +81,18 @@ class LedgerTest(unittest.TestCase):
         self.assertEqual(ledger.invocations('ppc approve SL-001 && echo "a;b" ; ppc approve SL-002 | cat'), ["ppc approve SL-001", "ppc approve SL-002"])
         self.assertEqual(ledger.invocations("echo 'x' ; ppc approve SL-001\nppc approve SL-002"), ["ppc approve SL-001", "ppc approve SL-002"])
 
+    def test_redirections_are_not_part_of_the_command(self):
+        # Found in the first real project (F-L1): the agent ran `ppc approve SL-006 2>&1 | tail -2`, the answer did not match,
+        # and the person had to confirm a second time, 18 minutes later for the debt entries.
+        for text in ("ppc approve SL-006 2>&1 | tail -2 && ppc start SL-006", "ppc approve SL-006 > out.txt", "ppc approve SL-006 2> /dev/null",
+                     "ppc approve SL-006 &>/dev/null", "ppc approve SL-006 2>/dev/null; echo done", "ppc approve SL-006 >>log.txt 2>&1"):
+            with self.subTest(text=text):
+                self.assertEqual(ledger.invocations(text)[0], "ppc approve SL-006")
+
+    def test_a_reason_that_mentions_a_redirection_keeps_it(self):
+        self.assertEqual(ledger.invocations('ppc finish SL-1 --audit a.json --budget-reason "the 2>&1 lines are generated"'),
+                         ["ppc finish SL-1 --audit a.json --budget-reason the 2>&1 lines are generated"])
+
     def test_an_unclosed_quote_finds_nothing_rather_than_guessing(self):
         self.assertEqual(ledger.invocations('ppc approve SL-001 --accept "never closed'), [])
 
@@ -184,6 +196,11 @@ class LedgerTest(unittest.TestCase):
         command = f'ppc finish SL-003 --audit .sddpp/audit-input.json --budget-reason "{reason}"; echo "--- exit $?"'
         self.assertEqual(self.decide(root, command)[0], 0)
         self.assertIn(self.decide(root, command)[0], (2, guard.ASK), "and the answer is used up")
+
+    def test_an_approval_with_its_output_redirected_goes_through_on_the_panel_answer(self):
+        root = self.project()
+        self.record(root, {"Approve SL-006?": "Sí — ppc approve SL-006"})
+        self.assertEqual(self.decide(root, "ppc approve SL-006 2>&1 | tail -2 && ppc start SL-006")[0], 0)
 
     # ── commands that only mention an approval, or only discard output, are not approvals or ledger writes ──
     def test_log_text_in_a_quoted_heredoc_for_cat_is_not_an_approval(self):

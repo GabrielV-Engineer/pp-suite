@@ -25,16 +25,25 @@ def project_root(payload=None) -> Path:
     return Path(named) if named else Path.cwd()
 
 
+# A redirection of the command's output (`2>&1`, `> out.txt`, `2>/dev/null`, `&>log`) is not part of the decision: an approval run
+# as `ppc approve SL-006 2>&1 | tail -2` is the same approval (found in the first real project, F-L1).
+REDIRECT_WITH_TARGET = re.compile(r"^(\d*|&)(>>?|<)\S+$")
+REDIRECT_ALONE = re.compile(r"^(\d*|&)(>>?|<)$")
+
+
 def _normalize(tokens):
-    """`ppc` and its arguments, whatever started it (`node .../ppc.mjs`, `npx ppc`), without the name that git supplies."""
+    """`ppc` and its arguments, whatever started it (`node .../ppc.mjs`, `npx ppc`), without the name that git supplies and
+    without redirections."""
     for i, token in enumerate(tokens):
         if token == "ppc" or token.endswith("/ppc") or token.endswith("ppc.mjs"):
             rest, out, skip = tokens[i + 1:], ["ppc"], False
             for arg in rest:
                 if skip:
                     skip = False
-                elif arg == "--by":
+                elif arg == "--by" or REDIRECT_ALONE.match(arg):
                     skip = True
+                elif REDIRECT_WITH_TARGET.match(arg):
+                    continue
                 elif not arg.startswith("--by="):
                     out.append(arg)
             return " ".join(out)
