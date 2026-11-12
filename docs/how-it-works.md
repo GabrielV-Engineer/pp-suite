@@ -12,10 +12,20 @@ command names are provisional.
 
 ## You type `/pp`
 
-Everything below is the engine. The person types one thing in the chat, `/pp`, and the assistant does the next step or puts the next
-decision to them. `/pp` reads `ppc next --json`, then, by what is next: runs the skill of the agent's step, runs a plain `ppc`
-command, tells the person what only they can do (The Architect's interview), or, for a decision, shows it in plain words
-(`ppc show`), asks it in the question panel (`ppc ask`) and carries it out.
+Everything below is the engine. The person types one thing in the chat, `/pp`, and the assistant goes on by itself until the next
+decision is the person's. `/pp` reads `ppc next --json` and, by what is next: runs the skill of the agent's step (`/pp-build`,
+`/pp-audit`, `/pp-change`, ...) or a plain `ppc` command and reads `ppc next` again; for a decision, it shows it in plain words with the
+files to read as links (`ppc show`), says in one line per option what happens if it is picked, asks it in the question panel
+(`ppc ask`), carries out the choice and goes on. It stops when the person picked no command, when something fails or is refused, when a
+slice was closed, and when nothing is left; before stopping it asks the decisions that wait, and it ends with two lines. `/pp SL-022`
+decides the id named, even when `ppc next` names another. Every other skill that meets a decision (a change request opened while
+building, the debt of an audit, the approval of the slices just planned) asks it the same way, from the same text
+(`sdd-pp/shared/when-the-person-decides.md`); none sends the person to a terminal.
+
+The commands a person can type are short, in the style of Spec Kit's: `/pp-design`, `/pp-plan`, `/pp-build`, `/pp-check`,
+`/pp-audit`, `/pp-change`, and `/pp-red`, `/pp-green`, `/pp-refactor` for the strict cycle. `ppc init` writes them from the extension
+command files and removes the long names Spec Kit gives them (`/speckit-sddpp-cycle-build` and the like); see the table in the
+[README](../README.md#the-commands).
 
 **What counts as a person deciding.** The option of the panel that carries a decision out ends with the exact command it stands for
 (`Yes, approve it — ppc approve SL-001`). When the person picks it, a hook (`record_answer.py`) writes the answer into
@@ -25,9 +35,11 @@ modes where that was tried, a block in the others). The agent cannot write the l
 has its answers. Several approvals in one command need one answer each.
 
 Status: the recorder, the guard and `ppc ask` are tested, including that the label commands `ppc ask` prints are exactly what the
-guard accepts, and the recorder and guard were run through Spec Kit's real event dispatcher with a payload shaped like the one the
-probe recorded. **A person has not yet clicked through the whole flow** (panel, then the approval running with no second prompt), and
-pressing No on Claude Code's own confirmation has not been tried. It is a guard rail for an agent that cooperates, not a security
+guard accepts, and the recorder and guard were run through Spec Kit's real event dispatcher. In the first real project the owner
+clicked through the whole flow: six panel answers in its ledger were consumed by the exact command they named, with no second prompt
+(slice approvals and debt decisions; [report](first-real-project-report.md)). Not tried: pressing No on Claude Code's own
+confirmation, the bypass mode, and `/pp` going on by itself in an interactive session (checked only without interaction, where the
+panel is not available and it asked in the chat). It is a guard rail for an agent that cooperates, not a security
 boundary: an agent that can edit `.claude/settings.json` could register a hook that writes the ledger.
 
 ## Per project
@@ -35,15 +47,15 @@ boundary: an agent that can edit `.claude/settings.json` could register a hook t
 | Step | You | The AI |
 |---|---|---|
 | **1. Design** (The Architect) | Answer the interview, confirm the architecture | Proposes stack, data model, API, what is out of scope, risks |
-| **2. Hand-off** (`/speckit-architect-pp-handoff`) | Review `.architect/`; decide each addition the tool made (`ppc decide-addition`) | Converts the blueprint to the contract, drops its step plan, flags additions; `ppc constitution` then writes the project rules into `CLAUDE.md` |
-| **3. Slices** (`/speckit-sddpp-cycle-slices`) | **Approve the list** of slices before it is written, then approve each slice to start (`ppc approve-slice`) | Splits the design into thin vertical slices that fit the production-code budget, each with its "out of scope" |
-| **4. Build** (per slice, `/speckit-sddpp-cycle-build`) | Nothing (optionally, read the tests) | Tests and code together in one session, small commits. The strict cycle (red tests you approve, then locked green) is an option per slice |
-| **5. Close** (`/speckit-sddpp-cycle-audit`) | Review the audit; decide the proposed debt (`ppc approve-debt`) and when to pay it (`ppc schedule-debt`) | Records debt and deviations; `ppc finish` measures the size from git |
+| **2. Hand-off** (`/pp-design`) | Review `.architect/`; decide each addition the tool made (`ppc decide-addition`) | Converts the blueprint to the contract, drops its step plan, flags additions; `ppc constitution` then writes the project rules into `CLAUDE.md` |
+| **3. Slices** (`/pp-plan`) | **Approve the list** of slices before it is written, then approve each slice to start (`ppc approve-slice`) | Splits the design into thin vertical slices that fit the production-code budget, each with its "out of scope" |
+| **4. Build** (per slice, `/pp-build`) | Nothing (optionally, read the tests) | Tests and code together in one session, small commits. The strict cycle (red tests you approve, then locked green) is an option per slice |
+| **5. Close** (`/pp-audit`) | Review the audit; decide the proposed debt (`ppc approve-debt`) and when to pay it (`ppc schedule-debt`) | Records debt and deviations; `ppc finish` measures the size from git |
 | **6. Design changes** | Decide (`ppc decide-change`) | If a slice finds the design wrong, it opens a change request; Architect.PP revises the design |
 
-Three optional reviews, all by a model: `/speckit-sddpp-cycle-clarify` (what is unclear before building), `/speckit-sddpp-cycle-analyze` (read-only: contradictions and vague criteria the rules cannot see) and `/speckit-sddpp-cycle-converge` (read-only, before the audit: did the code do only what the slice promised).
+Three optional reviews, all by a model: `/pp-check clarify` (what is unclear before building), `/pp-check analyze` (read-only: contradictions and vague criteria the rules cannot see) and `/pp-check converge` (read-only, before the audit: did the code do only what the slice promised).
 
-Before each task the agent offers to prepare its prompts (`/speckit-sddpp-cycle-prompts`): the limits of that slice, from the design.
+Before each task the agent offers to prepare its prompts (`/pp-build prompts`): the limits of that slice, from the design.
 
 ## Two cycles: light and strict
 
@@ -73,8 +85,8 @@ The engine behind `/pp`; a person rarely types these. Each command either change
 | Command | Who runs it | What it does |
 |---|---|---|
 | `ppc approve [<id>] [--accept <reason> \| --drop [--reason <why>]]` | **a human** | The short form of the three approvals below. A slice id approves it to start, or its red tests when it is in progress in red; a `DEBT-` id decides the debt; with no id it takes the one decision that is waiting and refuses to guess when there are several. `--accept`, `--drop` and `--reason` are for a debt entry: on anything else the command is refused rather than approving |
-| `ppc show <id>` | anyone | The card of what is being decided, in plain words: a slice (does, does not, checked by, waits for), its red tests, a debt entry or a change request |
-| `ppc ask <id>` | anyone | The question for the panel that decides it: the options that carry out the decision end with the exact command. A debt option that accepts records the fixed reason "accepted in the panel"; one that drops, "dropped in the panel"; a change request that is rejected, "rejected in the panel" (the panel cannot carry free text; a person who wants their own words gives them to the assistant, which runs `ppc approve DEBT-… --drop --reason "<their words>"` and Claude Code asks them to confirm that command) |
+| `ppc show <id>` | anyone | The card of what is being decided, in plain words: a slice (does, does not, checked by, waits for), its red tests, a debt entry or a change request. It ends with the files to read, as links (the slice, its red tests or the audit input; the debt register; the change request and the parts of the design it would change) |
+| `ppc ask <id> [--budget-reason <why>] [--mutation-reason <why>]` | anyone | The question for the panel that decides it (with a reason: the exception that lets a slice in progress close, as the exact `ppc finish` command). Every option says what happens if it is picked: the options that carry out the decision end with the exact command. A debt option that accepts records the fixed reason "accepted in the panel"; one that drops, "dropped in the panel"; a change request that is rejected, "rejected in the panel" (the panel cannot carry free text; a person who wants their own words gives them to the assistant, which runs `ppc approve DEBT-… --drop --reason "<their words>"` and Claude Code asks them to confirm that command) |
 | `ppc help [<command>]`, `ppc <command> --help` | anyone | The usage, or only the lines of that command; it does nothing else. Every command lists the options it takes and **refuses any other** (exit 2, nothing done) |
 | `ppc next --json` | anyone | The same next step as data, for the `/pp` skill: `kind` is `decision`, `human-step`, `agent-step`, `run` or `none` |
 | `ppc reread (--all \| <slice>...)` | **a human** | Says the person read what changed in the design since those slices were planned; sets their `blueprint_revision` to the current one, which clears `W03`. `ppc show reread` lists the change requests applied since. Only unfinished slices that are behind |

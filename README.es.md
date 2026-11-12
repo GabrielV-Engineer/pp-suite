@@ -57,7 +57,30 @@ Los agentes de IA escriben código muy rápido. Lo que sale mal no es la primera
 | 5. Cierre | Decides la deuda que registró | Escribe la auditoría: qué cambió, qué se dejó fuera, qué queda abierto |
 | 6. El diseño estaba mal | Decides el cambio | Abre una solicitud de cambio; el diseño se revisa y se renumera |
 
-Una sola cosa basta para saber dónde estás y avanzar: escribe **`/pp`** en el chat. Hace el siguiente paso, o te muestra la siguiente decisión en palabras llanas y te pregunta. (`ppc next` imprime el mismo estado en una terminal.)
+Una sola cosa basta para saber dónde estás y avanzar: escribe **`/pp`** en el chat. Avanza solo hasta que la siguiente decisión es
+tuya; entonces te la muestra en palabras llanas, con los archivos que leer como enlaces, y te pregunta en el panel de opciones de
+Claude Code, con una línea por opción que dice qué pasa si la eliges. Se detiene al cerrar un slice o si algo falla. (`ppc next`
+imprime el mismo estado en una terminal.)
+
+### Los comandos
+
+Rara vez necesitas más que `/pp`. Los demás ejecutan una fase a propósito; los nombres siguen los de Spec Kit (`/speckit-specify`,
+`-plan`, `-implement`) para que quien conozca Spec Kit u OpenSpec se oriente.
+
+| Comando | Qué hace | Lo más parecido en Spec Kit | En OpenSpec |
+|---|---|---|---|
+| `/pp` | El siguiente paso, uno tras otro hasta que una decisión es tuya. `/pp SL-022` decide ese | — | — |
+| `/pp-design` | El blueprint de The Architect se vuelve el diseño verificado; `cuts` quita lo que cortaste | `/speckit-specify` | `/openspec-explore` |
+| `/pp-plan` | Slices verticales finos a partir del diseño | `/speckit-plan`, `/speckit-tasks` | `/openspec-propose` |
+| `/pp-build` | Construye el slice en curso, tests junto al código; `prompts` escribe los prompts de una tarea | `/speckit-implement` | `/openspec-apply-change` |
+| `/pp-check` | Revisa: `clarify`, `analyze` o `converge` | `/speckit-converge` | `/openspec-verify-change` |
+| `/pp-audit` | Registra deuda y desviaciones, cierra el slice | — | `/openspec-archive-change` |
+| `/pp-change` | Aplica al diseño un cambio aceptado | — | — |
+| `/pp-red`, `/pp-green`, `/pp-refactor` | El ciclo estricto, cuando un slice lo usa | — | — |
+
+Antes del 2026-11-12 se llamaban `/speckit-architect-pp-handoff` y `-apply-cuts` (ahora `/pp-design`), `/speckit-sddpp-cycle-slices`
+(`/pp-plan`), `-build` y `-prompts` (`/pp-build`), `-clarify`, `-analyze`, `-converge` (`/pp-check`), `-audit`, `-red`, `-green`,
+`-refactor` y `/speckit-architect-pp-apply-change` (`/pp-change`). `ppc init --apply --update` los reemplaza en un proyecto.
 
 ## Rebanadas verticales en vez de la cascada estricta
 

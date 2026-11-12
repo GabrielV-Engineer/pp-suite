@@ -45,7 +45,7 @@ Note (2026-10-26): `additions-example.yaml` illustrates the format. Its ADD-002 
 
 ## Third run: through the installed skill (2026-10-26)
 
-`handoff-output-run3/.architect/` is the output of `/speckit-architect-pp-handoff blueprint.md`, run with `claude -p` in a
+`handoff-output-run3/.architect/` is the output of `/pp-design blueprint.md`, run with `claude -p` in a
 scratch project set up by `ppc init --apply` (39 turns, about 5 minutes, 1.01 USD). It has 12 files, 5 decisions and 2
 evidence files, writes `default_mode: light`, and flags **6 additions**, with `overlaps` written on its own (the dark
 appearance, the accessibility target and the browser tests overlap). It validates with 0 errors and 6 `X01` warnings

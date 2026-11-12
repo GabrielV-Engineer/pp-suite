@@ -57,7 +57,29 @@ AI agents write code fast. What goes wrong is not the first hour; it is week two
 | 5. Close | Decide the debt it recorded | Writes the audit: what changed, what was left out, what is open |
 | 6. Design was wrong | Decide the change | Opens a change request; the design is revised and re-numbered |
 
-One thing is enough to find your place and move on: type **`/pp`** in the chat. It does the next step, or shows you the next decision in plain words and asks. (`ppc next` prints the same state in a terminal.)
+One thing is enough to find your place and move on: type **`/pp`** in the chat. It goes on by itself until the next decision is
+yours, then shows it in plain words, with the files to read as links, and asks in Claude Code's question panel, one line per option
+saying what happens if you pick it. It stops when a slice closes or something fails. (`ppc next` prints the same state in a terminal.)
+
+### The commands
+
+You rarely need more than `/pp`. The others run one phase on purpose; the names follow Spec Kit's (`/speckit-specify`, `-plan`,
+`-implement`) so that someone who knows Spec Kit or OpenSpec finds their way.
+
+| Command | What it does | Closest in Spec Kit | Closest in OpenSpec |
+|---|---|---|---|
+| `/pp` | The next step, on and on until a decision is yours. `/pp SL-022` decides that one | — | — |
+| `/pp-design` | The Architect's blueprint becomes the checked design; `cuts` removes what you cut | `/speckit-specify` | `/openspec-explore` |
+| `/pp-plan` | Thin vertical slices from the design | `/speckit-plan`, `/speckit-tasks` | `/openspec-propose` |
+| `/pp-build` | Builds the slice in progress, tests with the code; `prompts` writes the prompts of a task | `/speckit-implement` | `/openspec-apply-change` |
+| `/pp-check` | Reviews: `clarify`, `analyze` or `converge` | `/speckit-converge` | `/openspec-verify-change` |
+| `/pp-audit` | Records debt and deviations, closes the slice | — | `/openspec-archive-change` |
+| `/pp-change` | Applies an accepted change to the design | — | — |
+| `/pp-red`, `/pp-green`, `/pp-refactor` | The strict cycle, when a slice uses it | — | — |
+
+Before 2026-11-12 these were `/speckit-architect-pp-handoff` and `-apply-cuts` (now `/pp-design`), `/speckit-sddpp-cycle-slices`
+(`/pp-plan`), `-build` and `-prompts` (`/pp-build`), `-clarify`, `-analyze`, `-converge` (`/pp-check`), `-audit`, `-red`, `-green`,
+`-refactor` and `/speckit-architect-pp-apply-change` (`/pp-change`). `ppc init --apply --update` replaces them in a project.
 
 ## Vertical slices instead of the strict cascade
 

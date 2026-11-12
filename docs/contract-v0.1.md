@@ -30,7 +30,7 @@ blueprint `revision` is bumped when Architect.PP applies it. The life of a reque
 |---|---|---|
 | `open` | `ppc change-request --slice ... --problem ... --proposal ...` and what it affects: `--component`, `--adr`, `--qa`, or `--budgets` for a change to the blueprint's budgets or generated-file globs, which belong to no component (records the design revision it was opened at) | an agent or a person |
 | `accepted` / `rejected` | `ppc decide-change CR-NNNN --accept` or `--reject --reason ...` | **a person**; the guard blocks agents |
-| `applied` | `/speckit-architect-pp-apply-change CR-NNNN` revises `.architect/` and raises `revision`; then `ppc apply-change` checks that the revision rose (`T17`) and that the constitution follows the design | Architect.PP, then the tool |
+| `applied` | `/pp-change CR-NNNN` revises `.architect/` and raises `revision`; then `ppc apply-change` checks that the revision rose (`T17`) and that the constitution follows the design | Architect.PP, then the tool |
 
 Slices planned against the older revision are flagged (`W03`, and listed by `ppc next`); nothing updates their
 `blueprint_revision` automatically, since that is the reader saying "I read what changed". The person says it with
