@@ -93,4 +93,3 @@ a command to type in a terminal. Instead:
 7. Delete `.sddpp/audit-input.json` and commit the bookkeeping with `chore(<id>): close slice`.
 8. Report to the person: what shipped, the measured size, the deviations and the debt proposed. Then put each proposed
    debt entry to them, one question each (`ppc ask DEBT-…`, see **When the person decides**).
-9. Ask the person whether they want the prompts for the next task prepared (`/speckit-sddpp-cycle-prompts`; the next task is the one `ppc next` names). Do it only if they say yes.

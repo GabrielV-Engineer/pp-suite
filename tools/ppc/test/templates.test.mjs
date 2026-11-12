@@ -47,3 +47,19 @@ test('no skill sends the person to a terminal to approve or decide', () => {
     assert.doesNotMatch(text, /`ppc (approve|approve-slice|approve-red|approve-debt|decide-change|reread)[^`]*--by <[^>]+>`/, `${file} gives the person an approval command to type`);
   }
 });
+
+// The owner's decision (2026-11-12): /pp goes on by itself until the next decision is the person's, instead of one step per /pp.
+const PP = () => readFileSync(`${SUITE}sdd-pp/skills/pp/SKILL.md`, 'utf8');
+test('/pp keeps going through the agent steps and stops only for the person, a failure, a closed slice or nothing left', () => {
+  const text = PP();
+  assert.doesNotMatch(text, /Never chain two/i, 'the old one-step rule is gone');
+  assert.match(text, /go back to step 1/i);
+  for (const stop of [/decision is the person's/i, /fails|refuses/i, /slice (was )?closed|closes a slice/i, /`none`/]) assert.match(text, stop);
+  assert.match(text, /two lines/i, 'it ends with a short summary');
+});
+
+test('no skill stops the run to offer the prompts for the next task', () => {
+  for (const file of ALL_SKILLS.filter((f) => !f.endsWith('/prompts.md'))) {
+    assert.doesNotMatch(readFileSync(file, 'utf8'), /whether they want the prompts/i, file);
+  }
+});

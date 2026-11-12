@@ -49,4 +49,3 @@ a command to type in a terminal. Instead:
 6. **Stop.** The tests are committed and their approval is the person's: put it to them (see **When the person decides**;
    the id is the slice's, and each test file is a link). Run the approval only if they pick it in the panel; the guard
    lets it through then and blocks it otherwise.
-7. Ask the person whether they want the prompts for the next task prepared (`/speckit-sddpp-cycle-prompts`; the next task is the one `ppc next` names). Do it only if they say yes.

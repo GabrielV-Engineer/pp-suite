@@ -67,5 +67,4 @@ a command to type in a terminal. Instead:
 5. Run `ppc validate .` and fix every error. Read the warnings: fix the ones your files caused, report the others.
 6. Run `ppc overview` and report: the slices, the order, what is left for later.
 7. The next step is the person's: approving the slice they want to start first. Put it to them (`ppc ask <its id>`, see
-   **When the person decides**). Then ask whether they want the prompts for the first task prepared (`/speckit-sddpp-cycle-prompts`); only if
-   they say yes.
+   **When the person decides**).

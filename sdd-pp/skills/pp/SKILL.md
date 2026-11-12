@@ -9,26 +9,29 @@ State of the project, from `ppc next --json` (if this block is empty or says it 
 
 !`ppc next --json`
 
-## What to do, by `kind`
+## What to do
+
+Talk to the person in the language they write in, briefly. Keep going on your own until the next decision is the person's:
 
 If the person named an id (`$ARGUMENTS`, for example `SL-022`, `CR-0006` or `DEBT-PIPE-005`), decide that one first, as in
-**When the person decides**, even when `ppc next` names another: they chose which.
+**When the person decides**, even when `ppc next` names another: they chose which. Then:
 
-Talk to the person in the language they write in, briefly. Do **one** step, then say what `/pp` will do next. Never chain two
-agent steps without them.
-
-- **`decision`**: a person decides, you carry it out, as in **When the person decides** below (the id is `decision.id`).
-  - For the additions (`type: additions`): `ppc additions`, ask the person which to cut or keep in the chat, then
-    `ppc decide-addition --accept-recommended --but-cut <ids> --but-keep <ids> --reason "<why>"`.
-  - Afterwards run `ppc next --json` and report in two lines.
-  - Decisions can also wait in `waiting` (a debt entry) or in `changes` (a change request, or slices planned against an older design,
-    `type: reread`). After the main step, say in one line that they wait and offer to decide them now; if the person agrees, handle
-    each the same way. For `reread`, `ppc show reread` says what changed in the design; do not run `ppc reread` before the person has
-    read it and chosen the option.
-- **`agent-step`**: run the skill named in `skill` with the Skill tool (pass the id from `$ARGUMENTS`, if any).
-- **`run`**: run the `command` (for example `ppc start SL-001`), then `ppc next --json`.
-- **`human-step`**: tell the person what to do and with which command (for example The Architect's interview). Do not run it.
-- **`none`**: say what the headline says.
+1. Read where the project stands: the block above the first time, `ppc next --json` every time after.
+2. By `kind`:
+   - **`agent-step`**: run the skill named in `skill` with the Skill tool, then go back to step 1. If `changes` holds a
+     decision (a change request, or slices planned against an older design), put that to the person first: it can change the work.
+   - **`run`**: run the `command` (for example `ppc start SL-001`), then go back to step 1.
+   - **`decision`**: the decision is the person's: put it to them as in **When the person decides** (the id is `decision.id`).
+     When the command they picked has run, go back to step 1. If they picked no command ("Not yet", "I want to change
+     something", their own words), stop and do what they said.
+     For the additions (`type: additions`): `ppc additions`, ask the person in the chat which to cut or keep, then
+     `ppc decide-addition --accept-recommended --but-cut <ids> --but-keep <ids> --reason "<why>"`, and go back to step 1.
+   - **`human-step`**: tell the person what to do (for example The Architect's interview) and stop. Do not run it.
+   - **`none`**: say what the headline says and stop.
+3. Also stop when a command fails or `ppc` or the guard refuses something (say what and why), and when a slice was closed
+   (`ppc finish` succeeded): say what it delivered and what comes next, so the person can look before the next slice.
+4. Before you stop, put to the person the decisions that wait in `waiting` (debt) and `changes`, one question each.
+5. End with two lines: what was done in this run, and what happens at the next `/pp`.
 
 ## When the person decides
 
