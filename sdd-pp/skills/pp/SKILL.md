@@ -17,6 +17,9 @@ If the person named an id (`$ARGUMENTS`, for example `SL-022`, `CR-0006` or `DEB
 **When the person decides**, even when `ppc next` names another: they chose which. Then:
 
 1. Read where the project stands: the block above the first time, `ppc next --json` every time after.
+   If `answered` lists panel answers that nothing carried out (the session ended, for example), say what the person chose and
+   when. If it is `fresh`, run its `command` now: the guard accepts it. If not, it expired: ask that decision again, saying what
+   they chose before.
 2. By `kind`:
    - **`agent-step`**: run the skill named in `skill` with the Skill tool, passing `args` when there are any, then go back to
      step 1. If `changes` holds a
@@ -46,7 +49,8 @@ a command to type in a terminal. Instead:
    `--mutation-reason`) and ask exactly that question with the AskUserQuestion tool: the same options in the same order,
    without an `answers` field. You may put the words in the person's language; everything after the last ` — ` stays as
    printed. Before the panel, say in one line per option what happens if they pick it.
-3. Run the command of the option they picked, exactly. For any other answer, run no approval. Only if the guard refuses
+3. Run the command of the option they picked, exactly, right away, before anything else: an answer is good for 30
+   minutes, once. For any other answer, run no approval. Only if the guard refuses
    the command, say so and give them the command to run themselves.
 
 ## Rules

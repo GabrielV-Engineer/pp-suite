@@ -7,6 +7,7 @@
 import { existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { modeOf, testPolicy } from './policy.mjs';
+import { askFor } from './decisions.mjs';
 
 const RED = '/pp-red';
 const GREEN = '/pp-green';
@@ -72,7 +73,48 @@ function inProgressActions(s, subjects, facts, blueprint) {
  * `errors` are the contract errors from the validator; while there are any, fixing them is the next step.
  * `facts` come from git beyond the subjects (see `buildFacts`); without them the subjects alone decide.
  */
+// A panel answer is good for this long: the guard (sddpp-guard, ledger.py, TTL_SECONDS) accepts it only within it.
+export const ANSWER_TTL_SECONDS = 30 * 60;
+
+/** A command as the answer ledger stores it: its words, quotes removed, without the name `--by` supplies. */
+export function normalizeCommand(command) {
+  const words = [...String(command).matchAll(/"([^"]*)"|'([^']*)'|(\S+)/g)].map((m) => m[1] ?? m[2] ?? m[3]);
+  const out = [];
+  for (let i = 0; i < words.length; i++) {
+    if (words[i] === '--by') i++;
+    else if (!words[i].startsWith('--by=')) out.push(words[i]);
+  }
+  return out.join(' ');
+}
+
+/** The panel answers (unused, from the ledger) that chose a decision still waiting: the person decided, nothing ran it. */
+function answeredOf(model, steps, { answers = [], now = Date.now() / 1000 } = {}) {
+  const byCommand = new Map();
+  for (const action of [...steps.actions, ...steps.waiting, ...steps.changes]) {
+    const decision = action.decision;
+    if (!decision) continue;
+    let question = null;
+    try {
+      question = askFor(model, decision.id ?? decision.type);
+    } catch {
+      // a question ppc cannot write here: no answer can match it
+    }
+    for (const option of question?.questions[0].options ?? []) {
+      const command = option.label.split(' — ').slice(1).join(' — ');
+      if (command) byCommand.set(normalizeCommand(command), decision);
+    }
+  }
+  return answers
+    .filter((a) => byCommand.has(a.command))
+    .map((a) => ({ decision: byCommand.get(a.command), command: a.command, label: a.label, at: a.at, fresh: now - a.at <= ANSWER_TTL_SECONDS }));
+}
+
 export function nextSteps(model, subjects, errors = [], facts = {}) {
+  const steps = stepsOf(model, subjects, errors, facts);
+  return { ...steps, answered: answeredOf(model, steps, facts) };
+}
+
+function stepsOf(model, subjects, errors, facts) {
   const slices = model.slices.map((s) => s.data).sort((a, b) => a.id.localeCompare(b.id));
   const byId = new Map(slices.map((s) => [s.id, s]));
   const live = slices.filter((s) => s.status !== 'dropped');
@@ -155,6 +197,10 @@ export function renderNext(next) {
   if (next.waiting.length) out.push('Also waiting for a person:', ...next.waiting.map(line), '');
   if (next.changes.length) out.push('Design changes:', ...next.changes.map((a) => (a.command ? line(a) : `  ${a.what}`)), '');
   if (next.blocked.length) out.push('Blocked:', ...next.blocked.map((b) => `  ${b.slice} waits for ${b.waits_for.join(', ')}`), '');
+  if (next.answered?.length) {
+    const time = (at) => new Date(at * 1000).toTimeString().slice(0, 5);
+    out.push('Answered in the panel but not carried out:', ...next.answered.map((a) => `  ${a.decision.id ?? a.decision.type}: "${a.label.split(' — ')[0]}" at ${time(a.at)}, ${a.fresh ? 'still valid: run it now' : 'expired: ask again'}\n      ${a.command}`), '');
+  }
   return out.join('\n').replace(/\n+$/, '\n');
 }
 
@@ -239,5 +285,6 @@ export function nextJson(next) {
     waiting: next.waiting.map(slim),
     changes: next.changes.map(slim),
     blocked: next.blocked,
+    answered: (next.answered ?? []).map((a) => ({ decision: a.decision, command: a.command, label: a.label, at: a.at, fresh: a.fresh })),
   };
 }

@@ -63,3 +63,12 @@ test('no skill stops the run to offer the prompts for the next task', () => {
     assert.doesNotMatch(readFileSync(file, 'utf8'), /whether they want the prompts/i, file);
   }
 });
+
+// F-L1: an answer the person gave in the panel and nothing ran. /pp runs it while it is valid, and otherwise asks again, saying so.
+test('/pp acts on panel answers that were not carried out, and every skill runs the chosen command at once', () => {
+  const text = PP();
+  assert.match(text, /`answered`/);
+  assert.match(text, /`fresh`/);
+  assert.match(text, /ask that decision again/i);
+  assert.match(DECIDES, /right away/i);
+});

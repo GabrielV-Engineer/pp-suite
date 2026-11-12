@@ -10,5 +10,6 @@ a command to type in a terminal. Instead:
    `--mutation-reason`) and ask exactly that question with the AskUserQuestion tool: the same options in the same order,
    without an `answers` field. You may put the words in the person's language; everything after the last ` — ` stays as
    printed. Before the panel, say in one line per option what happens if they pick it.
-3. Run the command of the option they picked, exactly. For any other answer, run no approval. Only if the guard refuses
+3. Run the command of the option they picked, exactly, right away, before anything else: an answer is good for 30
+   minutes, once. For any other answer, run no approval. Only if the guard refuses
    the command, say so and give them the command to run themselves.

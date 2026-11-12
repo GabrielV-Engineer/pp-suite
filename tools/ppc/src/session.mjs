@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { loadProject } from './load.mjs';
 import { validateModel } from './validate.mjs';
@@ -43,6 +43,29 @@ export function buildFacts(root) {
   return { buildsWithoutTests: new Set([...built].filter((id) => !tested.has(id))) };
 }
 
+/** The answers of the question panel that no command has used yet (`.sddpp/answers.jsonl`); empty when there is none. */
+export function panelAnswers(root) {
+  let lines;
+  try {
+    lines = readFileSync(join(root, '.sddpp/answers.jsonl'), 'utf8').split('\n');
+  } catch {
+    return [];
+  }
+  const entries = [];
+  const used = new Set();
+  for (const line of lines) {
+    let data;
+    try {
+      data = JSON.parse(line);
+    } catch {
+      continue;
+    }
+    if (typeof data?.consumed === 'string') used.add(data.consumed);
+    else if (typeof data?.id === 'string' && typeof data.command === 'string' && typeof data.at === 'number') entries.push(data);
+  }
+  return entries.filter((e) => !used.has(e.id));
+}
+
 /** The name git would put on a commit here; undefined when none is configured. */
 export function gitUserName(root) {
   try {
@@ -61,7 +84,7 @@ export function sessionContext(root) {
     const model = loadProject(root);
     if (!model.blueprint) return 'pp-suite: this project has a design file that could not be read. `ppc validate` says why.\n';
     const findings = validateModel(model);
-    const body = renderNext(nextSteps(model, gitSubjects(root), findings.filter((f) => f.severity === 'error'), buildFacts(root)));
+    const body = renderNext(nextSteps(model, gitSubjects(root), findings.filter((f) => f.severity === 'error'), { ...buildFacts(root), answers: panelAnswers(root) }));
     const text = `pp-suite: ${model.blueprint.data.project.name} (blueprint revision ${model.blueprint.data.revision}). State from \`ppc next\`:\n\n${body}`;
     return text.length > CAP ? `${text.slice(0, CAP).replace(/\n[^\n]*$/, '')}\n... (shortened; run \`ppc next\` for the rest)\n` : text;
   } catch {
