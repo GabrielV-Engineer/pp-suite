@@ -255,7 +255,7 @@ approximate). Active time for SL-003, from the first to the last commit: about 6
 | F-K2 | **`ppc approve --help` approves.** `--help` and any unknown `--flag` are silently ignored, and `ppc approve` with no id picks the one approvable slice. I hit it by running `ppc approve --help` in psyBook while reviewing: SL-004 became `ready`, approved in the owner's name. I restored the file with `git checkout`; nothing was committed. Reproduced in a copy | Yes | **Fixed** (`d2aa414`): every command lists the options it takes and refuses any other (exit 2, nothing done); `--help`, `-h` and `ppc help [command]` print usage and do nothing else, also outside a project. `ppc approve SL-001 --drop` used to approve the slice and ignore `--drop`; it is refused too (`e527b5b`) |
 | F-K3 | `blueprint_revision` of 19 slices was changed from 4 to 5 by hand, inside a commit titled "docs(log): record the SL-003 build, CR-0003 and two ppc findings" (`5e408fe`). Nothing logs that the person read the change, and nothing in the guard covers the field, so `ppc reread` (the human-only way) can be bypassed | Yes (diff and message) | Open: a decision for the owner (protect the field except for `ppc reread` and slice planning, or accept it) |
 | F-K4 | A change in how `ppc` counts lines made closed audits fail `C04` (SL-001 942 vs 403, SL-002 295 vs 267). The two numbers were corrected by hand, with the owner's yes. It came from the F-B4 fix: `ppc` runs from the pp-suite checkout and is not pinned | Yes | Open: no re-measure command; any future change in the counting hits every closed slice |
-| F-K5 | `ppc next` offers the audit as soon as a slice has one `build(...)` commit. SL-003's first commit only added dependencies, so after CR-0003 it offered the audit before any code existed (the log's F-D1) | Yes: `next.mjs:32` | Open: in light mode `ppc` cannot tell when building ends |
+| F-K5 | `ppc next` offers the audit as soon as a slice has one `build(...)` commit. SL-003's first commit only added dependencies, so after CR-0003 it offered the audit before any code existed (the log's F-D1) | Yes: `next.mjs:32`; it happened again in SL-004 (`a53e8d0`, dependencies only) | **Fixed** (`d6ef595`): with `test_policy: required` and no test file in any of the slice's `build(<id>)` commits, `ppc next` and the session-start hook offer the build and say the audit follows when the slice is complete. A heuristic: it cannot tell a complete slice from an incomplete one when tests are optional or none |
 | F-K6 | The guard asked about two commands that only wrote log text mentioning `ppc approve` or `ppc finish` (heredoc into `PPSUITE-LOG.md`) and rejected `git add .sddpp/answers.jsonl`. With the three prompts of F-K1, all 6 times the guard interrupted this session (5 confirmations, 1 rejection) were avoidable | Yes: transcript | **Fixed for the cases seen** (`ae08d3e`): text `cat` copies from a heredoc with a quoted delimiter, and `2>/dev/null` / `2>&1`, no longer count. **Not fixed**: a commit message or `echo` that mentions `ppc approve` still asks, and the agent still cannot run `ppc approve --help` without a question (the guard does not trust `--help` to be harmless) |
 | F-K7 | A debt entry decided with `--drop` stores no reason. The owner typed one; the panel cannot carry free text and the command takes none, so it exists only in the log | Yes: `debt.yaml` | **Fixed** (`e527b5b`): `--drop --reason <why>` stores `dropped_reason` (optional, 10+ characters; a field the guard protects). The panel's Drop option records "dropped in the panel"; a person's own words go through the assistant with `--reason`, which Claude Code asks them to confirm. The drop already recorded in psyBook (DEBT-PIPE-001) has no reason and was not edited |
 | F-D3 (log) | `models.lock.json` counted again | Yes | Already **fixed** by `budgets.generated_paths`; psyBook has not declared it, so SL-004 may hit it again |
@@ -285,3 +285,25 @@ a pipe before `<<` in the heredoc rule). Node 485 tests, guard 66, cycle 5, all 
 `blueprint_revision`), F-K4 (re-measuring closed audits) and F-K5 (the audit offered after the first build commit) are open and wait
 for a decision. Not verified: the fixed guard has not run inside a live session; psyBook needs `ppc init . --apply --update` with a
 clean tree to get it.
+
+---
+
+# Catch-up, 2026-11-12: SL-004 done, and what it showed
+
+Sources: `ppc overview`, `validate --strict`, `check-git`, `PPSUITE-LOG.md` (lines 706 to 717), `.sddpp/answers.jsonl`, `docs/decisions/engine.md`,
+the debt register, the session transcript (searched for guard confirmations and rejections after the update). Nothing was changed in the project.
+
+- **State:** 4 of 21 slices done (all light cycle), `validate --strict` and `check-git` 0 errors and 0 warnings. SL-004 closed with 362 production
+  and 90 test lines. Five change requests so far, all decided by the owner; CR-0004 and CR-0005 came from SL-004.
+- **The panel path again:** the approval of SL-004 went through the panel and was consumed. The transcript holds no guard confirmation or rejection
+  after the guard update (searched, not read line by line). Not seen by me: how the `reread` of 18 slices on 11-01 was run (no command in the
+  transcript; likely the owner in a terminal).
+- **Result of the benchmark (provisional, Linux laptop only):** Parakeet 573 s for 46 min of audio (meets QA-001), Whisper 2,350 s (does not). CR-0005
+  limited the criteria to Linux and recorded the gap as DEBT-PIPE-004, so it is visible and not silent. On the owner's simulated session the run
+  found what the synthetic fixture did not (DEBT-PIPE-005, cost of waiting high: overlapping turns transcribed twice, words cut at speaker
+  changes, blank and English filler turns). Fixing it needs a change request, because the design is silent on overlaps.
+- **Two more pp-suite findings from the same slice:** F-D6 (a comma in a debt rationale split the template's inline mapping and `ppc finish` refused
+  the register), reproduced and **fixed** (`f50907e`: the template quotes free text, and a test parses it filled with commas, colons, hashes and
+  braces); and F-K5 again (above), **fixed**.
+- **Still open:** F-K3, F-K4, the residual of F-K6, and what was never tried (No on the confirmation, bypass mode, the strict cycle, mutation
+  testing). Claude Code is 2.1.322 here; the pinned, tested version is 2.1.310.
