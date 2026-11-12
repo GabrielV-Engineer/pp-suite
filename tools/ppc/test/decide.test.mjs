@@ -54,9 +54,9 @@ test('next --json: a decision, an agent step, a plain command and nothing are fo
 });
 
 test('next --json: an agent step names the skill to run', () => {
-  const agent = nextJson({ headline: 'h', actions: [{ who: 'agent', what: 'Plan', command: '/speckit-sddpp-cycle-slices' }], waiting: [], blocked: [], changes: [] });
+  const agent = nextJson({ headline: 'h', actions: [{ who: 'agent', what: 'Plan', command: '/pp-plan' }], waiting: [], blocked: [], changes: [] });
   assert.equal(agent.kind, 'agent-step');
-  assert.equal(agent.skill, '/speckit-sddpp-cycle-slices');
+  assert.equal(agent.skill, 'pp-plan');
   const human = nextJson({ headline: 'h', actions: [{ who: 'human', what: 'Interview', command: '/architect' }], waiting: [], blocked: [], changes: [] });
   assert.equal(human.kind, 'human-step', 'a human step that is not an approval');
   assert.equal(nextJson({ headline: 'h', actions: [], waiting: [], blocked: [], changes: [] }).kind, 'none');

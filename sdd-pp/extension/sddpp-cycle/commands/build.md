@@ -20,7 +20,7 @@ $ARGUMENTS
   `ppc finish` proposes a debt entry for a person to decide; `none` means they are not asked for.
 - Stay inside the production-code budget (`budgets.max_slice_production_lines`). If the slice is growing past it,
   stop and say so: a person decides whether to split it.
-- If the design is wrong or silent about something this slice needs, **stop**. Do not decide it yourself and do not work around it: open a change request with `ppc change-request --slice <id> --title ... --problem ... --proposal ... --qa|--component|--adr ...` and put it to the person (see **When the person decides**). If they accept it, the design is revised (`/speckit-architect-pp-apply-change`) before you go on; if not, go on without it, or stop and say what is blocked.
+- If the design is wrong or silent about something this slice needs, **stop**. Do not decide it yourself and do not work around it: open a change request with `ppc change-request --slice <id> --title ... --problem ... --proposal ... --qa|--component|--adr ...` and put it to the person (see **When the person decides**). If they accept it, the design is revised (`/pp-change`) before you go on; if not, go on without it, or stop and say what is blocked.
 - Respect the component boundaries in `.architect/architecture.md`. Nothing hardcoded that varies per environment.
 - Never approve anything and never write a decision field: those belong to people.
 
@@ -42,7 +42,7 @@ a command to type in a terminal. Instead:
 ## Steps
 
 1. Run `ppc status`. A slice must be **in progress in the build phase**. If it is in the red phase, use the strict
-   cycle (`/speckit-sddpp-cycle-red`) instead.
+   cycle (`/pp-red`) instead.
 2. Read the slice, `.architect/blueprint.yaml` and `.architect/architecture.md`. Optionally run
    `ppc prompt --stdout` for the prompts of this task.
 3. For each acceptance criterion, in small steps: write a test that expresses it, watch it fail for the right
@@ -50,5 +50,5 @@ a command to type in a terminal. Instead:
 4. Commit in small steps with the message `build(<id>): <what now works>`, keeping a test and the code it checks in
    the same commit. Do not commit a failing suite.
 5. When every criterion works, run the project's tests and type check, then go on to the audit
-   (`/speckit-sddpp-cycle-audit`) in the same session. In the audit, say plainly which tests you changed after first
+   (`/pp-audit`) in the same session. In the audit, say plainly which tests you changed after first
    writing them.

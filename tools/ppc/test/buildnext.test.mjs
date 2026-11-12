@@ -60,8 +60,8 @@ test('CLI: ppc next --json offers the build, not the audit, while the build comm
   const out = JSON.parse(spawnSync('node', [CLI, 'next', '--json'], { cwd: r.dir, encoding: 'utf8' }).stdout);
   assert.equal(out.kind, 'agent-step');
   assert.match(out.skill ?? out.command ?? '', /build/);
-  assert.match(sessionContext(r.dir), /sddpp-cycle-build/, 'the session-start hook says the same');
-  assert.doesNotMatch(sessionContext(r.dir), /sddpp-cycle-audit/);
+  assert.match(sessionContext(r.dir), /pp-build/, 'the session-start hook says the same');
+  assert.doesNotMatch(sessionContext(r.dir), /pp-audit/);
   r.commit('build(SL-001): code and test', { 'src/a.ts': lines(2), 'tests/a.test.ts': lines(2) });
   const done = JSON.parse(spawnSync('node', [CLI, 'next', '--json'], { cwd: r.dir, encoding: 'utf8' }).stdout);
   assert.match(done.skill ?? done.command ?? '', /audit/);

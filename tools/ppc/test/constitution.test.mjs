@@ -52,9 +52,12 @@ test('it orients an agent that has never seen the project: ppc next first, what 
   assert.match(out, /`ppc decide-change`/, 'the decisions that stay with the person');
   assert.match(out, /ppc decide-addition.*only .*person (told|asked)/i, 'the one decision an assistant may carry out, and only when told');
   assert.match(out, /ppc change-request/);
-  assert.match(out, /speckit-sddpp-cycle-slices/);
-  assert.match(out, /speckit-sddpp-cycle-build/);
-  for (const review of ['clarify', 'analyze', 'converge']) assert.match(out, new RegExp(`-${review}`), review);
+  assert.match(out, /pp-plan/);
+  assert.match(out, /pp-build/);
+  assert.match(out, /`\/pp-check`/);
+  for (const review of ['clarify', 'analyze', 'converge']) assert.match(out, new RegExp(review), review);
+  for (const strict of ['/pp-red', '/pp-green', '/pp-refactor', '/pp-design', '/pp-change']) assert.ok(out.includes(strict), strict);
+  assert.doesNotMatch(out, /speckit-/, 'no long name is left');
 });
 
 // Found in the first real project: agents told the person to run approvals in a terminal. The rules every session reads say how to ask.

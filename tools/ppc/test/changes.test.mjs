@@ -153,7 +153,7 @@ test('next: an open request is a decision for a person; an accepted one is work 
   decideChange(r.dir, 'CR-0001', { decision: 'accept', by: 'owner' });
   const accepted = next().changes.find((c) => /CR-0001/.test(c.what));
   assert.equal(accepted.who, 'agent');
-  assert.match(accepted.command, /speckit-architect-pp-apply-change CR-0001/);
+  assert.match(accepted.command, /pp-change CR-0001/);
   raiseRevision(r);
   applyChange(r.dir, 'CR-0001');
   assert.ok(!next().changes.some((c) => /CR-0001/.test(c.what) && c.command));

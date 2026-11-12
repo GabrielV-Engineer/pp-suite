@@ -64,7 +64,7 @@ test('next: when every slice is done, it says so', () => {
 test('next: red phase with no red commit yet is the agent\'s turn', () => {
   const r = nextSteps(inProgress(base(), 'SL-002', 'red'), []);
   assert.equal(first(r).who, 'agent');
-  assert.match(first(r).command, /sddpp-cycle-red/);
+  assert.match(first(r).command, /pp-red/);
 });
 
 test('next: red phase with a red commit is the human\'s turn to read and approve the tests', () => {
@@ -80,22 +80,22 @@ test('next: a red commit of another slice does not count', () => {
 
 test('next: green phase is the agent\'s; once a green commit exists the next step is the audit', () => {
   const m = inProgress(base(), 'SL-002', 'green');
-  assert.match(first(nextSteps(m, [])).command, /sddpp-cycle-green/);
+  assert.match(first(nextSteps(m, [])).command, /pp-green/);
   const done = nextSteps(m, ['green(SL-002): it works']);
   assert.equal(first(done).who, 'agent');
-  assert.match(first(done).command, /sddpp-cycle-audit/);
+  assert.match(first(done).command, /pp-audit/);
   assert.ok(done.actions.some((a) => /ppc refactor/.test(a.command)), 'refactoring is offered as optional');
 });
 
 test('next: a refactor slice starts in its refactor phase', () => {
   const m = inProgress(base(), 'SL-008', 'refactor');
-  assert.match(first(nextSteps(m, [])).command, /sddpp-cycle-refactor/);
+  assert.match(first(nextSteps(m, [])).command, /pp-refactor/);
 });
 
 test('next: the refactor phase of a work slice leads to the audit once refactoring is committed', () => {
   const m = inProgress(base(), 'SL-002', 'refactor');
   const r = nextSteps(m, ['green(SL-002): x', 'refactor(SL-002): tidy']);
-  assert.match(first(r).command, /sddpp-cycle-audit/);
+  assert.match(first(r).command, /pp-audit/);
 });
 
 // ── what else is waiting, and a broken contract ───────────────────
@@ -155,7 +155,7 @@ test('next: a design with no slices is not a contract error: the next step is to
   assert.ok(errorsOf(m).some((e) => e.rule === 'T06'));
   assert.match(r.headline, /no slices/i);
   assert.equal(first(r).who, 'agent');
-  assert.match(first(r).command, /speckit-sddpp-cycle-slices/);
+  assert.match(first(r).command, /pp-plan/);
 });
 
 test('next: but a real error in a design with no slices still comes first', () => {
@@ -193,11 +193,11 @@ test('next: cuts that were decided but not applied to the design come before pla
   m.additions = { file: '.architect/additions.yaml', data: { additions: [add('ADD-001', { decision: 'cut', decided_by: 'owner' }), add('ADD-003', { decision: 'keep', decided_by: 'owner', reason: 'It stays' })] } };
   const r = nextSteps(m, [], errorsOf(m));
   assert.equal(first(r).who, 'agent');
-  assert.match(first(r).command, /speckit-architect-pp-apply-cuts/);
+  assert.match(first(r).command, /pp-design cuts/);
   assert.match(first(r).what, /ADD-001/);
   assert.doesNotMatch(first(r).what, /ADD-003/);
   m.additions.data.additions.shift(); // nothing left to apply: only the kept one
-  assert.match(first(nextSteps(m, [], errorsOf(m))).command, /speckit-sddpp-cycle-slices/, 'with no cut waiting, the slices are next');
+  assert.match(first(nextSteps(m, [], errorsOf(m))).command, /pp-plan/, 'with no cut waiting, the slices are next');
 });
 
 // ── installed, but no design yet ─────────────────────────────────
@@ -207,7 +207,7 @@ test('next: with no design yet, the person runs the interview and the agent then
   assert.equal(r.actions[0].who, 'human');
   assert.match(r.actions[0].command, /\/architect\b/);
   assert.equal(r.actions[1].who, 'agent');
-  assert.match(r.actions[1].command, /\/speckit-architect-pp-handoff <blueprint file>/);
+  assert.match(r.actions[1].command, /\/pp-design <blueprint file>/);
   assert.deepEqual([r.waiting, r.blocked, r.changes], [[], [], []]);
   const text = renderNext(r);
   assert.match(text, /\[human\]/);

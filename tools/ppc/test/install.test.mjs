@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readPins, plan, apply, InstallError, DROPPED_SKILLS } from '../src/install.mjs';
+import { shortSkills, longSkillNames } from '../src/skills.mjs';
 import { CLI } from './helpers.mjs';
 
 const SUITE = fileURLToPath(new URL('../../../', import.meta.url)).replace(/\/$/, '');
@@ -21,6 +22,10 @@ function project(t, { git = true, specify = false, pp = specify } = {}) {
     if (pp) {
       mkdirSync(join(dir, '.claude/skills/pp'), { recursive: true });
       writeFileSync(join(dir, '.claude/skills/pp/SKILL.md'), readFileSync(join(SUITE, 'sdd-pp/skills/pp/SKILL.md'), 'utf8'));
+      for (const skill of shortSkills(SUITE)) {
+        mkdirSync(join(dir, '.claude/skills', skill.name), { recursive: true });
+        writeFileSync(join(dir, '.claude/skills', skill.name, 'SKILL.md'), skill.content);
+      }
     }
     spawnSync('git', ['add', '-A'], { cwd: dir });
     spawnSync('git', ['commit', '-q', '-m', 'base'], { cwd: dir });
@@ -68,7 +73,7 @@ const withPpSkill = (dir, text) => {
 
 test('plan: a machine with everything in place has every check ok and nothing left to run', (t) => {
   const p = plan(project(t, { specify: true }), env(machine(installed)));
-  for (const id of ['node', 'git', 'git-repo', 'python', 'specify', 'specify-project', 'extension-architect-pp', 'extension-sddpp-guard', 'extension-sddpp-cycle', 'pp-skill']) assert.equal(check(p, id).status, 'ok', id);
+  for (const id of ['node', 'git', 'git-repo', 'python', 'specify', 'specify-project', 'extension-architect-pp', 'extension-sddpp-guard', 'extension-sddpp-cycle', 'pp-skill', 'short-skills']) assert.equal(check(p, id).status, 'ok', id);
   assert.deepEqual(p.blocked, []);
   assert.deepEqual(p.steps.filter((s) => !s.done), []);
 });
@@ -115,7 +120,7 @@ test('plan: a directory that is not a git repository blocks, since ppc reads git
 test('plan: a fresh project gets specify init, the three extensions and the removal of the Spec Kit skills this flow does not use, in that order, none done', (t) => {
   const p = plan(project(t), env(machine()));
   const ids = p.steps.filter((s) => !s.done).map((s) => s.id);
-  assert.deepEqual(ids.filter((id) => id !== 'npm-ci'), ['specify-init', 'extension-architect-pp', 'extension-sddpp-guard', 'extension-sddpp-cycle', ...DROPPED_SKILLS.map((n) => `drop-${n}`), 'pp-skill']);
+  assert.deepEqual(ids.filter((id) => id !== 'npm-ci'), ['specify-init', 'extension-architect-pp', 'extension-sddpp-guard', 'extension-sddpp-cycle', ...DROPPED_SKILLS.map((n) => `drop-${n}`), ...longSkillNames(SUITE).map((n) => `drop-long-${n}`), 'pp-skill', ...shortSkills(SUITE).map((x) => `short-${x.name}`)]);
   const init = p.steps.find((s) => s.id === 'specify-init');
   assert.deepEqual(init.command.slice(0, 2), ['specify', 'init']);
   for (const flag of ['--here', '--force', '--non-interactive']) assert.ok(init.command.includes(flag), flag);
@@ -259,7 +264,7 @@ test('apply: runs the steps that are not done, in order, inside the project', (t
   const fresh = project(t);
   const log2 = [];
   const r2 = apply(fresh, env(machine()), { run: runner(log2) });
-  assert.deepEqual(r2.ran.filter((id) => id !== 'npm-ci'), ['specify-init', 'extension-architect-pp', 'extension-sddpp-guard', 'extension-sddpp-cycle', ...DROPPED_SKILLS.map((n) => `drop-${n}`), 'pp-skill']);
+  assert.deepEqual(r2.ran.filter((id) => id !== 'npm-ci'), ['specify-init', 'extension-architect-pp', 'extension-sddpp-guard', 'extension-sddpp-cycle', ...DROPPED_SKILLS.map((n) => `drop-${n}`), ...longSkillNames(SUITE).map((n) => `drop-long-${n}`), 'pp-skill', ...shortSkills(SUITE).map((x) => `short-${x.name}`)]);
   assert.ok(log2.every((l) => l.cwd === fresh || l.command[0] === 'npm'));
 });
 
@@ -326,7 +331,7 @@ test('the Spec Kit skills this flow does not use are all named, and none of ours
   assert.ok(!DROPPED_SKILLS.some((n) => n.includes('sddpp') || n.includes('architect-pp')));
 });
 
-test('apply: removes the Spec Kit skills this flow does not use, and keeps ours and the guard', (t) => {
+test('apply: removes the Spec Kit skills this flow does not use and the long names of ours; the short commands stay', (t) => {
   const dir = project(t, { specify: true });
   const ours = ['speckit-sddpp-cycle-build', 'speckit-sddpp-guard-pre-tool', 'speckit-architect-pp-handoff'];
   for (const name of [...UNUSED, ...ours]) {
@@ -336,9 +341,9 @@ test('apply: removes the Spec Kit skills this flow does not use, and keeps ours 
   spawnSync('git', ['add', '-A'], { cwd: dir });
   spawnSync('git', ['commit', '-q', '-m', 'skills'], { cwd: dir });
   const result = apply(dir, env(machine(installed)), { run: runner([]) });
-  assert.deepEqual(result.ran.sort(), UNUSED.map((n) => `drop-${n}`).sort());
-  for (const name of UNUSED) assert.ok(!existsSync(join(dir, '.claude/skills', name)), name);
-  for (const name of ours) assert.ok(existsSync(join(dir, '.claude/skills', name)), `${name} must stay`);
+  assert.deepEqual(result.ran.sort(), [...UNUSED.map((n) => `drop-${n}`), ...ours.map((n) => `drop-long-${n}`)].sort());
+  for (const name of [...UNUSED, ...ours]) assert.ok(!existsSync(join(dir, '.claude/skills', name)), name);
+  for (const skill of shortSkills(SUITE)) assert.ok(existsSync(join(dir, '.claude/skills', skill.name, 'SKILL.md')), `/${skill.name} must stay`);
 });
 
 // ── updating what is installed ───────────────────────────────────
@@ -436,4 +441,54 @@ test('plan: the answer recorder and its hook are verified, because without them 
   writeFileSync(join(dir, '.specify/extensions/sddpp-guard/scripts/python/ledger.py'), '#');
   assert.equal(status(), 'ok');
   assert.match(check(plan(project(t, { specify: true }), env(machine(installed))), 'answer-hook').fix, /--update/);
+});
+
+// ── the short commands (the owner's decision, 2026-11-12, option A) ──
+const longDir = (dir, name) => join(dir, '.claude/skills', name);
+function withLongSkills(dir) {
+  for (const name of longSkillNames(SUITE)) {
+    mkdirSync(longDir(dir, name), { recursive: true });
+    writeFileSync(join(longDir(dir, name), 'SKILL.md'), `---\nname: ${name}\n---\n`);
+  }
+  spawnSync('git', ['add', '-A'], { cwd: dir });
+  spawnSync('git', ['commit', '-q', '-m', 'Spec Kit wrote the long skills'], { cwd: dir });
+  return dir;
+}
+
+test('init: the long skills Spec Kit writes are removed, the hooks keep working from extension.yml, and the short ones stay', (t) => {
+  const dir = withLongSkills(project(t, { specify: true }));
+  const before = plan(dir, env(machine(installed)));
+  const pending = before.steps.filter((s) => !s.done).map((s) => s.id);
+  assert.deepEqual(pending, longSkillNames(SUITE).map((n) => `drop-long-${n}`));
+  assert.ok(pending.includes('drop-long-speckit-sddpp-guard-pre-tool'), 'the hook skills go too: a person never types them');
+  apply(dir, env(machine(installed)), { run: () => ({ status: 0 }) });
+  for (const name of longSkillNames(SUITE)) assert.ok(!existsSync(longDir(dir, name)), name);
+  for (const skill of shortSkills(SUITE)) assert.equal(readFileSync(join(dir, '.claude/skills', skill.name, 'SKILL.md'), 'utf8'), skill.content);
+  assert.equal(check(plan(dir, env(machine(installed))), 'short-skills').status, 'ok');
+});
+
+test('init: a short command that is missing is written; one edited by hand is left alone unless --update', (t) => {
+  const dir = project(t, { specify: true });
+  rmSync(join(dir, '.claude/skills/pp-build'), { recursive: true });
+  writeFileSync(join(dir, '.claude/skills/pp-audit/SKILL.md'), 'my own audit\n');
+  spawnSync('git', ['add', '-A'], { cwd: dir });
+  spawnSync('git', ['commit', '-q', '-m', 'edit'], { cwd: dir });
+  const p = plan(dir, env(machine(installed)));
+  assert.equal(check(p, 'short-skills').status, 'missing');
+  assert.deepEqual(p.steps.filter((s) => !s.done).map((s) => s.id), ['short-pp-build']);
+  apply(dir, env(machine(installed)), { run: () => ({ status: 0 }) });
+  assert.equal(readFileSync(join(dir, '.claude/skills/pp-audit/SKILL.md'), 'utf8'), 'my own audit\n', 'not overwritten without --update');
+  assert.equal(check(plan(dir, env(machine(installed))), 'short-skills').status, 'differs');
+  spawnSync('git', ['add', '-A'], { cwd: dir });
+  spawnSync('git', ['commit', '-q', '-m', 'installed'], { cwd: dir });
+  apply(dir, env(machine(installed)), { run: () => ({ status: 0 }), update: true });
+  assert.equal(check(plan(dir, env(machine(installed))), 'short-skills').status, 'ok');
+});
+
+test('init: while an extension is still to be installed, removing its long skills is still to do, so it runs after Spec Kit writes them', (t) => {
+  const dir = project(t, { specify: true });
+  const p = plan(dir, env(machine({ extensions: [] })));
+  for (const name of longSkillNames(SUITE)) assert.equal(p.steps.find((s) => s.id === `drop-long-${name}`).done, false, name);
+  const order = p.steps.map((s) => s.id);
+  assert.ok(order.indexOf('extension-sddpp-cycle') < order.indexOf('drop-long-speckit-sddpp-cycle-build'));
 });

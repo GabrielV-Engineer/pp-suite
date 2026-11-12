@@ -48,7 +48,7 @@ const POLICY_TEXT = {
 };
 
 // How to do each task lives in its skill. The prompts below never restate it, so the two cannot disagree.
-const COMMANDS = { build: '/speckit-sddpp-cycle-build', red: '/speckit-sddpp-cycle-red', green: '/speckit-sddpp-cycle-green', refactor: '/speckit-sddpp-cycle-refactor', audit: '/speckit-sddpp-cycle-audit' };
+const COMMANDS = { build: '/pp-build', red: '/pp-red', green: '/pp-green', refactor: '/pp-refactor', audit: '/pp-audit' };
 
 function find(model, id, task) {
   const entry = model.slices.find((s) => s.data.id === id) ?? fail(`unknown slice ${id}`);

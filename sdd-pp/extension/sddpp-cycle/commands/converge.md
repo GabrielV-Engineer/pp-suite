@@ -45,7 +45,7 @@ a `spec.md`, `plan.md` and `tasks.md` and appends tasks to a `tasks.md` this flo
 5. Report a table: id (F1, F2, ...), kind, severity, criterion or rule it relates to, evidence (file:line), and the suggested
    action. The actions to suggest:
    - `missing` / `partial`: keep working in the slice if it is still in progress; otherwise plan a `fix` slice
-     (`/speckit-sddpp-cycle-slices`) or record it as debt the person accepts;
+     (`/pp-plan`) or record it as debt the person accepts;
    - `contradicts`: change the code, or open a change request if the design is what is wrong (`ppc change-request`);
    - `unrequested`: remove it, or have a person add it to the slice's criteria on purpose, or record it in the audit's
      deviations.

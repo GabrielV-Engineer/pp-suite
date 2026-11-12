@@ -237,7 +237,7 @@ switch (command) {
       const list = (v) => (v ? v.split(',').map((x) => x.trim()).filter(Boolean) : []);
       const hint = () => {
         const left = (loadProject(root).additions?.data.additions ?? []).filter((a) => a.decision === 'pending').length;
-        if (!left) console.error('Every addition is decided. Next: apply the cuts (/speckit-architect-pp-apply-cuts) if any were cut, then write the constitution with `ppc constitution`.');
+        if (!left) console.error('Every addition is decided. Next: apply the cuts (/pp-design cuts) if any were cut, then write the constitution with `ppc constitution`.');
       };
       if (flags.has('--accept-recommended') || options.has('but-cut') || options.has('but-keep')) {
         const done = decideAddition(root, null, { acceptRecommended: flags.has('--accept-recommended'), by, cut: list(options.get('but-cut')), keep: list(options.get('but-keep')), reason: options.get('reason') });

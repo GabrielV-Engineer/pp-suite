@@ -382,7 +382,7 @@ test('additions report: decided ones are listed briefly, and when none is left i
   assert.match(text, /DECIDED/);
   assert.match(text, /ADD-001 +cut/);
   assert.match(text, /ADD-002 +keep +Baseline practice stays/);
-  assert.match(text, /apply-cuts/);
+  assert.match(text, /\/pp-design cuts/);
   assert.doesNotMatch(text, /NEED YOU|ppc decide-addition/);
 });
 

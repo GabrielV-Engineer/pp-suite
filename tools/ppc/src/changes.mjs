@@ -73,7 +73,7 @@ export function applyChange(root, id) {
     if (entry.data.status !== 'accepted') fail(`${id} is ${entry.data.status}; only an accepted request can be applied`);
     const revision = model.blueprint.data.revision;
     const opened = entry.data.blueprint_revision;
-    if (opened !== undefined && revision <= opened) fail(`the design is still at revision ${revision}, where ${id} was opened: revise .architect/ and raise its revision first (/speckit-architect-pp-apply-change ${id})`);
+    if (opened !== undefined && revision <= opened) fail(`the design is still at revision ${revision}, where ${id} was opened: revise .architect/ and raise its revision first (/pp-change ${id})`);
     if (hasConstitution(root) && checkConstitution(root).length) fail(`the project rules in CLAUDE.md still describe the old design: run \`ppc constitution\` first`);
     editFrontmatter(root, entry.file, (doc) => doc.set('status', 'applied'));
     loadValid(root);

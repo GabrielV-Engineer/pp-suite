@@ -13,7 +13,7 @@ $ARGUMENTS
 - Behavior does not change. The proof is that **the existing tests pass, untouched**. A guard blocks editing
   them. If a test has to change, the behavior is changing: stop and tell the human, who can reopen a red phase
   in a new slice.
-- If the design is wrong or silent about something this slice needs, **stop**. Do not decide it yourself and do not work around it: open a change request with `ppc change-request --slice <id> --title ... --problem ... --proposal ... --qa|--component|--adr ...` and put it to the person (see **When the person decides**). If they accept it, the design is revised (`/speckit-architect-pp-apply-change`) before you go on; if not, go on without it, or stop and say what is blocked.
+- If the design is wrong or silent about something this slice needs, **stop**. Do not decide it yourself and do not work around it: open a change request with `ppc change-request --slice <id> --title ... --problem ... --proposal ... --qa|--component|--adr ...` and put it to the person (see **When the person decides**). If they accept it, the design is revised (`/pp-change`) before you go on; if not, go on without it, or stop and say what is blocked.
 - Change the structure only: names, duplication, where code lives, how it is configured. No new feature, no
   new error branch, no new option, no new dependency.
 - Do only what the debt entries this slice pays describe (`pays` in the slice file). If you find other
@@ -52,4 +52,4 @@ a command to type in a terminal. Instead:
 6. Leave the debt register alone: `ppc finish` marks the entries a refactor slice pays as `paid` when it
    closes the slice (setting `paid` earlier is refused, because the slice is not done yet).
 7. Tell the human what changed and what was **not** verified, then continue with the audit
-   (`/speckit-sddpp-cycle-audit`).
+   (`/pp-audit`).

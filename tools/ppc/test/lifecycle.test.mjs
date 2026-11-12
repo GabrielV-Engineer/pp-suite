@@ -455,7 +455,7 @@ test('CLI: next tells whose turn it is, following the real git history', (t) => 
   const { dir, commit } = repo(t);
   assert.match(ppc(dir, 'next', dir).stdout, /\[anyone\][\s\S]*ppc start SL-001/);
   assert.equal(ppc(dir, 'start', 'SL-001', dir).status, 0);
-  assert.match(ppc(dir, 'next', dir).stdout, /\[agent\][\s\S]*sddpp-cycle-red/);
+  assert.match(ppc(dir, 'next', dir).stdout, /\[agent\][\s\S]*pp-red/);
   commit('red(SL-001): health', RED);
   assert.match(ppc(dir, 'next', dir).stdout, /\[human\][\s\S]*ppc approve\b/);
   const overviewOut = ppc(dir, 'overview', dir);

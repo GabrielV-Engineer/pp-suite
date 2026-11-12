@@ -104,9 +104,9 @@ export function renderAdditions(additions) {
       '  (--reason is needed only for what you keep.) Or tell your assistant which to cut or keep, and it runs it.',
     );
   } else if (decided.some((a) => a.decision === 'cut')) {
-    out.push('Next: if the cuts are not applied to the design yet, run /speckit-architect-pp-apply-cuts; then write the rules with `ppc constitution`.');
+    out.push('Next: if the cuts are not applied to the design yet, run /pp-design cuts; then write the rules with `ppc constitution`.');
   } else {
-    out.push('Next: write the rules with `ppc constitution`, then plan the slices (/speckit-sddpp-cycle-slices).');
+    out.push('Next: write the rules with `ppc constitution`, then plan the slices (/pp-plan).');
   }
   return `${out.join('\n').replace(/\n+$/, '')}\n`;
 }

@@ -47,6 +47,6 @@ This step reads the design, the slices and the project rules **for meaning** and
    cannot be tested, a capability part nobody verifies), **MEDIUM** (drift, an out-of-scope line that does not hold),
    **LOW** (wording).
 4. Report a table: id (A1, A2, ...), category, severity, where (file and quote), what is wrong, and the suggested action:
-   fix a planned slice, run `/speckit-sddpp-cycle-clarify`, or open a change request for the design.
+   fix a planned slice, run `/pp-check clarify`, or open a change request for the design.
 5. End with the counts by severity and the one next step you recommend. If there is nothing to report, say so and give
    what you checked.

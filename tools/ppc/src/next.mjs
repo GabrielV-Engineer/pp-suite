@@ -8,13 +8,13 @@ import { existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { modeOf, testPolicy } from './policy.mjs';
 
-const RED = '/speckit-sddpp-cycle-red';
-const GREEN = '/speckit-sddpp-cycle-green';
-const BUILD = '/speckit-sddpp-cycle-build';
-const REFACTOR = '/speckit-sddpp-cycle-refactor';
-const AUDIT = '/speckit-sddpp-cycle-audit';
-const SLICES = '/speckit-sddpp-cycle-slices';
-const HANDOFF = '/speckit-architect-pp-handoff';
+const RED = '/pp-red';
+const GREEN = '/pp-green';
+const BUILD = '/pp-build';
+const REFACTOR = '/pp-refactor';
+const AUDIT = '/pp-audit';
+const SLICES = '/pp-plan';
+const HANDOFF = '/pp-design';
 
 // Installed means the extension that provides the hand-off is there, so the advice below can be followed.
 const INSTALLED = '.specify/extensions/architect-pp/extension.yml';
@@ -88,7 +88,7 @@ export function nextSteps(model, subjects, errors = [], facts = {}) {
   const crs = model.changeRequests.map((c) => c.data).sort((a, b) => a.id.localeCompare(b.id));
   const changeAction = (c) => (c.status === 'open'
     ? { who: 'human', what: `Decide on change request ${c.id}: ${c.title} (raised by ${c.raised_by})`, command: `ppc decide-change ${c.id} --accept|--reject`, decision: { type: 'change', id: c.id } }
-    : { who: 'agent', what: `Revise the design for ${c.id}: ${c.title}`, command: `/speckit-architect-pp-apply-change ${c.id}` });
+    : { who: 'agent', what: `Revise the design for ${c.id}: ${c.title}`, command: `/pp-change ${c.id}` });
   const pending = crs.filter((c) => ['open', 'accepted'].includes(c.status));
   const revision = model.blueprint.data.revision;
   const stale = live.filter((s) => s.status !== 'done' && s.blueprint_revision < revision);
@@ -115,7 +115,7 @@ export function nextSteps(model, subjects, errors = [], facts = {}) {
     const unapplied = (model.additions?.data.additions ?? []).filter((a) => a.decision === 'cut' && a.applied !== true);
     if (unapplied.length) {
       return result('Additions were decided to be cut but the design still contains them; carry the cuts out before planning slices (rule X04).', [
-        { who: 'agent', what: `Remove ${unapplied.map((a) => a.id).join(', ')} from the design and record them as non-goals`, command: '/speckit-architect-pp-apply-cuts' },
+        { who: 'agent', what: `Remove ${unapplied.map((a) => a.id).join(', ')} from the design and record them as non-goals`, command: '/pp-design cuts' },
       ]);
     }
     return result('The design is ready and no slices are planned yet.', [{ who: 'agent', what: 'Plan the thin vertical slices from the design; the person approves the list before it is written', command: SLICES }]);
@@ -231,7 +231,9 @@ export function nextJson(next) {
     who: first?.who ?? null,
     what: first?.what ?? null,
     command: first?.command ?? null,
-    skill: kind === 'agent-step' ? first.command.split(' ')[0] : null,
+    // the Skill tool takes the name without the slash, and the words after it as arguments
+    skill: kind === 'agent-step' ? first.command.split(' ')[0].replace(/^\//, '') : null,
+    args: kind === 'agent-step' ? first.command.split(' ').slice(1).join(' ') || null : null,
     decision: first?.decision ?? null,
     optional: next.actions.slice(1).map(slim),
     waiting: next.waiting.map(slim),

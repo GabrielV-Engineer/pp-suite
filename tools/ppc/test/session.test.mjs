@@ -75,7 +75,7 @@ const run = (command, dir) => spawnSync(process.execPath, [CLI, command, dir], {
 test('session: installed and no design yet, it says so and what to run, within the cap', (t) => {
   const out = sessionContext(scratch(t));
   assert.match(out.split('\n')[0], /^pp-suite: .*no design yet/i);
-  assert.match(out, /\/speckit-architect-pp-handoff/);
+  assert.match(out, /\/pp-design/);
   assert.ok(out.length <= CAP + 200);
   assert.equal(sessionContext(scratch(t, { architect: [] })).split('\n')[0], out.split('\n')[0], 'an empty .architect/ counts as no design');
 });
@@ -93,7 +93,7 @@ test('CLI: next in an installed project with no design is not an error', (t) => 
   const r = run('next', scratch(t));
   assert.equal(r.status, 0);
   assert.match(r.stdout, /No design yet/);
-  assert.match(r.stdout, /\/speckit-architect-pp-handoff/);
+  assert.match(r.stdout, /\/pp-design/);
 });
 
 test('CLI: next still reports the missing files when pp-suite is not installed or the design is half-written', (t) => {

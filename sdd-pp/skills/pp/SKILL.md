@@ -18,7 +18,8 @@ If the person named an id (`$ARGUMENTS`, for example `SL-022`, `CR-0006` or `DEB
 
 1. Read where the project stands: the block above the first time, `ppc next --json` every time after.
 2. By `kind`:
-   - **`agent-step`**: run the skill named in `skill` with the Skill tool, then go back to step 1. If `changes` holds a
+   - **`agent-step`**: run the skill named in `skill` with the Skill tool, passing `args` when there are any, then go back to
+     step 1. If `changes` holds a
      decision (a change request, or slices planned against an older design), put that to the person first: it can change the work.
    - **`run`**: run the `command` (for example `ppc start SL-001`), then go back to step 1.
    - **`decision`**: the decision is the person's: put it to them as in **When the person decides** (the id is `decision.id`).

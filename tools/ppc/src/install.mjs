@@ -1,6 +1,7 @@
 import { chmodSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parse as parseYaml } from 'yaml';
+import { longSkillNames, shortSkills } from './skills.mjs';
 
 // Sets a project up for pp-suite. It reports first and changes nothing; `apply` runs only the project-level steps
 // that are missing. Installing Spec Kit itself (a global tool, third-party code) is left to the person: the exact
@@ -21,7 +22,7 @@ const EXTENSIONS = [
   { id: 'sddpp-cycle', dir: 'sdd-pp/extension/sddpp-cycle' },
 ];
 // Skills of Spec Kit that this flow does not use: the design already exists and the slices come from it
-// (`speckit-sddpp-cycle-slices`), tasks are built by `-build` and checked by `ppc`, and the project rules are
+// (`/pp-plan`), tasks are built by `/pp-build` and checked by `ppc`, and the project rules are
 // generated into CLAUDE.md. Left in place they compete with our skills for the agent's attention. They are removed
 // from the project, not from Spec Kit; the change shows in git.
 export const DROPPED_SKILLS = ['speckit-specify', 'speckit-plan', 'speckit-tasks', 'speckit-implement', 'speckit-clarify', 'speckit-analyze', 'speckit-checklist', 'speckit-constitution', 'speckit-converge', 'speckit-taskstoissues'];
@@ -155,6 +156,16 @@ export function plan(root, env, { shim = false, allowUntested = false, update = 
   const ppThere = existsSync(ppTarget);
   const ppStatus = !ppThere ? 'missing' : readFileSync(ppTarget, 'utf8') === ppSource ? 'ok' : 'differs';
   add({ id: 'pp-skill', label: 'the /pp skill is installed (the one command a person types)', status: ppStatus, fix: ppStatus === 'differs' ? 'ppc init --apply --update' : 'ppc init --apply' });
+  // The short commands (/pp-build, /pp-audit, ...): written from the extension command files; a person may edit them, so a file
+  // that differs is rewritten only with --update, as for /pp.
+  const shorts = shortSkills(suite);
+  const shortTarget = (name) => join(root, '.claude/skills', name, 'SKILL.md');
+  const shortStatus = shorts.map((sk) => (!existsSync(shortTarget(sk.name)) ? 'missing' : readFileSync(shortTarget(sk.name), 'utf8') === sk.content ? 'ok' : 'differs'));
+  const shortsStatus = shortStatus.includes('missing') ? 'missing' : shortStatus.includes('differs') ? 'differs' : 'ok';
+  add({ id: 'short-skills', label: `the short commands are installed (${shorts.map((sk) => `/${sk.name}`).join(', ')})`, status: shortsStatus, fix: shortsStatus === 'differs' ? 'ppc init --apply --update' : 'ppc init --apply' });
+  // Spec Kit writes a long-named skill for every extension command each time an extension is added: while one is still to be
+  // added, removing them is still to do, so that it runs after.
+  const extensionsPending = EXTENSIONS.some(({ id }) => !extensionOk[id] || staleExtensions.has(id));
 
   // ── the steps that would fix what is missing ──
   const steps = [
@@ -165,8 +176,10 @@ export function plan(root, env, { shim = false, allowUntested = false, update = 
       { id: `extension-${id}`, title: `Install the ${id} extension`, command: [specify, 'extension', 'add', join(suite, dir), '--dev'], cwd: root, done: extensionOk[id] },
     ]),
     ...DROPPED_SKILLS.map((name) => ({ id: `drop-${name}`, title: `Remove the ${name} skill, which this flow does not use`, remove: join(root, '.claude/skills', name), done: hasSpecify && !existsSync(join(root, '.claude/skills', name)) })),
+    ...longSkillNames(suite).map((name) => ({ id: `drop-long-${name}`, title: `Remove the long-named skill ${name}: a short command replaces it, or a hook runs it from extension.yml`, remove: join(root, '.claude/skills', name), done: !extensionsPending && !existsSync(join(root, '.claude/skills', name)) })),
     // missing: written; different: left alone unless --update, since a person may have edited it
     { id: 'pp-skill', title: 'Install the /pp skill', target: ppTarget, content: ppSource, mode: 0o644, done: ppStatus === 'ok' || (ppStatus === 'differs' && !update) },
+    ...shorts.map((sk, i) => ({ id: `short-${sk.name}`, title: `Install /${sk.name}`, target: shortTarget(sk.name), content: sk.content, mode: 0o644, done: shortStatus[i] === 'ok' || (shortStatus[i] === 'differs' && !update) })),
   ];
   if (shim) {
     const dir = pathDirs.find((d) => d === join(home, '.local/bin'));
