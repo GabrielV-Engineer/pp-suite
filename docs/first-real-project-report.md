@@ -307,3 +307,28 @@ the debt register, the session transcript (searched for guard confirmations and 
   braces); and F-K5 again (above), **fixed**.
 - **Still open:** F-K3, F-K4, the residual of F-K6, and what was never tried (No on the confirmation, bypass mode, the strict cycle, mutation
   testing). Claude Code is 2.1.322 here; the pinned, tested version is 2.1.310.
+
+---
+
+# Review, 2026-11-12 evening: SL-022 and SL-005, and the first run with the short commands
+
+Sources: the git history, `ppc overview`, `validate --strict`, `check-git`, `PPSUITE-LOG.md` (lines 717 to 724), `.sddpp/answers.jsonl` and the
+session transcript after row 1800 (searched for decisions, panel questions, guard answers and the word "terminal"). Nothing was changed in the project.
+
+- **State:** 6 of 22 slices done (SL-001 to SL-005 and SL-022), all in the light cycle; `validate --strict` and `check-git` 0 and 0. SL-022
+  (the fix from CR-0006) closed at 242 production and 155 test lines, SL-005 at 402 and 146, both under the 500-line budget without an exception.
+- **The product:** SL-022 cut the owner's simulated session from 320 to 209 turns, with 0 duplicated, 0 empty and 0 English-filler turns
+  (74, 31 and 28 before), as the agent measured and reported. Six filler turns slip through (DEBT-PIPE-006); speaker mistakes and misheard words remain
+  for later slices. Not checked by me: I did not rerun the transcription.
+- **Before the update** (the long names), the agent still sent the person to the terminal for CR-0006, SL-022, SL-005 and DEBT-PIPE-006,
+  and none of those is in the ledger: the four were decided by hand.
+- **After the update** (`32a7ab1`, the short names): one `/pp` started SL-005, built it (with the owner's design skills and a look at
+  the screen in a browser), ran the audit, and stopped at the two new debt entries, asked in the panel. Eight minutes and no other prompt. The panel
+  question was the one `ppc ask` writes, with a recommendation the agent added to the question text; it did not explain the options in the chat first,
+  as the skill now asks.
+- **New finding F-L1 (mine to fix):** the two panel answers (DEBT-UI-001 and DEBT-UI-002, 13:17) are unused: the session ended before the
+  commands ran, and an answer is good for 30 minutes, so the next `/pp` has to ask again. Nothing wrong was approved; the person may not
+  know the answer was lost.
+- **F-D7 (the log's, confirmed in the code):** a `fix` slice that pays debt through a change request cannot mark it paid; only a refactor slice
+  may (`paid_by`, rule `T10`, `ppc schedule-debt`). DEBT-PIPE-005 and DEBT-PIPE-002 stay open although SL-022 paid them. A decision for the owner.
+- **Still not exercised:** the strict cycle, mutation testing, pressing No, the bypass mode.
