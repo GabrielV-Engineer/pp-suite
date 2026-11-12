@@ -12,9 +12,14 @@ function section(body, name) {
   return match?.[1].trim() || undefined;
 }
 const oneLine = (text) => text.replace(/\s*\n\s*/g, ' ');
+// What to read before deciding, as links the chat (and VS Code) can open: the person gets the file at once, not a path to look for.
+const readList = (paths) => {
+  const unique = [...new Set(paths.filter(Boolean))];
+  return unique.length ? ['', 'Read:', ...unique.map((p) => `  [${p}](${p})`)] : [];
+};
 const bullets = (text) => text.split('\n').map((l) => l.replace(/^\s*[-*]\s*/, '').trim()).filter(Boolean);
 
-function sliceCard(entry, { redFiles } = {}) {
+function sliceCard(entry, { redFiles, auditInput } = {}) {
   const s = entry.data;
   const red = s.status === 'in_progress' && s.phase === 'red';
   const out = [`${s.id}  ${s.title}`, row('Kind', `${s.type}${s.mode ? `, ${s.mode} cycle` : ''}`)];
@@ -26,9 +31,11 @@ function sliceCard(entry, { redFiles } = {}) {
   if (s.depends_on?.length) out.push(row('Waits for', s.depends_on.join(', ')));
   if (red) {
     out.push('', `The red tests are the specification of this slice: approve them only if they say what you want.`, row('Red tests', (redFiles?.length ? redFiles : ['(none found in the red commit)']).join(', ')));
+    out.push(...readList([...(redFiles ?? []), entry.file]));
     out.push('', 'To approve them:  ppc approve');
   } else {
-    out.push('', `To approve it to start:  ppc approve ${s.id}`);
+    out.push(...readList([entry.file, s.status === 'in_progress' && auditInput ? AUDIT_INPUT : null]));
+    if (s.status === 'planned') out.push('', `To approve it to start:  ppc approve ${s.id}`);
   }
   return out.join('\n');
 }
@@ -37,16 +44,22 @@ function debtCard(register, entry) {
   const out = [`${entry.id}  ${entry.title}`, row('Component', entry.component), row('What', oneLine(entry.description ?? ''))];
   if (entry.cost_of_delay) out.push(row('Cost of waiting', `${entry.cost_of_delay.level} — ${entry.cost_of_delay.rationale}`));
   if (entry.trigger) out.push(row('Look again', entry.trigger));
+  out.push(...readList([register.file]));
   out.push('', `To keep it as debt to pay:  ppc approve ${entry.id}`, `To live with it, with a reason:  ppc approve ${entry.id} --accept "<why>"`, `To drop it:  ppc approve ${entry.id} --drop --reason "<why>"`);
   return out.join('\n');
 }
 
-function changeCard(entry) {
+function changeCard(model, entry) {
   const out = [`${entry.data.id}  ${entry.data.title}`, row('Raised by', entry.data.raised_by), row('Status', entry.data.status)];
   const problem = section(entry.body, 'Problem');
   if (problem) out.push(row('Problem', oneLine(problem)));
   const proposal = section(entry.body, 'Proposal');
   if (proposal) out.push(row('Proposal', oneLine(proposal)));
+  // the request, then the parts of the design it would change: the blueprint holds the quality attributes, budgets and
+  // components; architecture.md describes the components; each decision has its own file
+  const affects = entry.data.affects ?? {};
+  const adrs = (affects.adrs ?? []).map((id) => model.adrs.find((a) => a.data.id === id)?.file);
+  out.push(...readList([entry.file, model.blueprint?.file, affects.components?.length ? '.architect/architecture.md' : null, ...adrs]));
   out.push('', `To accept it:  ppc decide-change ${entry.data.id} --accept`, `To reject it:  ppc decide-change ${entry.data.id} --reject --reason "<why>"`);
   return out.join('\n');
 }
@@ -60,6 +73,7 @@ function rereadCard(model) {
   const out = [`The design is at revision ${revision}; ${behind.length} slice${behind.length === 1 ? '' : 's'} were planned against an older one`];
   out.push(row('Changed since', changes.length ? '' : 'a revision without an applied change request (see the design)'), ...changes.map((c) => `      - ${c.id}: ${c.title}`));
   out.push(row('Slices behind', behind.map((s) => `${s.id} (revision ${s.blueprint_revision})`).join(', ')));
+  out.push(...readList([...model.changeRequests.filter((c) => changes.includes(c.data)).map((c) => c.file), model.blueprint.file]));
   out.push('', 'Reading them means you looked at what changed and the slices still fit.', '', 'To say so for all of them:  ppc reread --all', 'For some:  ppc reread SL-003 SL-004');
   return out.join('\n');
 }
@@ -77,7 +91,7 @@ export function renderDecision(model, id, extra = {}) {
     if (entry) return `${debtCard(register, entry)}\n`;
   }
   const change = model.changeRequests.find((c) => c.data.id === id);
-  return change ? `${changeCard(change)}\n` : null;
+  return change ? `${changeCard(model, change)}\n` : null;
 }
 
 /** The files the red commit of a slice changed, or [] when there is none or this is not a git repository. */

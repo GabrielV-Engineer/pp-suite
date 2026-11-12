@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { loadProject } from '../src/load.mjs';
 import { validateModel, designFindings, RULES } from '../src/validate.mjs';
@@ -13,7 +13,7 @@ import { homedir } from 'node:os';
 import { applyChange, decideChange, openChange } from '../src/changes.mjs';
 import { sessionContext, gitSubjects, gitUserName, buildFacts } from '../src/session.mjs';
 import { renderAdditions } from '../src/additions.mjs';
-import { renderDecision, askFor, redCommitFiles, DecisionError } from '../src/decisions.mjs';
+import { renderDecision, askFor, redCommitFiles, DecisionError, AUDIT_INPUT } from '../src/decisions.mjs';
 import { buildPrompts, resolveTarget, writePrompts } from '../src/prompts.mjs';
 import { start, approve, reread, approveSlice, approveRed, approveDebt, scheduleDebt, decideAddition, toRefactor, finish, mutate, status, LifecycleError } from '../src/lifecycle.mjs';
 
@@ -191,7 +191,7 @@ switch (command) {
     const id = positionals.find((p) => /^([A-Z]+-|reread$)/.test(p) && !p.includes('/'));
     const root = resolve(positionals.find((p) => p !== id) ?? '.');
     const model = loadProject(root);
-    const card = id ? renderDecision(model, id, { redFiles: redCommitFiles(root, id) }) : null;
+    const card = id ? renderDecision(model, id, { redFiles: redCommitFiles(root, id), auditInput: existsSync(join(root, AUDIT_INPUT)) }) : null;
     if (!card) {
       console.error(id ? `${id}: there is nothing with that id (a slice SL-…, a debt entry DEBT-… or a change request CR-…)` : 'usage: ppc show <id> [dir]');
       process.exit(1);

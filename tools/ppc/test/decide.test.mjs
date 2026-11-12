@@ -386,3 +386,54 @@ test('CLI: ppc ask <slice> --budget-reason prints the question; a reason it cann
   assert.equal(bad.status, 1);
   assert.match(bad.stderr, /double quote/);
 });
+
+// The owner's request (2026-11-12): when the person has to read something to decide, the file comes as a link at once.
+const link = (path) => `[${path}](${path})`;
+test('show: every card ends with the files to read, as links', (t) => {
+  const r = repo(t);
+  planSl001(r);
+  const model = loadProject(r.dir);
+  const slice = renderDecision(model, 'SL-001');
+  assert.match(slice, /^Read:$/m);
+  assert.ok(slice.includes(link('.sddpp/slices/SL-001-deployable-skeleton.md')), slice);
+  assert.ok(renderDecision(model, 'DEBT-BE-001').includes(link('.sddpp/debt.yaml')));
+  const change = renderDecision(model, 'CR-0001');
+  assert.ok(change.includes(link('.sddpp/change-requests/CR-0001-define-the-maximum-title-length.md')) || /\[\.sddpp\/change-requests\/CR-0001[^\]]*\]\(/.test(change), change);
+  assert.ok(change.includes(link('.architect/blueprint.yaml')), 'the quality attribute it affects lives in the blueprint');
+  Object.assign(sl(model, 'SL-002'), { status: 'in_progress', phase: 'red' });
+  const red = renderDecision(model, 'SL-002', { redFiles: ['tests/tasks.test.ts'] });
+  assert.ok(red.includes(link('tests/tasks.test.ts')), 'the red tests first');
+  sl(model, 'SL-002').phase = 'build'; // being closed now
+  const exception = renderDecision(model, 'SL-002', { auditInput: true });
+  assert.ok(exception.includes(link('.sddpp/audit-input.json')), 'the audit input, when it exists');
+  assert.ok(!renderDecision(model, 'SL-002', {}).includes('audit-input'), 'and not when it does not');
+});
+
+test('show: a change request that names a decision or a component links to it', (t) => {
+  const model = loadProject(repo(t).dir);
+  const cr = model.changeRequests[0].data;
+  cr.affects = { adrs: ['ADR-0001'], components: ['backend'] };
+  const card = renderDecision(model, cr.id);
+  assert.ok(card.includes(link('.architect/decisions/ADR-0001-sqlite-storage.md')), card);
+  assert.ok(card.includes(link('.architect/architecture.md')));
+});
+
+test('show reread: the change requests applied since, and the blueprint, as links', (t) => {
+  const r = repo(t);
+  const model = loadProject(r.dir);
+  model.blueprint.data.revision = 3;
+  Object.assign(model.changeRequests[0].data, { status: 'applied', blueprint_revision: 1 });
+  const card = renderDecision(model, 'reread');
+  assert.ok(card.includes(link(model.changeRequests[0].file)), card);
+  assert.ok(card.includes(link('.architect/blueprint.yaml')));
+});
+
+test('CLI: ppc show links the audit input only when it is there', (t) => {
+  const r = repo(t);
+  const file = join(r.dir, '.sddpp/slices/SL-001-deployable-skeleton.md');
+  r.write({ '.sddpp/slices/SL-001-deployable-skeleton.md': readFileSync(file, 'utf8').replace(/^status: ready$/m, 'status: in_progress\nphase: build\nmode: light'), '.sddpp/active.json': '{"slice":"SL-001","phase":"build"}\n' });
+  const show = () => spawnSync('node', [CLI, 'show', 'SL-001'], { cwd: r.dir, encoding: 'utf8' }).stdout;
+  assert.doesNotMatch(show(), /audit-input/);
+  r.write({ '.sddpp/audit-input.json': '{}\n' });
+  assert.match(show(), /\[\.sddpp\/audit-input\.json\]\(\.sddpp\/audit-input\.json\)/);
+});
