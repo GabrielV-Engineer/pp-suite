@@ -326,9 +326,12 @@ session transcript after row 1800 (searched for decisions, panel questions, guar
   the screen in a browser), ran the audit, and stopped at the two new debt entries, asked in the panel. Eight minutes and no other prompt. The panel
   question was the one `ppc ask` writes, with a recommendation the agent added to the question text; it did not explain the options in the chat first,
   as the skill now asks.
-- **New finding F-L1 (mine to fix):** the two panel answers (DEBT-UI-001 and DEBT-UI-002, 13:17) are unused: the session ended before the
-  commands ran, and an answer is good for 30 minutes, so the next `/pp` has to ask again. Nothing wrong was approved; the person may not
-  know the answer was lost.
-- **F-D7 (the log's, confirmed in the code):** a `fix` slice that pays debt through a change request cannot mark it paid; only a refactor slice
-  may (`paid_by`, rule `T10`, `ppc schedule-debt`). DEBT-PIPE-005 and DEBT-PIPE-002 stay open although SL-022 paid them. A decision for the owner.
+- **New finding F-L1:** the two panel answers (DEBT-UI-001 and DEBT-UI-002) and the next one (SL-006) were never used. The first reading,
+  that the session ended, was wrong: the transcript shows the agent ran `ppc approve DEBT-UI-001 2>&1 | tail -2`; the `2>&1` stayed in the
+  command, the answer did not match, and the guard asked again (the person confirmed 18 minutes later; for SL-006, 6 seconds later).
+  **Fixed:** redirections are left out when a command is matched (`8b6db53`), and `ppc next`, the session hook and `/pp` now show an answer
+  nothing used, run it while it is valid and ask again after (`41a744f`).
+- **F-D7 (the log's, confirmed in the code):** a `fix` slice that pays debt through a change request could not mark it paid; only a refactor
+  slice could (`paid_by`, rule `T09`, `ppc schedule-debt`). **Fixed** by the owner's choice (`320a88a`): a fix slice may pay debt, and
+  `ppc schedule-debt DEBT-PIPE-005 --slice SL-022` on the done slice records it paid at once.
 - **Still not exercised:** the strict cycle, mutation testing, pressing No, the bypass mode.
