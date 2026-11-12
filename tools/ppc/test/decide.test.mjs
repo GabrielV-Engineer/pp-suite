@@ -9,7 +9,7 @@ import { loadProject } from '../src/load.mjs';
 import { validateModel } from '../src/validate.mjs';
 import { nextSteps, nextJson } from '../src/next.mjs';
 import { approve, start, LifecycleError } from '../src/lifecycle.mjs';
-import { renderDecision, askFor } from '../src/decisions.mjs';
+import { renderDecision, askFor, DecisionError } from '../src/decisions.mjs';
 import { CLI, lines, repo } from './helpers.mjs';
 
 const slice = (dir, id) => loadProject(dir).slices.find((s) => s.data.id === id).data;
@@ -325,8 +325,10 @@ test('the commands in the labels are exactly what the guard accepts once the per
   const env = { ...process.env, CLAUDE_PROJECT_DIR: scratch };
   const py = (script, payload) => spawnSync('python3', ['-I', join(GUARD_SCRIPTS, script)], { input: JSON.stringify(payload), encoding: 'utf8', env, cwd: scratch });
   let n = 0;
-  for (const id of ['SL-001', 'DEBT-BE-001', 'CR-0001', 'reread']) {
-    for (const option of withCommand(askFor(model, id))) {
+  sl(model, 'SL-002').status = 'in_progress'; // a slice being closed, for the exception questions
+  const exception = { budgetReason: "the owner's lock file is generated; hand-written code is about 390", mutationReason: 'a reason that is long enough' };
+  for (const [id, extra] of [['SL-001'], ['DEBT-BE-001'], ['CR-0001'], ['reread'], ['SL-002', exception], ['SL-002', { budgetReason: exception.budgetReason }]]) {
+    for (const option of withCommand(askFor(model, id, extra))) {
       n += 1;
       const command = option.label.split(' — ').at(-1);
       const answers = { [`Q${n}?`]: option.label };
@@ -335,5 +337,52 @@ test('the commands in the labels are exactly what the guard accepts once the per
       assert.equal(verdict.status, 0, `${command}: ${verdict.stderr}`);
     }
   }
-  assert.ok(n >= 6);
+  assert.ok(n >= 8);
+});
+
+const sl = (m, id) => m.slices.find((x) => x.data.id === id).data;
+
+// Found in the first real project: the agent built the budget-exception question by hand. It worked once and failed once, when a `;`
+// in the reason was not matched. ppc now writes it, like every other decision, so the label is always what the guard accepts.
+test('ask: an exception to the budget or the mutation score is a question with the exact ppc finish command', (t) => {
+  const model = loadProject(repo(t).dir);
+  sl(model, 'SL-002').status = 'in_progress';
+  const reason = 'generated lock file; hand-written code is about 390';
+  const budget = withCommand(askFor(model, 'SL-002', { budgetReason: reason }));
+  assert.deepEqual(budget.map((o) => o.label.split(' — ').at(-1)), [`ppc finish SL-002 --audit .sddpp/audit-input.json --budget-reason "${reason}"`]);
+  const both = withCommand(askFor(model, 'SL-002', { budgetReason: reason, mutationReason: 'the parser mutants are equivalent' }));
+  assert.match(both[0].label, /--budget-reason "[^"]+" --mutation-reason "the parser mutants are equivalent"$/);
+  assert.match(askFor(model, 'SL-002', { budgetReason: reason }).questions[0].question, new RegExp(reason));
+  assert.equal(askFor(model, 'SL-001', { budgetReason: reason }), null, 'only a slice in progress can be closed with an exception');
+  assert.throws(() => askFor(model, 'SL-002', { budgetReason: 'say "no"' }), (e) => e instanceof DecisionError && /double quote/.test(e.message));
+  assert.throws(() => askFor(model, 'SL-002', { budgetReason: 'short' }), (e) => e instanceof DecisionError && /10 characters/.test(e.message));
+});
+
+test('ask: every option says what happens if the person picks it, and no two options of a question say the same', (t) => {
+  const r = repo(t);
+  planSl001(r);
+  const model = loadProject(r.dir);
+  sl(model, 'SL-002').status = 'in_progress';
+  for (const [id, extra] of [['SL-001'], ['DEBT-BE-001'], ['CR-0001'], ['SL-002', { budgetReason: 'a reason that is long enough' }]]) {
+    const options = askFor(model, id, extra).questions[0].options;
+    for (const o of options) assert.ok(o.description.length >= 15, `${id}: "${o.label}" says what happens (${o.description})`);
+    assert.equal(new Set(options.map((o) => o.description)).size, options.length, `${id}: each option says something different`);
+  }
+  const yes = askFor(model, 'SL-001').questions[0].options[0].description;
+  assert.match(yes, /ready/);
+  const change = askFor(model, 'CR-0001').questions[0].options.map((o) => o.description).join(' | ');
+  assert.match(change, /revised/);
+  assert.match(change, /stays as it is/);
+});
+
+test('CLI: ppc ask <slice> --budget-reason prints the question; a reason it cannot carry is refused', (t) => {
+  const r = repo(t);
+  const file = join(r.dir, '.sddpp/slices/SL-001-deployable-skeleton.md');
+  r.write({ '.sddpp/slices/SL-001-deployable-skeleton.md': readFileSync(file, 'utf8').replace(/^status: ready$/m, 'status: in_progress\nphase: build\nmode: light'), '.sddpp/active.json': '{"slice":"SL-001","phase":"build"}\n' });
+  const out = spawnSync('node', [CLI, 'ask', 'SL-001', '--budget-reason', 'the lock file is generated by the tool'], { cwd: r.dir, encoding: 'utf8' });
+  assert.equal(out.status, 0, out.stderr);
+  assert.match(JSON.parse(out.stdout).questions[0].options[0].label, /ppc finish SL-001 --audit \.sddpp\/audit-input\.json --budget-reason "the lock file is generated by the tool"$/);
+  const bad = spawnSync('node', [CLI, 'ask', 'SL-001', '--budget-reason', 'say "no" please'], { cwd: r.dir, encoding: 'utf8' });
+  assert.equal(bad.status, 1);
+  assert.match(bad.stderr, /double quote/);
 });

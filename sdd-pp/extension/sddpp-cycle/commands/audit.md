@@ -16,17 +16,35 @@ $ARGUMENTS
 - Never provide the sizes or the mutation score. `ppc finish` measures production and test lines from git, and,
   when the blueprint sets `budgets.min_mutation_score`, runs mutation testing itself (it can take minutes).
 - If `ppc finish` refuses because the mutation score is below the gate, do **not** write
-  `mutation_override_reason` yourself and do not edit tests (they are locked). Stop and report the score,
-  the surviving mutants and the options: reopen the tests with the human, or a recorded exception.
+  `mutation_override_reason` yourself and do not edit tests (they are locked). Stop, report the score and
+  the surviving mutants, and put the choice to the person: a recorded exception (`ppc ask <id> --mutation-reason "<the
+  reason you propose>"`, see **When the person decides**), or reopening the tests.
 - For every surviving mutant you leave, propose a debt entry of kind `test` instead of hiding it.
 - If `ppc finish` refuses because the slice exceeded the production-code budget (`B01`), do **not** write
-  `budget_override_reason` yourself and never pass `--budget-reason` (the guard blocks it). An exception to the budget is the human's decision. Stop and report
-  the measured size, what it is made of, and the options (record an exception, or split the slice).
+  `budget_override_reason` yourself and never pass `--budget-reason` unless the person picked that command in the panel (the
+  guard blocks it otherwise). An exception to the budget is the person's decision: report the measured size and what it is
+  made of, then put it to them (`ppc ask <id> --budget-reason "<the reason you propose>"`, see **When the person decides**);
+  the other way out is to split the slice.
 - Tests are measured from git, not reported. If the slice changed no test files, `ppc finish` refuses it when the test policy
   is `required`, and otherwise proposes a debt entry of kind `test` itself: do not write that entry yourself, and do not
-  claim tests that are not in the commits. A person decides on the proposal with `ppc approve-debt`.
+  claim tests that are not in the commits. A person decides on the proposal (see **When the person decides**).
 - Say what you verified and what you did not. Run the project's tests and type check before finishing; if
   a command is refused, write that in the deviations instead of implying it passed.
+
+## When the person decides
+
+Approving a slice or its red tests, accepting or rejecting a change request, deciding a debt entry, an exception to the
+budget or the mutation score, and saying they read what changed in the design are the person's decisions. Never give them
+a command to type in a terminal. Instead:
+
+1. Run `ppc show <id>` and say in your own words what it is and what each choice means. Write every file they should
+   read as a link, `[path](path)`.
+2. Run `ppc ask <id>` (for an exception: `ppc ask <slice> --budget-reason "<the reason you propose>"`, or
+   `--mutation-reason`) and ask exactly that question with the AskUserQuestion tool: the same options in the same order,
+   without an `answers` field. You may put the words in the person's language; everything after the last ` — ` stays as
+   printed. Before the panel, say in one line per option what happens if they pick it.
+3. Run the command of the option they picked, exactly. For any other answer, run no approval. Only if the guard refuses
+   the command, say so and give them the command to run themselves.
 
 ## Steps
 
@@ -73,5 +91,6 @@ $ARGUMENTS
 6. Run `ppc finish <id> --audit .sddpp/audit-input.json`. If it refuses, read why, fix the cause and run
    it again. It either closes the slice or changes nothing.
 7. Delete `.sddpp/audit-input.json` and commit the bookkeeping with `chore(<id>): close slice`.
-8. Report to the human: what shipped, the measured size, debt proposed (they decide), and deviations.
+8. Report to the person: what shipped, the measured size, the deviations and the debt proposed. Then put each proposed
+   debt entry to them, one question each (`ppc ask DEBT-…`, see **When the person decides**).
 9. Ask the person whether they want the prompts for the next task prepared (`/speckit-sddpp-cycle-prompts`; the next task is the one `ppc next` names). Do it only if they say yes.

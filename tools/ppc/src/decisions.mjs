@@ -100,41 +100,63 @@ export const ACCEPT_REASON = 'accepted in the panel';
 export const REJECT_REASON = 'rejected in the panel';
 export const DROP_REASON = 'dropped in the panel';
 const SAY_NO = [
-  { label: 'I want to change something', description: 'Nothing is decided; say what to change' },
-  { label: 'Not yet', description: 'Leave it for later' },
+  { label: 'I want to change something', description: 'Nothing is decided yet; say what to change and it is redone' },
+  { label: 'Not yet', description: 'Nothing is decided; it waits for you' },
 ];
 const choose = (words, command, description) => ({ label: `${words} — ${command}`, description });
+export class DecisionError extends Error {}
+// The audit input the audit skill writes; `ppc finish` reads it.
+export const AUDIT_INPUT = '.sddpp/audit-input.json';
+
+/** A reason that a label can carry as one quoted argument, or an error that says why not. */
+function carried(flag, reason) {
+  if (reason === undefined) return '';
+  if (reason.includes('"')) throw new DecisionError(`${flag}: the reason cannot contain a double quote; reword it`);
+  if (reason.trim().length < 10) throw new DecisionError(`${flag}: the reason needs at least 10 characters`);
+  return ` ${flag} "${reason.trim()}"`;
+}
 
 /** The panel question (the input of the AskUserQuestion tool) for a decision, or null when there is nothing to decide on that id. */
-export function askFor(model, id, { redFiles } = {}) {
+export function askFor(model, id, { redFiles, budgetReason, mutationReason } = {}) {
   if (id === 'reread') {
     const behind = model.slices.map((s) => s.data).filter((s) => !['done', 'dropped'].includes(s.status) && s.blueprint_revision < model.blueprint.data.revision);
     if (!behind.length) return null;
-    return { questions: [{ question: `The design changed after ${behind.length} slice${behind.length === 1 ? ' was' : 's were'} planned (${behind.map((s) => s.id).join(', ')}). Did you read what changed, and do they still fit?`, header: 'Design', multiSelect: false, options: [choose('Yes, I read it', 'ppc reread --all', 'The slices are marked as planned against the current design'), ...SAY_NO] }] };
+    return { questions: [{ question: `The design changed after ${behind.length} slice${behind.length === 1 ? ' was' : 's were'} planned (${behind.map((s) => s.id).join(', ')}). Did you read what changed, and do they still fit?`, header: 'Design', multiSelect: false, options: [choose('Yes, I read it', 'ppc reread --all', 'The slices count as planned against the current design, and the warning goes away'), ...SAY_NO] }] };
   }
   const slice = model.slices.find((s) => s.data.id === id)?.data;
+  if (budgetReason !== undefined || mutationReason !== undefined) {
+    // An exception to a rule is recorded by `ppc finish`; the reason is the one the agent proposes and the person sees in full.
+    const flags = carried('--budget-reason', budgetReason) + carried('--mutation-reason', mutationReason);
+    if (slice?.status !== 'in_progress') return null;
+    const what = [budgetReason && `the size budget ("${budgetReason.trim()}")`, mutationReason && `the mutation score ("${mutationReason.trim()}")`].filter(Boolean).join(' and ');
+    return { questions: [{ question: `${id} "${slice.title}" can close only with an exception to ${what}. Record it?`, header: 'Exception', multiSelect: false, options: [
+      choose('Yes, record the exception', `ppc finish ${id} --audit ${AUDIT_INPUT}${flags}`, 'The slice closes, with this reason recorded in its audit'),
+      { label: 'No', description: 'It stays open: split it, or change the code until it fits' },
+      { label: 'Not yet', description: 'Nothing is decided; it waits for you' },
+    ] }] };
+  }
   if (slice?.status === 'planned') {
-    return { questions: [{ question: `Approve ${id} "${slice.title}" to start?`, header: 'Slice', multiSelect: false, options: [choose('Yes, approve it', `ppc approve ${id}`, 'The slice becomes ready to start'), ...SAY_NO] }] };
+    return { questions: [{ question: `Approve ${id} "${slice.title}" to start?`, header: 'Slice', multiSelect: false, options: [choose('Yes, approve it', `ppc approve ${id}`, 'It becomes ready, and the build can start'), ...SAY_NO] }] };
   }
   if (slice?.status === 'in_progress' && slice.phase === 'red') {
     const files = redFiles?.length ? ` (${redFiles.join(', ')})` : '';
-    return { questions: [{ question: `Do the red tests of ${id}${files} say what you want? They are the specification.`, header: 'Red tests', multiSelect: false, options: [choose('Yes, approve the tests', 'ppc approve', 'The slice moves to green'), ...SAY_NO] }] };
+    return { questions: [{ question: `Do the red tests of ${id}${files} say what you want? They are the specification.`, header: 'Red tests', multiSelect: false, options: [choose('Yes, approve the tests', 'ppc approve', 'The tests are locked and the code is written to pass them (green)'), ...SAY_NO] }] };
   }
   const debt = model.debt.flatMap((d) => d.data.entries).find((e) => e.id === id);
   if (debt?.status === 'proposed') {
     return { questions: [{ question: `What do we do with ${id} "${debt.title}"?`, header: 'Debt', multiSelect: false, options: [
-      choose('Pay it later', `ppc approve ${id}`, 'It becomes a real debt to schedule'),
-      choose('Live with it', `ppc approve ${id} --accept "${ACCEPT_REASON}"`, 'Accepted, with the reason recorded'),
-      choose('Drop it', `ppc approve ${id} --drop --reason "${DROP_REASON}"`, 'Discarded, with the reason recorded'),
-      { label: 'Not yet', description: 'Leave it for later' },
+      choose('Pay it later', `ppc approve ${id}`, 'Open debt: it stays on the list, to be scheduled and paid'),
+      choose('Live with it', `ppc approve ${id} --accept "${ACCEPT_REASON}"`, 'Accepted for good: it is recorded and will not be paid'),
+      choose('Drop it', `ppc approve ${id} --drop --reason "${DROP_REASON}"`, 'Discarded: it was not a real debt'),
+      { label: 'Not yet', description: 'Nothing is decided; it waits for you' },
     ] }] };
   }
   const change = model.changeRequests.find((c) => c.data.id === id)?.data;
   if (change?.status === 'open') {
     return { questions: [{ question: `${id} "${change.title}": change the design as proposed?`, header: 'Change', multiSelect: false, options: [
-      choose('Yes, accept it', `ppc decide-change ${id} --accept`, 'The design will be revised'),
-      choose('No, reject it', `ppc decide-change ${id} --reject --reason "${REJECT_REASON}"`, 'The design stays as it is'),
-      { label: 'Not yet', description: 'Leave it for later' },
+      choose('Yes, accept it', `ppc decide-change ${id} --accept`, 'The design is revised as proposed, then the paused slice continues'),
+      choose('No, reject it', `ppc decide-change ${id} --reject --reason "${REJECT_REASON}"`, 'The design stays as it is; the slice goes on without the change'),
+      { label: 'Not yet', description: 'Nothing is decided; it waits for you' },
     ] }] };
   }
   return null;

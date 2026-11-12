@@ -57,6 +57,15 @@ test('it orients an agent that has never seen the project: ppc next first, what 
   for (const review of ['clarify', 'analyze', 'converge']) assert.match(out, new RegExp(`-${review}`), review);
 });
 
+// Found in the first real project: agents told the person to run approvals in a terminal. The rules every session reads say how to ask.
+test('it says that a person decides in the question panel, never in a terminal', () => {
+  const out = text();
+  assert.match(out, /`ppc ask <id>`/);
+  assert.match(out, /question panel/);
+  assert.match(out, /only the command they pick/);
+  assert.match(out, /Never send them to a terminal/);
+});
+
 test('it states the cycle and the test policy that apply, and changes with them', () => {
   const m = model();
   assert.match(renderConstitution(m), /Default cycle: strict/);

@@ -24,3 +24,26 @@ test('the debt entry template survives free text with commas, colons, hashes, qu
 test('the template tells the agent to quote free text', () => {
   assert.match(readFileSync(AUDIT, 'utf8'), /double quotes/i);
 });
+
+// Found in the first real project: three times the agent told the person to type `ppc decide-change` or `ppc approve` "in VS Code's
+// terminal", because only /pp knew how to ask in the question panel. Every skill that can meet a decision now carries the same text.
+const SUITE = fileURLToPath(new URL('../../../', import.meta.url));
+const DECIDES = readFileSync(`${SUITE}sdd-pp/shared/when-the-person-decides.md`, 'utf8').trim();
+const CYCLE = (name) => `${SUITE}sdd-pp/extension/sddpp-cycle/commands/${name}.md`;
+const ARCHITECT = (name) => `${SUITE}architect-pp/extension/commands/${name}.md`;
+const MEETS_DECISIONS = [...['build', 'red', 'green', 'refactor', 'audit', 'slices', 'clarify'].map(CYCLE), ARCHITECT('apply-change')];
+const ALL_SKILLS = [...['build', 'red', 'green', 'refactor', 'audit', 'slices', 'clarify', 'analyze', 'converge', 'prompts', 'session-start'].map(CYCLE),
+  ...['handoff', 'apply-cuts', 'apply-change'].map(ARCHITECT), `${SUITE}sdd-pp/skills/pp/SKILL.md`];
+
+test('every skill that can meet a decision says how to put it to the person, in the same words', () => {
+  for (const file of MEETS_DECISIONS) assert.ok(readFileSync(file, 'utf8').includes(DECIDES), `${file} carries "When the person decides" verbatim`);
+});
+
+test('no skill sends the person to a terminal to approve or decide', () => {
+  for (const file of ALL_SKILLS) {
+    const text = readFileSync(file, 'utf8').replace(DECIDES, '');
+    assert.doesNotMatch(text, /terminal/i, `${file} mentions a terminal`);
+    assert.doesNotMatch(text, /prefix it with/i, `${file} tells the person to prefix a command`);
+    assert.doesNotMatch(text, /`ppc (approve|approve-slice|approve-red|approve-debt|decide-change|reread)[^`]*--by <[^>]+>`/, `${file} gives the person an approval command to type`);
+  }
+});

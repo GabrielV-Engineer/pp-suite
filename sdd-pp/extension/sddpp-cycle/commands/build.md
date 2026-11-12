@@ -20,9 +20,24 @@ $ARGUMENTS
   `ppc finish` proposes a debt entry for a person to decide; `none` means they are not asked for.
 - Stay inside the production-code budget (`budgets.max_slice_production_lines`). If the slice is growing past it,
   stop and say so: a person decides whether to split it.
-- If the design is wrong or silent about something this slice needs, **stop**. Do not decide it yourself and do not work around it: open a change request with `ppc change-request --slice <id> --title ... --problem ... --proposal ... --qa|--component|--adr ...`, tell the human, and wait. A person decides.
+- If the design is wrong or silent about something this slice needs, **stop**. Do not decide it yourself and do not work around it: open a change request with `ppc change-request --slice <id> --title ... --problem ... --proposal ... --qa|--component|--adr ...` and put it to the person (see **When the person decides**). If they accept it, the design is revised (`/speckit-architect-pp-apply-change`) before you go on; if not, go on without it, or stop and say what is blocked.
 - Respect the component boundaries in `.architect/architecture.md`. Nothing hardcoded that varies per environment.
 - Never approve anything and never write a decision field: those belong to people.
+
+## When the person decides
+
+Approving a slice or its red tests, accepting or rejecting a change request, deciding a debt entry, an exception to the
+budget or the mutation score, and saying they read what changed in the design are the person's decisions. Never give them
+a command to type in a terminal. Instead:
+
+1. Run `ppc show <id>` and say in your own words what it is and what each choice means. Write every file they should
+   read as a link, `[path](path)`.
+2. Run `ppc ask <id>` (for an exception: `ppc ask <slice> --budget-reason "<the reason you propose>"`, or
+   `--mutation-reason`) and ask exactly that question with the AskUserQuestion tool: the same options in the same order,
+   without an `answers` field. You may put the words in the person's language; everything after the last ` — ` stays as
+   printed. Before the panel, say in one line per option what happens if they pick it.
+3. Run the command of the option they picked, exactly. For any other answer, run no approval. Only if the guard refuses
+   the command, say so and give them the command to run themselves.
 
 ## Steps
 

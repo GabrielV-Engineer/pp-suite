@@ -1,0 +1,14 @@
+## When the person decides
+
+Approving a slice or its red tests, accepting or rejecting a change request, deciding a debt entry, an exception to the
+budget or the mutation score, and saying they read what changed in the design are the person's decisions. Never give them
+a command to type in a terminal. Instead:
+
+1. Run `ppc show <id>` and say in your own words what it is and what each choice means. Write every file they should
+   read as a link, `[path](path)`.
+2. Run `ppc ask <id>` (for an exception: `ppc ask <slice> --budget-reason "<the reason you propose>"`, or
+   `--mutation-reason`) and ask exactly that question with the AskUserQuestion tool: the same options in the same order,
+   without an `answers` field. You may put the words in the person's language; everything after the last ` — ` stays as
+   printed. Before the panel, say in one line per option what happens if they pick it.
+3. Run the command of the option they picked, exactly. For any other answer, run no approval. Only if the guard refuses
+   the command, say so and give them the command to run themselves.

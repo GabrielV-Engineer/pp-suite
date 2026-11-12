@@ -13,7 +13,7 @@ $ARGUMENTS
 - Behavior does not change. The proof is that **the existing tests pass, untouched**. A guard blocks editing
   them. If a test has to change, the behavior is changing: stop and tell the human, who can reopen a red phase
   in a new slice.
-- If the design is wrong or silent about something this slice needs, **stop**. Do not decide it yourself and do not work around it: open a change request with `ppc change-request --slice <id> --title ... --problem ... --proposal ... --qa|--component|--adr ...`, tell the human, and wait. A person decides.
+- If the design is wrong or silent about something this slice needs, **stop**. Do not decide it yourself and do not work around it: open a change request with `ppc change-request --slice <id> --title ... --problem ... --proposal ... --qa|--component|--adr ...` and put it to the person (see **When the person decides**). If they accept it, the design is revised (`/speckit-architect-pp-apply-change`) before you go on; if not, go on without it, or stop and say what is blocked.
 - Change the structure only: names, duplication, where code lives, how it is configured. No new feature, no
   new error branch, no new option, no new dependency.
 - Do only what the debt entries this slice pays describe (`pays` in the slice file). If you find other
@@ -22,6 +22,21 @@ $ARGUMENTS
   reach into another.
 - Small commits, one concern each, with the message `refactor(<id>): <what changed>`. Never mix a structural
   change with a behavior change.
+
+## When the person decides
+
+Approving a slice or its red tests, accepting or rejecting a change request, deciding a debt entry, an exception to the
+budget or the mutation score, and saying they read what changed in the design are the person's decisions. Never give them
+a command to type in a terminal. Instead:
+
+1. Run `ppc show <id>` and say in your own words what it is and what each choice means. Write every file they should
+   read as a link, `[path](path)`.
+2. Run `ppc ask <id>` (for an exception: `ppc ask <slice> --budget-reason "<the reason you propose>"`, or
+   `--mutation-reason`) and ask exactly that question with the AskUserQuestion tool: the same options in the same order,
+   without an `answers` field. You may put the words in the person's language; everything after the last ` — ` stays as
+   printed. Before the panel, say in one line per option what happens if they pick it.
+3. Run the command of the option they picked, exactly. For any other answer, run no approval. Only if the guard refuses
+   the command, say so and give them the command to run themselves.
 
 ## Steps
 

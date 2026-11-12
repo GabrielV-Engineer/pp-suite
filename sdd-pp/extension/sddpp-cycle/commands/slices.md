@@ -36,6 +36,21 @@ first; do not run those, and do not write `spec.md`, `plan.md` or `tasks.md`.
 - New slices are `status: planned`. Never write `approved_by`, `phase`, `red_approved_by`, `mode` or any decision field.
   Do not write debt.
 
+## When the person decides
+
+Approving a slice or its red tests, accepting or rejecting a change request, deciding a debt entry, an exception to the
+budget or the mutation score, and saying they read what changed in the design are the person's decisions. Never give them
+a command to type in a terminal. Instead:
+
+1. Run `ppc show <id>` and say in your own words what it is and what each choice means. Write every file they should
+   read as a link, `[path](path)`.
+2. Run `ppc ask <id>` (for an exception: `ppc ask <slice> --budget-reason "<the reason you propose>"`, or
+   `--mutation-reason`) and ask exactly that question with the AskUserQuestion tool: the same options in the same order,
+   without an `answers` field. You may put the words in the person's language; everything after the last ` — ` stays as
+   printed. Before the panel, say in one line per option what happens if they pick it.
+3. Run the command of the option they picked, exactly. For any other answer, run no approval. Only if the guard refuses
+   the command, say so and give them the command to run themselves.
+
 ## Steps
 
 1. Run `ppc contract` (where the slice schema and a worked example are) and `ppc validate . --design`. If additions are
@@ -51,6 +66,6 @@ first; do not run those, and do not write `spec.md`, `plan.md` or `tasks.md`.
    `components`, `depends_on`, `acceptance`), then `## Behavior` (two to four sentences) and `## Out of scope`.
 5. Run `ppc validate .` and fix every error. Read the warnings: fix the ones your files caused, report the others.
 6. Run `ppc overview` and report: the slices, the order, what is left for later.
-7. Tell the person the next step is theirs: `ppc approve-slice SL-001 --by <name>` for the slice they want to start
-   first. Then ask whether they want the prompts for the first task prepared (`/speckit-sddpp-cycle-prompts`); only if
+7. The next step is the person's: approving the slice they want to start first. Put it to them (`ppc ask <its id>`, see
+   **When the person decides**). Then ask whether they want the prompts for the first task prepared (`/speckit-sddpp-cycle-prompts`); only if
    they say yes.

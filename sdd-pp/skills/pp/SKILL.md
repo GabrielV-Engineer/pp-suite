@@ -11,23 +11,13 @@ State of the project, from `ppc next --json` (if this block is empty or says it 
 
 ## What to do, by `kind`
 
+If the person named an id (`$ARGUMENTS`, for example `SL-022`, `CR-0006` or `DEBT-PIPE-005`), decide that one first, as in
+**When the person decides**, even when `ppc next` names another: they chose which.
+
 Talk to the person in the language they write in, briefly. Do **one** step, then say what `/pp` will do next. Never chain two
 agent steps without them.
 
-- **`decision`**: a person decides, you carry it out.
-  - For a slice, its red tests, a debt entry or a change request:
-    1. Read what is being decided: `ppc show <decision.id>`. Say it in your own words in this message: what it is, what approving
-       it means, what it leaves out. Do not paste the raw card.
-    2. Get the question: `ppc ask <decision.id>`. Ask it with the AskUserQuestion tool: the same question and options, in the same
-       order, without an `answers` field, with `questions` as a list and not as text. You may put the words of the question and of each option in the person's language, but
-       **everything after the last ` — ` of an option is a command and must stay exactly as printed.**
-    3. If the person picked an option that ends with ` — ppc …`, run exactly that command. Their choice is the approval, so Claude
-       Code will not ask a second time. If they picked anything else ("I want to change something", "Not yet", their own words), run
-       no approval: for a change, ask what to change; otherwise stop.
-    4. If the command is refused, say so and give the person the command to run in a terminal. Do not look for another way around.
-    5. A debt entry the person drops with their own words ("drop it, because …"): the panel option records a fixed reason. If they
-       want theirs kept, run `ppc approve <DEBT-ID> --drop --reason "<their words, as they said them>"`. That is not the command they
-       picked, so Claude Code will ask them to confirm it; say so first.
+- **`decision`**: a person decides, you carry it out, as in **When the person decides** below (the id is `decision.id`).
   - For the additions (`type: additions`): `ppc additions`, ask the person which to cut or keep in the chat, then
     `ppc decide-addition --accept-recommended --but-cut <ids> --but-keep <ids> --reason "<why>"`.
   - Afterwards run `ppc next --json` and report in two lines.
@@ -39,6 +29,21 @@ agent steps without them.
 - **`run`**: run the `command` (for example `ppc start SL-001`), then `ppc next --json`.
 - **`human-step`**: tell the person what to do and with which command (for example The Architect's interview). Do not run it.
 - **`none`**: say what the headline says.
+
+## When the person decides
+
+Approving a slice or its red tests, accepting or rejecting a change request, deciding a debt entry, an exception to the
+budget or the mutation score, and saying they read what changed in the design are the person's decisions. Never give them
+a command to type in a terminal. Instead:
+
+1. Run `ppc show <id>` and say in your own words what it is and what each choice means. Write every file they should
+   read as a link, `[path](path)`.
+2. Run `ppc ask <id>` (for an exception: `ppc ask <slice> --budget-reason "<the reason you propose>"`, or
+   `--mutation-reason`) and ask exactly that question with the AskUserQuestion tool: the same options in the same order,
+   without an `answers` field. You may put the words in the person's language; everything after the last ` — ` stays as
+   printed. Before the panel, say in one line per option what happens if they pick it.
+3. Run the command of the option they picked, exactly. For any other answer, run no approval. Only if the guard refuses
+   the command, say so and give them the command to run themselves.
 
 ## Rules
 
