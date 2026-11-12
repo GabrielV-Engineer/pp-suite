@@ -98,8 +98,8 @@ One YAML register for the project (`.sddpp/debt.yaml`). Each entry names the com
 that component's code), and `also_affects` links the others. Status flow: `proposed` → `open` → `scheduled` → `paid` (or `accepted` / `dropped`).
 
 - Anything beyond `proposed` needs `approved_by`: the AI proposes, a human decides (`ppc approve-debt`).
-- `accepted` needs `accepted_reason`; `scheduled` and `paid` need `paid_by` (a refactor slice that lists
-  the debt in `pays`). `dropped` may carry `dropped_reason` (optional, at least 10 characters), the person's reason for discarding it.
+- `accepted` needs `accepted_reason`; `scheduled` and `paid` need `paid_by` (a refactor or a fix slice that
+  lists the debt in `pays`; a fix slice pays with a change of behavior, often born from a change request). `dropped` may carry `dropped_reason` (optional, at least 10 characters), the person's reason for discarding it.
 - `origin` says where it came from: a `slice`, a `decision` (ADR), the `blueprint`, or an `audit`.
 
 ## Rules checked by `ppc validate`
@@ -124,7 +124,7 @@ Errors fail validation; warnings fail only with `--strict`. `ppc rules` prints t
 | `T07` | error | A component references an unknown requirement or component. |
 | `T08` | error | An ADR references an unknown driver, evidence or ADR. |
 | `T09` | error | A debt entry is inconsistent with its component, origin or paying slice. |
-| `T10` | error | A refactor slice pays a debt entry that does not point back at it. |
+| `T10` | error | A slice pays a debt entry that does not point back at it. |
 | `T11` | error | A change request references an unknown slice, component, ADR or quality attribute. |
 | `T12` | error | An id is duplicated, or a file name does not match its id. |
 | `T13` | error | A slice audit references unknown decisions or debt, or debt with the wrong origin. |

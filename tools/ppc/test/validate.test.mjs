@@ -124,7 +124,7 @@ for (const [rule, [name, mutate]] of Object.entries(traceability)) {
   });
 }
 
-test('T09: debt must be paid by a refactor slice', () => {
+test('T09: debt must be paid by a refactor or a fix slice, not a feature slice', () => {
   const m = base();
   debtEntryOf(m, 'frontend').paid_by = 'SL-002';
   assert.ok(has(run(m), 'T09', 'error'));

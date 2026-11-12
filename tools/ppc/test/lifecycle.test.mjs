@@ -257,6 +257,20 @@ test('finish: a refactor slice marks the debt it pays as paid, and nothing else'
   assert.deepEqual(checkGit(loadProject(r.dir), r.dir), []);
 });
 
+// F-D7 in the first real project: a fix slice that pays debt (a change of behavior through a change request) marks it paid as well.
+test('finish: a fix slice marks the debt it pays as paid, like a refactor slice', (t) => {
+  const r = repo(t);
+  const file = '.sddpp/slices/SL-008-share-validation-rules.md';
+  const fix = read(r.dir, file).replace('type: refactor', 'type: fix\nmode: light').replace('status: planned', 'status: ready\napproved_by: reviewer')
+    .replace('depends_on: [SL-004]', 'depends_on: []').replace(/^---\n\n/m, 'acceptance:\n  - id: AC-1\n    scenario: Given a rule, when it is shared, then both sides use it.\n---\n\n');
+  r.write({ [file]: fix });
+  assert.equal(start(r.dir, 'SL-008').phase, 'build');
+  const sha = r.commit('build(SL-008): share the rules', { 'src/rules.js': lines(4), 'tests/rules.test.js': lines(3) });
+  finish(r.dir, 'SL-008', { commits: [{ sha, kind: 'build' }], tests_added: 1 });
+  assert.equal(debtEntry(r.dir, 'DEBT-FE-001').status, 'paid');
+  assertConsistent(r.dir);
+});
+
 test('finish: a feature slice leaves the debt register alone', (t) => {
   const { dir, audit } = throughGreen(t);
   const before = read(dir, '.sddpp/debt.yaml');

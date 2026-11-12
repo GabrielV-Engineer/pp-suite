@@ -52,9 +52,9 @@ test('schedule: a debt nobody approved is not scheduled, since the person has no
   fails(() => scheduleDebt(dir, 'DEBT-BE-001', 'SL-008'), /approved|open/);
 });
 
-test('schedule: only a refactor slice pays debt, and the message says what to do for a feature slice', (t) => {
+test('schedule: a feature slice does not pay debt, and the message says what to do', (t) => {
   const { dir } = opened(t);
-  fails(() => scheduleDebt(dir, 'DEBT-BE-001', 'SL-004'), /refactor slice/i);
+  fails(() => scheduleDebt(dir, 'DEBT-BE-001', 'SL-004'), /refactor or a fix slice/i);
   fails(() => scheduleDebt(dir, 'DEBT-BE-001', 'SL-099'), /unknown slice/);
   fails(() => scheduleDebt(dir, 'DEBT-BE-099', 'SL-008'), /unknown debt/);
 });
@@ -87,4 +87,39 @@ test('CLI: schedule-debt', (t) => {
   const out = spawnSync(process.execPath, [CLI, 'schedule-debt', 'DEBT-BE-001', '--slice', 'SL-008', dir], { encoding: 'utf8' });
   assert.equal(out.status, 0, out.stderr);
   assert.equal(entry(dir, 'DEBT-BE-001').paid_by, 'SL-008');
+});
+
+// Found in the first real project (F-D7): SL-022, a fix slice born from a change request, paid two debt entries with a change of
+// behavior, and nothing could record it, because only a refactor slice could pay debt. A fix slice now may too.
+const asFix = (r, extra = '') => {
+  const file = '.sddpp/slices/SL-004-reject-invalid-titles.md';
+  r.write({ [file]: read(r.dir, file).replace(/^type: feature$/m, 'type: fix').replace(/^capability: .*\n/m, '') + extra });
+  return r;
+};
+
+test('schedule: a fix slice may pay debt too, and the debt is scheduled like for a refactor slice', (t) => {
+  const r = asFix(opened(t));
+  assert.deepEqual(scheduleDebt(r.dir, 'DEBT-BE-001', 'SL-004'), { debt: 'DEBT-BE-001', slice: 'SL-004', status: 'scheduled' });
+  assert.equal(entry(r.dir, 'DEBT-BE-001').paid_by, 'SL-004');
+  assert.deepEqual(slice(r.dir, 'SL-004').pays, ['DEBT-BE-001']);
+  assert.deepEqual(errors(r.dir), [], 'a debt paid by a fix slice is valid');
+});
+
+test('schedule: a fix slice that is already done records the debt it paid as paid at once', (t) => {
+  const r = asFix(opened(t));
+  const file = '.sddpp/slices/SL-004-reject-invalid-titles.md';
+  const audit = 'approved_by: someone\nmode: light\naudit:\n  commits:\n    - sha: abcdef1\n      kind: build\n  production_lines: 10\n  test_lines: 5\n  tests_added: 1\n  mutation_score: null\n  decisions: []\n  debt_created: []\n  deviations: []\n';
+  r.write({ [file]: read(r.dir, file).replace(/^status: planned$/m, 'status: done').replace(/^---\n\n/m, `${audit}---\n\n`) });
+  assert.deepEqual(scheduleDebt(r.dir, 'DEBT-BE-001', 'SL-004'), { debt: 'DEBT-BE-001', slice: 'SL-004', status: 'paid' });
+  assert.equal(entry(r.dir, 'DEBT-BE-001').status, 'paid');
+  assert.deepEqual(errors(r.dir).filter((e) => e.rule !== 'L01' && !/depends|SL-002/.test(e.message)), []);
+});
+
+test('validate: a debt paid by a feature slice is still an error', (t) => {
+  const r = opened(t);
+  const m = loadProject(r.dir);
+  const e = m.debt[0].data.entries.find((x) => x.id === 'DEBT-BE-001');
+  Object.assign(e, { status: 'scheduled', paid_by: 'SL-004' });
+  m.slices.find((s) => s.data.id === 'SL-004').data.pays = ['DEBT-BE-001'];
+  assert.ok(validateModel(m).some((f) => f.rule === 'T09' && /refactor or a fix slice/.test(f.message)));
 });

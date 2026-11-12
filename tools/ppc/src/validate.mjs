@@ -32,7 +32,7 @@ export const RULES = {
   D04: 'Every capability is a must, so nothing was prioritized.',
   T08: 'An ADR references an unknown driver, evidence or ADR.',
   T09: 'A debt entry is inconsistent with its component, origin or paying slice.',
-  T10: 'A refactor slice pays a debt entry that does not point back at it.',
+  T10: 'A slice pays a debt entry that does not point back at it.',
   T11: 'A change request references an unknown slice, component, ADR or quality attribute.',
   T12: 'An id is duplicated, or a file name does not match its id.',
   T13: 'A slice audit references unknown decisions or debt, or debt with the wrong origin.',
@@ -290,7 +290,7 @@ export function validateModel(model, { now = new Date() } = {}) {
         const payer = sliceById.get(e.paid_by)?.data;
         if (!payer) error('T09', df.file, `${e.id} is paid by unknown slice ${e.paid_by}`);
         else {
-          if (payer.type !== 'refactor') error('T09', df.file, `${e.id} must be paid by a refactor slice, ${payer.id} is ${payer.type}`);
+          if (!['refactor', 'fix'].includes(payer.type)) error('T09', df.file, `${e.id} must be paid by a refactor or a fix slice, ${payer.id} is ${payer.type}`);
           if (!(payer.pays ?? []).includes(e.id)) error('T09', df.file, `${payer.id} does not list ${e.id} in "pays"`);
           if (e.status === 'paid' && payer.status !== 'done') error('L05', df.file, `${e.id} is paid but ${payer.id} is ${payer.status}`);
         }
@@ -298,7 +298,7 @@ export function validateModel(model, { now = new Date() } = {}) {
     }
   }
 
-  // ── T10: refactor slices point at scheduled debt ──────────────
+  // ── T10: paying slices point at scheduled debt ────────────────
   for (const { file, data: s } of slices) {
     for (const id of s.pays ?? []) {
       const d = debtById.get(id);

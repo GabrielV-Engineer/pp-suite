@@ -11,6 +11,9 @@ import { overlapGroup, triage } from './additions.mjs';
 import { nextSteps } from './next.mjs';
 import { gitSubjects } from './session.mjs';
 
+// The slices that pay debt: a refactor slice changes structure, a fix slice behavior (often through a change request).
+export const PAYERS = ['refactor', 'fix'];
+
 /** A refused transition. The message says why; nothing was changed. */
 export class LifecycleError extends Error {}
 const fail = (message) => {
@@ -341,9 +344,10 @@ export function approveDebt(root, id, { by, accept, drop, reason } = {}) {
 }
 
 /**
- * Assign an open debt (one a person approved) to a refactor slice that has not started. Only a refactor slice pays
- * debt, so that structure and behavior stay in separate commits; to pay it "while touching that code", plan a small
- * refactor slice next to the feature one. Records the debt as scheduled and lists it in the slice's `pays`.
+ * Assign an open debt (one a person approved) to the slice that pays it: a refactor slice (structure) or a fix slice (behavior,
+ * usually born from a change request). A feature slice does not pay debt, so that new work and repayment stay apart. Records the
+ * debt as scheduled and lists it in the slice's `pays`; for a slice already done (the fix paid it before it was recorded), the debt
+ * is paid at once.
  */
 export function scheduleDebt(root, debtId, sliceId) {
   return transact(root, () => {
@@ -353,17 +357,18 @@ export function scheduleDebt(root, debtId, sliceId) {
     const target = model.slices.find((s) => s.data.id === sliceId) ?? fail(`unknown slice ${sliceId}`);
     const s = target.data;
     if (debt.status !== 'open') fail(`${debtId} is ${debt.status}; only an open debt (one a person approved with ppc approve-debt) can be scheduled`);
-    if (s.type !== 'refactor') fail(`${sliceId} is a ${s.type} slice. Only a refactor slice pays debt, so that structure and behavior stay in separate commits: plan a small refactor slice (type: refactor, pays: [${debtId}]) before or after it`);
-    if (!['planned', 'ready'].includes(s.status)) fail(`${sliceId} is ${s.status}; debt can be scheduled only into a slice that is planned or ready`);
+    if (!PAYERS.includes(s.type)) fail(`${sliceId} is a ${s.type} slice. Debt is paid by a refactor or a fix slice: plan a small refactor slice (type: refactor, pays: [${debtId}]) before or after it`);
+    const paidAlready = s.status === 'done';
+    if (!['planned', 'ready'].includes(s.status) && !paidAlready) fail(`${sliceId} is ${s.status}; debt can be scheduled only into a slice that is planned or ready, or recorded as paid by one that is done`);
     if (!s.components.includes(debt.component) && !(debt.also_affects ?? []).some((c) => s.components.includes(c))) fail(`${sliceId} does not touch ${debt.component}, where ${debtId} lives`);
-    setDebtFields(root, register, debtId, { status: 'scheduled', paid_by: sliceId });
+    setDebtFields(root, register, debtId, { status: paidAlready ? 'paid' : 'scheduled', paid_by: sliceId });
     editFrontmatter(root, target.file, (doc) => {
       const pays = doc.get('pays');
       if (pays?.items) pays.items.push(debtId);
       else doc.set('pays', [debtId]);
     });
     ensureValid(root);
-    return { debt: debtId, slice: sliceId, status: 'scheduled' };
+    return { debt: debtId, slice: sliceId, status: paidAlready ? 'paid' : 'scheduled' };
   });
 }
 
@@ -521,7 +526,7 @@ export function finish(root, id, input, { mutationRunner, now = new Date() } = {
         doc.set('audit', audit);
       });
     }
-    if (s.type === 'refactor') {
+    if (PAYERS.includes(s.type)) {
       // The slice is done, so the debt it was scheduled to pay is paid (rule L05 forbids saying so earlier).
       for (const id of s.pays ?? []) {
         const register = model.debt.find((d) => d.data.entries.some((e) => e.id === id));
