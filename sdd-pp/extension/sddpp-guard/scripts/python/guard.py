@@ -213,8 +213,9 @@ def decide(payload, root: Path):
                 if payload.get("permission_mode") in ASKABLE_MODES:
                     return ASK, "SDD.PP guard: approvals are human decisions. Approve this only if you decided it yourself."
                 return 2, (
-                    "SDD.PP guard: approvals are human-only. Type /pp so the person can decide in the question panel, or run the "
-                    "command in a terminal (in the Claude Code CLI also after `!`; the VS Code extension has no `!`)."
+                    "SDD.PP guard: approvals are human decisions. Put this one to the person in the question panel: run `ppc ask <id>`, ask that "
+                    "question with the AskUserQuestion tool, and the command they pick goes through (`/pp` does it). Only if the panel "
+                    "cannot be used do they run the command themselves."
                 )
 
     # Decisions belong to a human too: no file tool or shell write may record one.

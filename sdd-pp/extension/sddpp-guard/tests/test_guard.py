@@ -150,10 +150,13 @@ class GuardTest(unittest.TestCase):
                     data["permission_mode"] = mode
                 self.assertEqual(guard.decide(data, root)[0], 2)
 
-    def test_the_block_message_does_not_promise_a_prefix_that_the_vscode_extension_lacks(self):
+    def test_the_block_message_sends_the_agent_to_the_question_panel_not_to_a_terminal(self):
+        # Found in the first real project: agents passed "run it in a terminal" on to the person. The panel is the way.
         message = guard.decide(payload("Bash", command="ppc approve-slice SL-001"), self.project(None))[1]
-        self.assertIn("terminal", message)
-        self.assertIn("VS Code", message)
+        self.assertIn("ppc ask", message)
+        self.assertIn("question panel", message)
+        self.assertNotIn("terminal", message)
+        self.assertNotIn("`!`", message, "the VS Code extension has no `!`")
 
     def test_the_hook_answers_ask_in_the_format_claude_code_reads_and_exits_zero(self):
         import subprocess
