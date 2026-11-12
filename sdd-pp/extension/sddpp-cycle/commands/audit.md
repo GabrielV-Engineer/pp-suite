@@ -40,16 +40,19 @@ $ARGUMENTS
    ```yaml
    - id: DEBT-BE-002
      component: backend
-     title: <short title>
-     description: <what is compromised and why>
+     title: "<short title>"
+     description: "<what is compromised and why>"
      kind: design   # duplication | design | test | performance | security | dependency | documentation | accessibility | other
      origin: { type: slice, ref: <slice id> }
      created: <today, YYYY-MM-DD>
      proposed_by: ai
-     cost_of_delay: { level: low, rationale: <why it is or is not urgent> }
-     trigger: <when it must be paid>
+     cost_of_delay: { level: low, rationale: "<why it is or is not urgent>" }
+     trigger: "<when it must be paid>"
      status: proposed
    ```
+
+   Put every piece of free text (`title`, `description`, `rationale`, `trigger`) in double quotes, and write a double quote inside
+   it as `\"`. A comma, a colon or a `#` in unquoted text breaks the register, and `ppc finish` then refuses the whole file.
 
    If there is none, say so explicitly. Do not invent debt to look thorough.
 4. **Deviations.** List anything that differs from the slice or the blueprint, or that you decided
