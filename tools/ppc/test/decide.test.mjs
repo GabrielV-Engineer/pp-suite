@@ -204,7 +204,10 @@ test('show: a slice card names the debt it pays, and the open debt in its compon
   approve(r.dir, 'DEBT-BE-001', { by: 'owner' }); // open, on the backend, paid by no slice
   const open = renderDecision(loadProject(r.dir), 'SL-004'); // planned, frontend and backend
   assert.match(open, /Open debt here:\s+- DEBT-BE-001 The task list is returned in full, without pagination \(cost of waiting \w+\)/);
-  assert.match(open, /ppc ask DEBT-BE-001 --pay-in SL-004/, 'and how to put it to the person');
+  assert.doesNotMatch(open, /ppc ask DEBT-BE-001/, 'a low cost of waiting is listed, not asked about before every slice');
+  const urgent = loadProject(r.dir);
+  urgent.debt[0].data.entries.find((e) => e.id === 'DEBT-BE-001').cost_of_delay.level = 'medium';
+  assert.match(renderDecision(urgent, 'SL-004'), /Ask before approving it:\s+ppc ask DEBT-BE-001 --pay-in SL-004/, 'a medium or high one is put to the person');
   assert.doesNotMatch(renderDecision(loadProject(r.dir), 'SL-001'), /Open debt here/, 'the skeleton pays no debt, so it is not offered any');
   const closed = loadProject(r.dir);
   sl(closed, 'SL-004').status = 'done';

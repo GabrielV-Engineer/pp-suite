@@ -24,7 +24,9 @@ const bullets = (text) => text.split('\n').map((l) => l.replace(/^\s*[-*]\s*/, '
 // it is not forgotten (the first real project approved SL-010 17 minutes after debt meant for it, and nothing said so).
 const debtEntries = (model) => model.debt.flatMap((d) => d.data.entries);
 const paidBy = (model, s) => debtEntries(model).filter((e) => e.paid_by === s.id && e.status === 'scheduled');
-const openHere = (model, s) => (['planned', 'ready'].includes(s.status) ? debtEntries(model).filter((e) => e.status === 'open' && !payProblem(s, e)) : []);
+const COST = { high: 0, medium: 1, low: 2 };
+const costOf = (e) => COST[e.cost_of_delay?.level] ?? 3;
+const openHere = (model, s) => (['planned', 'ready'].includes(s.status) ? debtEntries(model).filter((e) => e.status === 'open' && !payProblem(s, e)).sort((a, b) => costOf(a) - costOf(b)) : []);
 
 function sliceCard(model, entry, { redFiles, auditInput } = {}) {
   const s = entry.data;
@@ -41,7 +43,10 @@ function sliceCard(model, entry, { redFiles, auditInput } = {}) {
   const open = openHere(model, s);
   if (open.length) {
     out.push(row('Open debt here', ''), ...open.map((e) => `      - ${e.id} ${e.title} (cost of waiting ${e.cost_of_delay?.level ?? 'unknown'})`));
-    out.push(`      To pay one in this slice, put it to the person first:  ${open.map((e) => `ppc ask ${e.id} --pay-in ${s.id}`).join('  ·  ')}`);
+    // Only a medium or high cost of waiting is put to the person before every approval; asking about all of it each time would
+    // teach them to answer "not yet" without reading.
+    const urgent = open.filter((e) => costOf(e) <= COST.medium);
+    if (urgent.length) out.push(`      Ask before approving it:  ${urgent.map((e) => `ppc ask ${e.id} --pay-in ${s.id}`).join('  ·  ')}`);
   }
   if (red) {
     out.push('', `The red tests are the specification of this slice: approve them only if they say what you want.`, row('Red tests', (redFiles?.length ? redFiles : ['(none found in the red commit)']).join(', ')));
