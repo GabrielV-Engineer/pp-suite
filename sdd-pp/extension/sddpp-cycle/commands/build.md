@@ -18,6 +18,9 @@ $ARGUMENTS
 - **Tests follow the test policy** (`test_policy` in `.architect/blueprint.yaml`, or in the slice):
   `required` means the slice cannot close without test files; `optional` means they are expected, and if there are none
   `ppc finish` proposes a debt entry for a person to decide; `none` means they are not asked for.
+- **The debt the slice pays is part of its work.** If the slice lists `pays`, read those entries in `.sddpp/debt.yaml` and fix
+  them in this slice, with a test where the entry is about behavior. If one does not fit the budget or turns out bigger than
+  its entry says, leave it and say so: the audit records it as not paid, with the reason.
 - Stay inside the production-code budget (`budgets.max_slice_production_lines`). If the slice is growing past it,
   stop and say so: a person decides whether to split it.
 - If the design is wrong or silent about something this slice needs, **stop**. Do not decide it yourself and do not work around it: open a change request with `ppc change-request --slice <id> --title ... --problem ... --proposal ... --qa|--component|--adr ...` and put it to the person (see **When the person decides**). If they accept it, the design is revised (`/pp-change`) before you go on; if not, go on without it, or stop and say what is blocked.
@@ -35,7 +38,10 @@ a command to type in a terminal. Instead:
 2. Run `ppc ask <id>` (for an exception: `ppc ask <slice> --budget-reason "<the reason you propose>"`, or
    `--mutation-reason`) and ask exactly that question with the AskUserQuestion tool: the same options in the same order,
    without an `answers` field. You may put the words in the person's language; everything after the last ` — ` stays as
-   printed. Before the panel, say in one line per option what happens if they pick it.
+   printed. Before the panel, say in one line per option what happens if they pick it. For a debt entry that a planned
+   slice touching its component should pay, add `--pay-in <that slice>`: debt left open with no slice to pay it is
+   forgotten. When a slice's card lists "Open debt here", put each of those to them (`ppc ask DEBT-… --pay-in <slice>`)
+   before the slice's own approval.
 3. Run the command of the option they picked, exactly, right away, before anything else: an answer is good for 30
    minutes, once. For any other answer, run no approval. Only if the guard refuses
    the command, say so and give them the command to run themselves.

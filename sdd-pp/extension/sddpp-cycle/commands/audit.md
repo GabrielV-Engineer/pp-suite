@@ -42,7 +42,10 @@ a command to type in a terminal. Instead:
 2. Run `ppc ask <id>` (for an exception: `ppc ask <slice> --budget-reason "<the reason you propose>"`, or
    `--mutation-reason`) and ask exactly that question with the AskUserQuestion tool: the same options in the same order,
    without an `answers` field. You may put the words in the person's language; everything after the last ` — ` stays as
-   printed. Before the panel, say in one line per option what happens if they pick it.
+   printed. Before the panel, say in one line per option what happens if they pick it. For a debt entry that a planned
+   slice touching its component should pay, add `--pay-in <that slice>`: debt left open with no slice to pay it is
+   forgotten. When a slice's card lists "Open debt here", put each of those to them (`ppc ask DEBT-… --pay-in <slice>`)
+   before the slice's own approval.
 3. Run the command of the option they picked, exactly, right away, before anything else: an answer is good for 30
    minutes, once. For any other answer, run no approval. Only if the guard refuses
    the command, say so and give them the command to run themselves.
@@ -70,6 +73,9 @@ a command to type in a terminal. Instead:
      status: proposed
    ```
 
+   If a slice already planned should pay it (the next one that touches the same component, say), name that slice in the
+   trigger and, in step 8, ask with `--pay-in <that slice>`, so the slice is tied to it and not only named in text.
+
    Put every piece of free text (`title`, `description`, `rationale`, `trigger`) in double quotes, and write a double quote inside
    it as `\"`. A comma, a colon or a `#` in unquoted text breaks the register, and `ppc finish` then refuses the whole file.
 
@@ -89,8 +95,14 @@ a command to type in a terminal. Instead:
    ```
 
    Kinds: `red`, `green`, `refactor`, `build`, `structural`, `docs`. Do not add `mutation_score`: `ppc finish` rejects it.
+
+   If the slice pays debt (`pays` in the slice file), account for every entry, checking each against the diff, not against
+   the plan: `"debt_paid": ["DEBT-…"]` for what the commits fixed, and `"debt_unpaid": [{ "id": "DEBT-…", "reason": "<why
+   not>" }]` for what they did not. A feature slice does not close without this account. What is not paid is open again,
+   and `ppc next` asks the person which slice pays it now.
 6. Run `ppc finish <id> --audit .sddpp/audit-input.json`. If it refuses, read why, fix the cause and run
    it again. It either closes the slice or changes nothing.
 7. Delete `.sddpp/audit-input.json` and commit the bookkeeping with `chore(<id>): close slice`.
-8. Report to the person: what shipped, the measured size, the deviations and the debt proposed. Then put each proposed
-   debt entry to them, one question each (`ppc ask DEBT-…`, see **When the person decides**).
+8. Report to the person: what shipped, the measured size, the deviations, the debt paid and not paid, and the debt proposed.
+   Then put each proposed debt entry to them, one question each (`ppc ask DEBT-…`, with `--pay-in <slice>` when a planned
+   slice should pay it; see **When the person decides**), and each entry left unpaid (`ppc ask DEBT-… --pay-in <slice>`).
