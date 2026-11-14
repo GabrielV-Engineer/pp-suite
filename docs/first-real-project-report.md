@@ -335,3 +335,36 @@ session transcript after row 1800 (searched for decisions, panel questions, guar
   slice could (`paid_by`, rule `T09`, `ppc schedule-debt`). **Fixed** by the owner's choice (`320a88a`): a fix slice may pay debt, and
   `ppc schedule-debt DEBT-PIPE-005 --slice SL-022` on the done slice records it paid at once.
 - **Still not exercised:** the strict cycle, mutation testing, pressing No, the bypass mode.
+
+---
+
+# Review, 2026-11-14: was the plan sliced, or layered in disguise? (F-P1)
+
+The owner asked whether the project was following slices or a layered plan (engine, store, back end, and the app last). Sources: the
+frontmatter of the 22 slices (`components`, `depends_on`, `capability`, `type`), `.architect/blueprint.yaml` (`justified_by`), the git history,
+and Spec Kit's `tasks-template.md` as installed in the project. Nothing was changed in the project.
+
+- **What was sliced:** every slice ran one behavior through several components, and from SL-005 on each one ended in the app. No slice was
+  a layer. SL-002 to SL-004 were each observable from the command line, and for SL-004 that is right: the design puts the benchmark
+  (CAP-009) in `cli` and `pipeline`.
+- **What was layered (F-P1):** importing a recording (CAP-002) is justified in `desktop-shell`, `pipeline` and `store`, but its first slice
+  (SL-002) ran through `cli` and `pipeline` only; the capability reached the app in SL-006, four slices later. And SL-005 (patients) declared
+  `depends_on: [SL-004]`, the engine benchmark, with no component in common; since `ppc` starts only a slice whose dependencies are done,
+  the planning order became a hard order.
+- **Likely cause:** Spec Kit's tasks template orders work as "Phase 2: Foundational (Blocking Prerequisites) ... Core infrastructure that
+  MUST be complete before ANY user story can be implemented". `/pp-plan` replaces that template, but it did not say where a capability is
+  observed or what a dependency is, so nothing pushed back on that habit. Not verified: whether the planning agent read the template.
+- **Fixed** (`5049e88`, `8530ae2`, `2635103`, `4284389`):
+  - `W07`: the slices that open a capability reach every component that lists it in `justified_by`; a spike may prove a risk first.
+  - `W08`: a dependency between slices that share no component.
+  - `T06`: a spike no longer counts as delivering a capability.
+  - `/pp-plan`: observable is where the design puts the capability, so neither a test nor a command replaces a screen the design calls for,
+    and no screen is added where it has none. No foundational phase, a risk goes first only as a spike, a dependency is code or data, and the
+    plan table gives a reason for each dependency and for the order.
+  - The hand-off lists in `justified_by` every capability that runs through a component.
+- **Checked:** on a copy of the project's slices set back to `planned`, `W07` flags SL-002 and nothing else, and `W08` flags SL-005 → SL-004 and
+  nothing else; on the project as it is, neither fires, since both slices are done. Node 530 tests, each new check broken on purpose (6 breaks,
+  all caught); the example stays at 0 and 0 in strict mode.
+- **What the checks cannot see:** sharing a component does not prove a dependency is real, so `W08` catches only the plain case; the reasons in
+  the plan table, which the person approves, cover the rest. `W07` is only as good as `justified_by`: in this project `ui` does not list CAP-002,
+  although recordings are imported from the patient screen. That may be a gap in the design; it is the owner's to decide.
