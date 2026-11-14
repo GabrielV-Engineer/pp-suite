@@ -124,10 +124,13 @@ for (const [rule, [name, mutate]] of Object.entries(traceability)) {
   });
 }
 
-test('T09: debt must be paid by a refactor or a fix slice, not a feature slice', () => {
-  const m = base();
-  debtEntryOf(m, 'frontend').paid_by = 'SL-002';
-  assert.ok(has(run(m), 'T09', 'error'));
+test('T09: debt is paid by a feature, fix or refactor slice that lists it, not by a skeleton', () => {
+  const unlisted = base();
+  debtEntryOf(unlisted, 'frontend').paid_by = 'SL-002';
+  assert.ok(has(run(unlisted), 'T09', 'error'), 'a feature slice that does not list it in pays');
+  const skeleton = base();
+  debtEntryOf(skeleton, 'frontend').paid_by = 'SL-001';
+  assert.ok(run(skeleton).some((f) => f.rule === 'T09' && /skeleton/.test(f.message)));
 });
 
 test('T12: duplicate slice ids are reported', () => {

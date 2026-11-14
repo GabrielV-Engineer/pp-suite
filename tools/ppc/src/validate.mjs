@@ -31,7 +31,7 @@ export const RULES = {
   D03: 'The design is larger than the complexity budget of its declared level.',
   D04: 'Every capability is a must, so nothing was prioritized.',
   T08: 'An ADR references an unknown driver, evidence or ADR.',
-  T09: 'A debt entry is inconsistent with its component, origin or paying slice.',
+  T09: 'A debt entry is inconsistent with its component, origin or paying slice (a feature, fix or refactor slice that touches its component).',
   T10: 'A slice pays a debt entry that does not point back at it.',
   T11: 'A change request references an unknown slice, component, ADR or quality attribute.',
   T12: 'An id is duplicated, or a file name does not match its id.',
@@ -323,7 +323,8 @@ export function validateModel(model, { now = new Date() } = {}) {
         const payer = sliceById.get(e.paid_by)?.data;
         if (!payer) error('T09', df.file, `${e.id} is paid by unknown slice ${e.paid_by}`);
         else {
-          if (!['refactor', 'fix'].includes(payer.type)) error('T09', df.file, `${e.id} must be paid by a refactor or a fix slice, ${payer.id} is ${payer.type}`);
+          if (!['refactor', 'fix', 'feature'].includes(payer.type)) error('T09', df.file, `${e.id} must be paid by a feature, fix or refactor slice, ${payer.id} is ${payer.type}`);
+          else if (!payer.components.includes(e.component) && !(e.also_affects ?? []).some((c) => payer.components.includes(c))) error('T09', df.file, `${e.id} is paid by ${payer.id}, but ${payer.id} does not touch ${e.component}`);
           if (!(payer.pays ?? []).includes(e.id)) error('T09', df.file, `${payer.id} does not list ${e.id} in "pays"`);
           if (e.status === 'paid' && payer.status !== 'done') error('L05', df.file, `${e.id} is paid but ${payer.id} is ${payer.status}`);
         }

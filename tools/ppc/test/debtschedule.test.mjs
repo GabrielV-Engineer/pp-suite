@@ -52,9 +52,28 @@ test('schedule: a debt nobody approved is not scheduled, since the person has no
   fails(() => scheduleDebt(dir, 'DEBT-BE-001', 'SL-008'), /approved|open/);
 });
 
-test('schedule: a feature slice does not pay debt, and the message says what to do', (t) => {
+// Found in the first real project (F-P2): three debt entries said they would be paid "within SL-010", a feature slice, which the
+// contract did not allow, so nothing tied them to it and SL-010 closed without them. A feature slice may now pay the debt of the
+// components it touches.
+test('schedule: a feature slice may pay the debt of a component it touches', (t) => {
   const { dir } = opened(t);
-  fails(() => scheduleDebt(dir, 'DEBT-BE-001', 'SL-004'), /refactor or a fix slice/i);
+  assert.deepEqual(scheduleDebt(dir, 'DEBT-BE-001', 'SL-004'), { debt: 'DEBT-BE-001', slice: 'SL-004', status: 'scheduled' });
+  assert.deepEqual(slice(dir, 'SL-004').pays, ['DEBT-BE-001']);
+  assert.deepEqual(errors(dir), [], 'a debt paid by a feature slice is valid');
+});
+
+test('schedule: a feature slice already done does not record debt as paid; its audit says what it paid', (t) => {
+  const { dir } = opened(t);
+  const file = '.sddpp/slices/SL-004-reject-invalid-titles.md';
+  const audit = 'approved_by: someone\nmode: light\naudit:\n  commits:\n    - sha: abcdef1\n      kind: build\n  production_lines: 10\n  test_lines: 5\n  tests_added: 1\n  mutation_score: null\n  decisions: []\n  debt_created: []\n  deviations: []\n';
+  writeFileSync(join(dir, file), read(dir, file).replace(/^status: planned$/m, 'status: done').replace(/^---\n\n/m, `${audit}---\n\n`));
+  const before = read(dir, '.sddpp/debt.yaml');
+  fails(() => scheduleDebt(dir, 'DEBT-BE-001', 'SL-004'), /SL-004 is a feature slice that is done/);
+  assert.equal(read(dir, '.sddpp/debt.yaml'), before);
+});
+
+test('schedule: unknown ids are refused', (t) => {
+  const { dir } = opened(t);
   fails(() => scheduleDebt(dir, 'DEBT-BE-001', 'SL-099'), /unknown slice/);
   fails(() => scheduleDebt(dir, 'DEBT-BE-099', 'SL-008'), /unknown debt/);
 });
@@ -115,11 +134,17 @@ test('schedule: a fix slice that is already done records the debt it paid as pai
   assert.deepEqual(errors(r.dir).filter((e) => e.rule !== 'L01' && !/depends|SL-002/.test(e.message)), []);
 });
 
-test('validate: a debt paid by a feature slice is still an error', (t) => {
+test('validate: a debt paid by a slice that does not touch its component is an error, whatever the type of the slice', (t) => {
   const r = opened(t);
+  for (const type of ['feature', 'fix', 'refactor']) {
+    const m = loadProject(r.dir);
+    const e = m.debt[0].data.entries.find((x) => x.id === 'DEBT-BE-001');
+    Object.assign(e, { status: 'scheduled', paid_by: 'SL-004' });
+    Object.assign(m.slices.find((s) => s.data.id === 'SL-004').data, { type, pays: ['DEBT-BE-001'], components: ['frontend'] });
+    assert.ok(validateModel(m).some((f) => f.rule === 'T09' && /SL-004 does not touch backend/.test(f.message)), type);
+  }
   const m = loadProject(r.dir);
-  const e = m.debt[0].data.entries.find((x) => x.id === 'DEBT-BE-001');
-  Object.assign(e, { status: 'scheduled', paid_by: 'SL-004' });
-  m.slices.find((s) => s.data.id === 'SL-004').data.pays = ['DEBT-BE-001'];
-  assert.ok(validateModel(m).some((f) => f.rule === 'T09' && /refactor or a fix slice/.test(f.message)));
+  Object.assign(m.debt[0].data.entries.find((x) => x.id === 'DEBT-BE-001'), { status: 'scheduled', paid_by: 'SL-001' });
+  m.slices.find((s) => s.data.id === 'SL-001').data.pays = ['DEBT-BE-001'];
+  assert.ok(validateModel(m).some((f) => f.rule === 'T09' && /skeleton/.test(f.message)), 'a skeleton still pays no debt');
 });

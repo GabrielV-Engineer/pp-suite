@@ -12,7 +12,9 @@ import { nextSteps } from './next.mjs';
 import { gitSubjects } from './session.mjs';
 
 // The slices that pay debt: a refactor slice changes structure, a fix slice behavior (often through a change request).
-export const PAYERS = ['refactor', 'fix'];
+// The slice types that may pay debt. A feature slice pays the debt of the components it touches (the owner's choice, 2026-11-14,
+// after three entries meant for a feature slice of the first real project went unpaid); its audit says what it paid.
+export const PAYERS = ['refactor', 'fix', 'feature'];
 
 /** A refused transition. The message says why; nothing was changed. */
 export class LifecycleError extends Error {}
@@ -344,10 +346,11 @@ export function approveDebt(root, id, { by, accept, drop, reason } = {}) {
 }
 
 /**
- * Assign an open debt (one a person approved) to the slice that pays it: a refactor slice (structure) or a fix slice (behavior,
- * usually born from a change request). A feature slice does not pay debt, so that new work and repayment stay apart. Records the
- * debt as scheduled and lists it in the slice's `pays`; for a slice already done (the fix paid it before it was recorded), the debt
- * is paid at once.
+ * Assign an open debt (one a person approved) to the slice that pays it: a refactor slice (structure), a fix slice (behavior,
+ * usually born from a change request) or a feature slice that touches the same component (the repair is part of its work, and its
+ * audit says whether it was paid). Records the debt as scheduled and lists it in the slice's `pays`; for a fix or refactor slice
+ * already done (it paid the debt before it was recorded), the debt is paid at once. A done feature slice is refused: it accounts
+ * for its debt in its own audit.
  */
 export function scheduleDebt(root, debtId, sliceId) {
   return transact(root, () => {
@@ -357,7 +360,8 @@ export function scheduleDebt(root, debtId, sliceId) {
     const target = model.slices.find((s) => s.data.id === sliceId) ?? fail(`unknown slice ${sliceId}`);
     const s = target.data;
     if (debt.status !== 'open') fail(`${debtId} is ${debt.status}; only an open debt (one a person approved with ppc approve-debt) can be scheduled`);
-    if (!PAYERS.includes(s.type)) fail(`${sliceId} is a ${s.type} slice. Debt is paid by a refactor or a fix slice: plan a small refactor slice (type: refactor, pays: [${debtId}]) before or after it`);
+    if (!PAYERS.includes(s.type)) fail(`${sliceId} is a ${s.type} slice. Debt is paid by a feature, fix or refactor slice that touches its component`);
+    if (s.type === 'feature' && s.status === 'done') fail(`${sliceId} is a feature slice that is done; it can no longer pay ${debtId}. Schedule it into a planned slice, or plan a fix slice`);
     const paidAlready = s.status === 'done';
     if (!['planned', 'ready'].includes(s.status) && !paidAlready) fail(`${sliceId} is ${s.status}; debt can be scheduled only into a slice that is planned or ready, or recorded as paid by one that is done`);
     if (!s.components.includes(debt.component) && !(debt.also_affects ?? []).some((c) => s.components.includes(c))) fail(`${sliceId} does not touch ${debt.component}, where ${debtId} lives`);
