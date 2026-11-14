@@ -252,9 +252,9 @@ export function validateModel(model, { now = new Date() } = {}) {
     else if (!new RegExp(`^#{1,6}\\s+${escaped}\\b`, 'im').test(text)) error('T15', file, `${s.id} points at "${s.spec.story}", which is not a heading in ${s.spec.file}`);
   }
 
-  // T06: every capability is covered by a live slice
+  // T06: every capability is covered by a live slice that delivers it (a spike only learns)
   for (const cap of bp.capabilities) {
-    if (!slices.some(({ data: s }) => s.capability === cap.id && s.status !== 'dropped')) error('T06', model.blueprint.file, `capability ${cap.id} has no slice`);
+    if (!slices.some(({ data: s }) => s.capability === cap.id && s.status !== 'dropped' && s.type !== 'spike')) error('T06', model.blueprint.file, `capability ${cap.id} has no slice`);
   }
 
   // W05: every quality attribute is delivered or verified by some live slice

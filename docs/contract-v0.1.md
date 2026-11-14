@@ -120,7 +120,7 @@ Errors fail validation; warnings fail only with `--strict`. `ppc rules` prints t
 | `T03` | error | A slice references a quality attribute that does not exist. |
 | `T04` | error | A slice depends on a slice that does not exist. |
 | `T05` | error | Slice dependencies contain a cycle. |
-| `T06` | error | A capability has no slice (no requirement without a slice). |
+| `T06` | error | A capability has no slice (no requirement without a slice). A spike only learns, so it does not count. |
 | `T07` | error | A component references an unknown requirement or component. |
 | `T08` | error | An ADR references an unknown driver, evidence or ADR. |
 | `T09` | error | A debt entry is inconsistent with its component, origin or paying slice. |

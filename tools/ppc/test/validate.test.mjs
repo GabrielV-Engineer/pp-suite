@@ -258,6 +258,15 @@ test('W03: unfinished slices planned against an older revision are flagged', () 
   assert.ok(has(run(m), 'W03', 'warning'));
 });
 
+const SPIKE = { type: 'spike', timebox_hours: 4, disposable: true };
+
+test('T06: a spike does not deliver a capability', () => {
+  const m = base();
+  for (const id of ['SL-005', 'SL-006']) Object.assign(slice(m, id).data, SPIKE); // the only slices of CAP-003
+  assert.ok(!run(m).some((f) => f.rule === 'SCHEMA'), 'the spikes are valid ones');
+  assert.ok(has(run(m), 'T06', 'error'));
+});
+
 // ── the design itself: coherence and a complexity budget ─────────
 const component = (m, id) => m.blueprint.data.components.find((c) => c.id === id);
 
