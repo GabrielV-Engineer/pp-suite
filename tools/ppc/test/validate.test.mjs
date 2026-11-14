@@ -295,6 +295,21 @@ test('W07: only the slices that open a capability must reach all of it, also whe
   assert.equal(w07(opening).length, 1, 'a slice of the capability that follows no other one opens it too');
 });
 
+test('W08: an unfinished slice that depends on a slice it shares no component with is flagged', () => {
+  const m = base();
+  slice(m, 'SL-002').data.components = ['backend', 'database'];
+  slice(m, 'SL-004').data.components = ['frontend']; // SL-004 depends on SL-002
+  const found = run(m).filter((f) => f.rule === 'W08');
+  assert.equal(found.length, 1);
+  assert.equal(found[0].severity, 'warning');
+  assert.match(found[0].message, /SL-004 depends on SL-002 but shares no component with it/);
+  assert.ok(!has(run(base()), 'W08'), 'slices that share a component are not flagged');
+  const done = base();
+  slice(done, 'SL-002').data.components = ['backend', 'database'];
+  finish(done, 'SL-004').components = ['frontend'];
+  assert.ok(!has(run(done), 'W08'), 'a slice already closed is history');
+});
+
 test('T06: a spike does not deliver a capability', () => {
   const m = base();
   for (const id of ['SL-005', 'SL-006']) Object.assign(slice(m, id).data, SPIKE); // the only slices of CAP-003

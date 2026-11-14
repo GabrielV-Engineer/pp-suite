@@ -65,6 +65,7 @@ export const RULES = {
   W05: 'A quality attribute is not referenced by any live slice, so nothing plans to deliver or verify it.',
   W06: 'A closed work slice changed no test files and no test debt entry is open about it, under an optional test policy.',
   W07: 'The first slice of a capability does not reach every component the design gives that capability.',
+  W08: 'An unfinished slice depends on a slice it shares no component with, so the dependency may be only the planning order.',
   X01: 'An addition is still undecided (a warning while the design is drafted, an error once slices exist).',
   X02: 'A cut addition was applied but something that only it justified is still in the design.',
   X03: 'A cut addition was applied but the non-goal it becomes is not among the non-goals.',
@@ -271,6 +272,17 @@ export function validateModel(model, { now = new Date() } = {}) {
     const missing = needed.filter((c) => !s.components.includes(c));
     if (!missing.length || follows(s.id, (d) => d.type === 'feature' && d.capability === s.capability && d.status !== 'dropped')) continue;
     warn('W07', file, `${s.id} opens ${s.capability} but does not reach ${missing.join(', ')}; plan it through them, or make it a spike that says which risk it proves first`);
+  }
+
+  // W08: a dependency the slices share nothing through is probably only the order they were planned in
+  for (const { file, data: s } of slices) {
+    if (!unfinished(s)) continue;
+    for (const d of s.depends_on ?? []) {
+      const dep = sliceById.get(d)?.data;
+      if (dep && !dep.components.some((c) => s.components.includes(c))) {
+        warn('W08', file, `${s.id} depends on ${d} but shares no component with it; keep the dependency only if ${s.id} cannot be built or tested without ${d}'s code or data`);
+      }
+    }
   }
 
   // T06: every capability is covered by a live slice that delivers it (a spike only learns)
