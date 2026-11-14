@@ -50,7 +50,9 @@ the plan**. It is a format conversion, not a redesign: do not improve, add or re
    - `quality_attributes` (`QA-NNN`): only measurable ones, following the Never invent rule.
    - `capabilities` (`CAP-NNN`) with a priority: one per behavior a person can see.
    - `components`: the parts with a boundary that matters, with `kind`, `responsibility`, `may_depend_on` and
-     `justified_by` (a capability, quality attribute or constraint behind each). A framework that merges layers in one
+     `justified_by` (a capability, quality attribute or constraint behind each). List in it every capability that runs
+     through the component, the screen a person uses it from included: the first slice of a capability must reach every
+     component that lists it (`W07`). A framework that merges layers in one
      project (a server-rendered page whose server code lives beside it) is still described by responsibility:
      the interface, the logic, the data.
    - `paths` on a component (optional): globs of the files it owns (for example `public/**`, `migrations/**`), only when the
