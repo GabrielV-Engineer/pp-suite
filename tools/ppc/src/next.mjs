@@ -122,6 +122,14 @@ function stepsOf(model, subjects, errors, facts) {
   const waiting = model.debt.flatMap((d) => d.data.entries)
     .filter((e) => e.status === 'proposed')
     .map((e) => ({ who: 'human', what: `Decide on proposed debt ${e.id}: ${e.title}`, command: `ppc approve ${e.id}`, decision: { type: 'debt', id: e.id } }));
+  // Debt a closed slice did not pay, which no slice is to pay now (rule W09): the person ties it to a slice again
+  const entries = new Map(model.debt.flatMap((d) => d.data.entries).map((e) => [e.id, e]));
+  const leftUnpaid = new Map();
+  for (const s of slices) for (const u of s.audit?.debt_unpaid ?? []) leftUnpaid.set(u.id, s.id);
+  for (const [id, by] of leftUnpaid) {
+    const e = entries.get(id);
+    if (e?.status === 'open' && !e.paid_by) waiting.push({ who: 'human', what: `${by} closed without paying ${id}: ${e.title}. Choose the next slice that touches ${e.component} to pay it`, command: `ppc ask ${id} --pay-in <slice>` });
+  }
   const blocked = live
     .filter((s) => ['planned', 'ready'].includes(s.status) && unfinished(s, byId).length)
     .map((s) => ({ slice: s.id, waits_for: unfinished(s, byId) }));

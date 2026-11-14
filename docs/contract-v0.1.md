@@ -83,7 +83,8 @@ Status flow: `planned` → `ready` → `in_progress` → `done` (or `dropped`).
 - `in_progress` needs a `phase`: `red` (tests only), `green` (production code only), `refactor`.
 - From `green` on, work slices need `red_approved_by`: a human approved the RED tests first.
 - `done` needs an **audit** (commits, production lines, test lines, tests added, mutation score, decisions,
-  debt created, deviations). A spike instead records its `outcome`.
+  debt created, deviations). A spike instead records its `outcome`. A slice that pays debt (`pays`) adds `debt_paid` and
+  `debt_unpaid` (each with its reason); a feature slice must account for every entry, and an unpaid one is open again.
 - A slice may carry `spec: { file, story }`, the Markdown file and the heading of the user story it delivers
   (`T15` checks that both exist). It is optional: it is the contract's link from a slice to its story.
 - A slice may carry `test_policy` (`required`, `optional` or `none`), which overrides the blueprint's. See
@@ -125,7 +126,7 @@ Errors fail validation; warnings fail only with `--strict`. `ppc rules` prints t
 | `T07` | error | A component references an unknown requirement or component. |
 | `T08` | error | An ADR references an unknown driver, evidence or ADR. |
 | `T09` | error | A debt entry is inconsistent with its component, origin or paying slice (a feature, fix or refactor slice that touches its component). |
-| `T10` | error | A slice pays a debt entry that does not point back at it. |
+| `T10` | error | A slice pays a debt entry that does not point back at it (unless its audit says it did not pay it). |
 | `T11` | error | A change request references an unknown slice, component, ADR or quality attribute. |
 | `T12` | error | An id is duplicated, or a file name does not match its id. |
 | `T13` | error | A slice audit references unknown decisions or debt, or debt with the wrong origin. |
@@ -159,6 +160,7 @@ Errors fail validation; warnings fail only with `--strict`. `ppc rules` prints t
 | `W06` | warning | A closed work slice changed no test files and no test debt entry is recorded about it, under an optional test policy. |
 | `W07` | warning | The first slice of a capability does not reach every component the design gives that capability (`justified_by`). A spike may prove a risk first. |
 | `W08` | warning | An unfinished slice depends on a slice it shares no component with, so the dependency may be only the planning order. |
+| `W09` | warning | An open debt entry was to be paid by a slice that closed without paying it, and no slice is to pay it now. |
 | `X01` | warning / error | An addition is still undecided (a warning while the design is drafted, an error once slices exist). |
 | `X02` | error | A cut addition was applied but something that only it justified is still in the design. |
 | `X03` | error | A cut addition was applied but the non-goal it becomes is not among the non-goals. |

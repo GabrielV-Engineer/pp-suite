@@ -75,6 +75,17 @@
         "decisions": { "type": "array", "items": { "type": "string", "pattern": "^ADR-\\d{4}$" } },
         "debt_created": { "type": "array", "items": { "type": "string", "pattern": "^DEBT-[A-Z]{2,5}-\\d{3,}$" } },
         "deviations": { "type": "array", "items": { "type": "string", "minLength": 3 } },
+        "debt_paid": { "type": "array", "items": { "type": "string", "pattern": "^DEBT-[A-Z]{2,5}-\\d{3,}$" }, "uniqueItems": true, "description": "The debt in `pays` this slice paid." },
+        "debt_unpaid": {
+          "type": "array",
+          "description": "The debt in `pays` this slice did not pay, and why; that debt is open again.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "reason"],
+            "properties": { "id": { "type": "string", "pattern": "^DEBT-[A-Z]{2,5}-\\d{3,}$" }, "reason": { "type": "string", "minLength": 10 } }
+          }
+        },
         "budget_override_reason": { "type": "string", "minLength": 10 },
         "mutation_override_reason": { "type": "string", "minLength": 10 }
       }

@@ -159,8 +159,16 @@ function setDebtFields(root, register, id, fields) {
   while (end < lines.length && !new RegExp(`^${indent}- `).test(lines[end]) && (lines[end].trim() === '' || lines[end].startsWith(pad))) end++;
   while (end > start + 1 && lines[end - 1].trim() === '') end--;
   for (const [key, value] of Object.entries(fields)) {
-    const text = `${pad}${key}: ${stringify(value).trim()}`;
     const at = lines.slice(start, end).findIndex((l) => l.startsWith(`${pad}${key}:`));
+    if (value === undefined) {
+      // undefined removes the field (one line: the register keeps scalar fields on one line)
+      if (at !== -1) {
+        lines.splice(start + at, 1);
+        end--;
+      }
+      continue;
+    }
+    const text = `${pad}${key}: ${stringify(value).trim()}`;
     if (at === -1) {
       lines.splice(end, 0, text);
       end++;
@@ -463,6 +471,27 @@ function proposeTestDebt(root, model, slice, today) {
  * When the blueprint sets a mutation gate, the score is measured here too (`mutationRunner` replaces
  * Stryker in tests).
  */
+/**
+ * The account a closing slice gives of the debt it was to pay (`pays`): `debt_paid` lists what it paid, `debt_unpaid` what it did
+ * not and why. A feature slice must account for every entry (found in the first real project, F-P2: SL-010 closed without the
+ * debt meant for it, and said nothing); a refactor or fix slice, whose work is the debt, pays it unless it says otherwise.
+ */
+function debtAccount(s, input) {
+  const pays = s.pays ?? [];
+  const paid = input.debt_paid ?? [];
+  const unpaid = input.debt_unpaid ?? [];
+  if (!Array.isArray(paid) || paid.some((x) => typeof x !== 'string')) fail('"debt_paid" is a list of debt ids');
+  if (!Array.isArray(unpaid) || unpaid.some((u) => typeof u?.id !== 'string')) fail('"debt_unpaid" is a list of { "id": "DEBT-…", "reason": "why it was not paid" }');
+  for (const u of unpaid) if (typeof u.reason !== 'string' || u.reason.trim().length < 10) fail(`"debt_unpaid": ${u.id} needs a reason of at least 10 characters`);
+  for (const x of [...paid, ...unpaid.map((u) => u.id)]) if (!pays.includes(x)) fail(`${s.id} does not pay ${x} (its "pays" is ${pays.length ? pays.join(', ') : 'empty'})`);
+  for (const x of paid) if (unpaid.some((u) => u.id === x)) fail(`${x} is both paid and unpaid; say one`);
+  const missing = pays.filter((x) => !paid.includes(x) && !unpaid.some((u) => u.id === x));
+  if (s.type === 'feature' && missing.length) {
+    fail(`${s.id} pays ${missing.join(', ')}. Say for each whether this slice paid it: "debt_paid": ["${missing[0]}"], or "debt_unpaid": [{ "id": "${missing[0]}", "reason": "why not" }]`);
+  }
+  return { paid, unpaid: unpaid.map((u) => ({ id: u.id, reason: u.reason.trim() })) };
+}
+
 export function finish(root, id, input, { mutationRunner, now = new Date() } = {}) {
   return transact(root, () => {
     const model = loadValid(root);
@@ -510,6 +539,7 @@ export function finish(root, id, input, { mutationRunner, now = new Date() } = {
           fail(`mutation score ${mutation_score} is below the gate ${gate}. Mutants the tests did not detect:\n${[...shown, ...more].join('\n')}\nThe tests must detect them (a human decides whether to reopen the tests) or a human records mutation_override_reason.`);
         }
       }
+      const account = debtAccount(s, input);
       const debt_created = [...(input.debt_created ?? [])];
       if (withoutTests && policy === 'optional') debt_created.push(proposeTestDebt(root, model, s, now.toISOString().slice(0, 10)));
       const audit = {
@@ -523,16 +553,25 @@ export function finish(root, id, input, { mutationRunner, now = new Date() } = {
         deviations: input.deviations ?? [],
         ...(input.budget_override_reason ? { budget_override_reason: input.budget_override_reason } : {}),
         ...(input.mutation_override_reason ? { mutation_override_reason: input.mutation_override_reason } : {}),
+        ...(account.paid.length ? { debt_paid: account.paid } : {}),
+        ...(account.unpaid.length ? { debt_unpaid: account.unpaid } : {}),
       };
       editFrontmatter(root, entry.file, (doc) => {
         doc.set('status', 'done');
         doc.delete('phase');
         doc.set('audit', audit);
       });
+      // `pays` keeps what the slice was to pay; what it did not pay is open again, tied to no slice (W09 says so)
+      for (const { id: debtId } of account.unpaid) {
+        const register = model.debt.find((d) => d.data.entries.some((e) => e.id === debtId));
+        setDebtFields(root, register, debtId, { status: 'open', paid_by: undefined });
+      }
     }
     if (PAYERS.includes(s.type)) {
-      // The slice is done, so the debt it was scheduled to pay is paid (rule L05 forbids saying so earlier).
-      for (const id of s.pays ?? []) {
+      // The slice is done, so the debt it was scheduled to pay is paid (rule L05 forbids saying so earlier). What it said it did not
+      // pay was open again above.
+      const unpaid = new Set((input?.debt_unpaid ?? []).map((u) => u.id));
+      for (const id of (s.pays ?? []).filter((d) => !unpaid.has(d))) {
         const register = model.debt.find((d) => d.data.entries.some((e) => e.id === id));
         const entry = register?.data.entries.find((e) => e.id === id);
         if (entry?.status === 'scheduled' && entry.paid_by === s.id) setDebtFields(root, register, id, { status: 'paid' });

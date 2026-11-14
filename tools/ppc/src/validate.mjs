@@ -66,6 +66,7 @@ export const RULES = {
   W06: 'A closed work slice changed no test files and no test debt entry is open about it, under an optional test policy.',
   W07: 'The first slice of a capability does not reach every component the design gives that capability.',
   W08: 'An unfinished slice depends on a slice it shares no component with, so the dependency may be only the planning order.',
+  W09: 'An open debt entry was to be paid by a slice that closed without paying it, and no slice is to pay it now.',
   X01: 'An addition is still undecided (a warning while the design is drafted, an error once slices exist).',
   X02: 'A cut addition was applied but something that only it justified is still in the design.',
   X03: 'A cut addition was applied but the non-goal it becomes is not among the non-goals.',
@@ -337,6 +338,7 @@ export function validateModel(model, { now = new Date() } = {}) {
     for (const id of s.pays ?? []) {
       const d = debtById.get(id);
       if (!d) error('T10', file, `${s.id} pays unknown debt ${id}`);
+      else if ((s.audit?.debt_unpaid ?? []).some((u) => u.id === id)) continue; // it was to pay it and its audit says it did not
       else if (!['scheduled', 'paid'].includes(d.entry.status) || d.entry.paid_by !== s.id) error('T10', file, `${s.id} pays ${id}, but that debt is ${d.entry.status} with paid_by ${d.entry.paid_by ?? 'none'}`);
     }
   }
@@ -350,6 +352,14 @@ export function validateModel(model, { now = new Date() } = {}) {
     for (const x of c.affects.quality_attributes ?? []) if (!qas.has(x)) error('T11', file, `${c.id} affects unknown quality attribute ${x}`);
   }
 
+  // W09: debt a closed slice did not pay, which no slice is to pay now (the latest account is the one named)
+  const leftUnpaid = new Map();
+  for (const { data: s } of slices) for (const u of s.audit?.debt_unpaid ?? []) leftUnpaid.set(u.id, { slice: s.id, reason: u.reason });
+  for (const [id, { slice, reason }] of leftUnpaid) {
+    const d = debtById.get(id);
+    if (d?.entry.status === 'open' && !d.entry.paid_by) warn('W09', d.file, `${id} was to be paid by ${slice}, which closed without it (${reason}); put it to the person with \`ppc ask ${id} --pay-in <slice>\` for the next slice that touches ${d.entry.component}`);
+  }
+
   const testDebtAbout = new Set([...debtById.values()].filter(({ entry: e }) => e.kind === 'test' && e.origin.type === 'slice').map(({ entry: e }) => e.origin.ref));
 
   // ── audits: T13, L02, B01, T16, W06 ─────────────────────────────────────
@@ -357,6 +367,7 @@ export function validateModel(model, { now = new Date() } = {}) {
     const audit = s.audit;
     if (!audit) continue;
     for (const d of audit.decisions) if (!adrIds.has(d)) error('T13', file, `${s.id} audit cites unknown ${d}`);
+    for (const id of [...(audit.debt_paid ?? []), ...(audit.debt_unpaid ?? []).map((u) => u.id)]) if (!debtById.has(id)) error('T13', file, `${s.id} audit accounts for unknown debt ${id}`);
     for (const id of audit.debt_created) {
       const d = debtById.get(id);
       if (!d) error('T13', file, `${s.id} audit lists unknown debt ${id}`);
