@@ -20,7 +20,13 @@ const readList = (paths) => {
 };
 const bullets = (text) => text.split('\n').map((l) => l.replace(/^\s*[-*]\s*/, '').trim()).filter(Boolean);
 
-function sliceCard(entry, { redFiles, auditInput } = {}) {
+// The debt a slice pays, and the open debt in its components that no slice pays yet: shown when it is approved, so debt meant for
+// it is not forgotten (the first real project approved SL-010 17 minutes after debt meant for it, and nothing said so).
+const debtEntries = (model) => model.debt.flatMap((d) => d.data.entries);
+const paidBy = (model, s) => debtEntries(model).filter((e) => e.paid_by === s.id && e.status === 'scheduled');
+const openHere = (model, s) => (['planned', 'ready'].includes(s.status) ? debtEntries(model).filter((e) => e.status === 'open' && !payProblem(s, e)) : []);
+
+function sliceCard(model, entry, { redFiles, auditInput } = {}) {
   const s = entry.data;
   const red = s.status === 'in_progress' && s.phase === 'red';
   const out = [`${s.id}  ${s.title}`, row('Kind', `${s.type}${s.mode ? `, ${s.mode} cycle` : ''}`)];
@@ -30,6 +36,13 @@ function sliceCard(entry, { redFiles, auditInput } = {}) {
   if (not) out.push(row('Does not', ''), ...bullets(not).map((b) => `      - ${b}`));
   if (s.acceptance?.length) out.push(row('Checked by', ''), ...s.acceptance.map((a) => `      - ${a.id}: ${a.scenario}`));
   if (s.depends_on?.length) out.push(row('Waits for', s.depends_on.join(', ')));
+  const pays = paidBy(model, s);
+  if (pays.length) out.push(row('Pays', ''), ...pays.map((e) => `      - ${e.id} ${e.title}`));
+  const open = openHere(model, s);
+  if (open.length) {
+    out.push(row('Open debt here', ''), ...open.map((e) => `      - ${e.id} ${e.title} (cost of waiting ${e.cost_of_delay?.level ?? 'unknown'})`));
+    out.push(`      To pay one in this slice, put it to the person first:  ${open.map((e) => `ppc ask ${e.id} --pay-in ${s.id}`).join('  ·  ')}`);
+  }
   if (red) {
     out.push('', `The red tests are the specification of this slice: approve them only if they say what you want.`, row('Red tests', (redFiles?.length ? redFiles : ['(none found in the red commit)']).join(', ')));
     out.push(...readList([...(redFiles ?? []), entry.file]));
@@ -86,7 +99,7 @@ export function renderDecision(model, id, extra = {}) {
     return card ? `${card}\n` : null;
   }
   const slice = model.slices.find((s) => s.data.id === id);
-  if (slice) return `${sliceCard(slice, extra)}\n`;
+  if (slice) return `${sliceCard(model, slice, extra)}\n`;
   for (const register of model.debt) {
     const entry = register.data.entries.find((e) => e.id === id);
     if (entry) return `${debtCard(register, entry)}\n`;
@@ -151,7 +164,9 @@ export function askFor(model, id, { redFiles, budgetReason, mutationReason, payI
     ] }] };
   }
   if (slice?.status === 'planned') {
-    return { questions: [{ question: `Approve ${id} "${slice.title}" to start?`, header: 'Slice', multiSelect: false, options: [choose('Yes, approve it', `ppc approve ${id}`, 'It becomes ready, and the build can start'), ...SAY_NO] }] };
+    const pays = paidBy(model, slice).map((e) => e.id);
+    const also = pays.length ? ` It also pays ${pays.join(', ')}.` : '';
+    return { questions: [{ question: `Approve ${id} "${slice.title}" to start?${also}`, header: 'Slice', multiSelect: false, options: [choose('Yes, approve it', `ppc approve ${id}`, 'It becomes ready, and the build can start'), ...SAY_NO] }] };
   }
   if (slice?.status === 'in_progress' && slice.phase === 'red') {
     const files = redFiles?.length ? ` (${redFiles.join(', ')})` : '';

@@ -196,6 +196,28 @@ test('show: a slice card says what it does, what it does not, how it is checked 
   assert.match(text, /ppc approve SL-002/, 'ends with the one thing to run');
 });
 
+// Found in the first real project (F-P2): SL-010 was approved 17 minutes after a debt entry meant for it, and nothing said so.
+test('show: a slice card names the debt it pays, and the open debt in its components that nothing pays yet', (t) => {
+  const r = repo(t);
+  const pays = renderDecision(loadProject(r.dir), 'SL-008'); // the example's refactor slice pays DEBT-FE-001
+  assert.match(pays, /Pays:\s+- DEBT-FE-001 Title validation rules are duplicated/);
+  approve(r.dir, 'DEBT-BE-001', { by: 'owner' }); // open, on the backend, paid by no slice
+  const open = renderDecision(loadProject(r.dir), 'SL-004'); // planned, frontend and backend
+  assert.match(open, /Open debt here:\s+- DEBT-BE-001 The task list is returned in full, without pagination \(cost of waiting \w+\)/);
+  assert.match(open, /ppc ask DEBT-BE-001 --pay-in SL-004/, 'and how to put it to the person');
+  assert.doesNotMatch(renderDecision(loadProject(r.dir), 'SL-001'), /Open debt here/, 'the skeleton pays no debt, so it is not offered any');
+  const closed = loadProject(r.dir);
+  sl(closed, 'SL-004').status = 'done';
+  assert.doesNotMatch(renderDecision(closed, 'SL-004'), /Open debt here/, 'a slice already done is not offered debt either');
+});
+
+test('ask: the approval of a slice says which debt it also pays', (t) => {
+  const r = repo(t);
+  approve(r.dir, 'DEBT-BE-001', { by: 'owner', payIn: 'SL-004' });
+  assert.match(askFor(loadProject(r.dir), 'SL-004').questions[0].question, /Approve SL-004 .* to start\? It also pays DEBT-BE-001\./);
+  assert.doesNotMatch(askFor(loadProject(r.dir), 'SL-008').questions[0].question, /DEBT-BE-001/);
+});
+
 test('show: the red tests of a slice are named, so a person approves tests and not an id', (t) => {
   const r = repo(t);
   start(r.dir, 'SL-001');
