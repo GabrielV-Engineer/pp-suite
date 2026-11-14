@@ -258,7 +258,42 @@ test('W03: unfinished slices planned against an older revision are flagged', () 
   assert.ok(has(run(m), 'W03', 'warning'));
 });
 
+// Found in the first real project (F-P1): the first slices of "import a recording" ran only through the engine and the
+// terminal, although the design puts that capability in the app; the app came four slices later.
+const w07 = (m) => run(m).filter((f) => f.rule === 'W07');
 const SPIKE = { type: 'spike', timebox_hours: 4, disposable: true };
+
+test('W07: the first slice of a capability must reach every component the design gives that capability', () => {
+  const m = base(); // CAP-001 is justified in frontend and backend; SL-002 opens it, SL-004 follows it
+  slice(m, 'SL-002').data.components = ['frontend', 'database'];
+  const found = w07(m);
+  assert.equal(found.length, 1);
+  assert.equal(found[0].severity, 'warning');
+  assert.match(found[0].message, /SL-002 opens CAP-001 but does not reach backend/);
+  assert.match(found[0].message, /spike/, 'and says how to prove a risk first instead');
+});
+
+test('W07: a spike may prove a risk first, and a slice already closed is history', () => {
+  const spike = base();
+  Object.assign(slice(spike, 'SL-002').data, { ...SPIKE, components: ['backend'] });
+  assert.ok(!run(spike).some((f) => f.rule === 'SCHEMA'), 'the spike is a valid one');
+  assert.deepEqual(w07(spike), []);
+  const done = base();
+  finish(done, 'SL-002').components = ['frontend'];
+  assert.deepEqual(w07(done), []);
+});
+
+test('W07: only the slices that open a capability must reach all of it, also when they follow it through another capability', () => {
+  const second = base();
+  slice(second, 'SL-004').data.components = ['frontend']; // SL-004 depends on SL-002, the slice that opened CAP-001
+  assert.deepEqual(w07(second), []);
+  const transitive = base();
+  Object.assign(slice(transitive, 'SL-007').data, { capability: 'CAP-001', components: ['frontend'] }); // SL-007 → SL-003 → SL-002
+  assert.deepEqual(w07(transitive), []);
+  const opening = base();
+  Object.assign(slice(opening, 'SL-006').data, { capability: 'CAP-001', depends_on: [], components: ['frontend'] });
+  assert.equal(w07(opening).length, 1, 'a slice of the capability that follows no other one opens it too');
+});
 
 test('T06: a spike does not deliver a capability', () => {
   const m = base();

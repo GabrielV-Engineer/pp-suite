@@ -64,6 +64,7 @@ export const RULES = {
   W04: 'A slice has many acceptance criteria and probably needs splitting.',
   W05: 'A quality attribute is not referenced by any live slice, so nothing plans to deliver or verify it.',
   W06: 'A closed work slice changed no test files and no test debt entry is open about it, under an optional test policy.',
+  W07: 'The first slice of a capability does not reach every component the design gives that capability.',
   X01: 'An addition is still undecided (a warning while the design is drafted, an error once slices exist).',
   X02: 'A cut addition was applied but something that only it justified is still in the design.',
   X03: 'A cut addition was applied but the non-goal it becomes is not among the non-goals.',
@@ -250,6 +251,26 @@ export function validateModel(model, { now = new Date() } = {}) {
     const escaped = s.spec.story.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     if (text == null) error('T15', file, `${s.id} points at spec file ${s.spec.file}, which cannot be read`);
     else if (!new RegExp(`^#{1,6}\\s+${escaped}\\b`, 'im').test(text)) error('T15', file, `${s.id} points at "${s.spec.story}", which is not a heading in ${s.spec.file}`);
+  }
+
+  // W07: a capability opens end to end. The slices that open it are its feature slices that follow no other feature slice of
+  // it, directly or through other slices; they reach every component the design justifies with it. A spike may prove a
+  // risk first, and a closed slice is history.
+  const unfinished = (s) => !['done', 'dropped'].includes(s.status);
+  const follows = (id, target, seen = new Set()) => {
+    for (const d of graph.get(id) ?? []) {
+      if (seen.has(d)) continue;
+      seen.add(d);
+      if (target(sliceById.get(d).data) || follows(d, target, seen)) return true;
+    }
+    return false;
+  };
+  for (const { file, data: s } of slices) {
+    if (s.type !== 'feature' || !s.capability || !unfinished(s)) continue;
+    const needed = bp.components.filter((c) => (c.justified_by ?? []).includes(s.capability)).map((c) => c.id);
+    const missing = needed.filter((c) => !s.components.includes(c));
+    if (!missing.length || follows(s.id, (d) => d.type === 'feature' && d.capability === s.capability && d.status !== 'dropped')) continue;
+    warn('W07', file, `${s.id} opens ${s.capability} but does not reach ${missing.join(', ')}; plan it through them, or make it a spike that says which risk it proves first`);
   }
 
   // T06: every capability is covered by a live slice that delivers it (a spike only learns)

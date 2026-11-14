@@ -156,6 +156,7 @@ Errors fail validation; warnings fail only with `--strict`. `ppc rules` prints t
 | `W04` | warning | A slice has many acceptance criteria and probably needs splitting. |
 | `W05` | warning | A quality attribute is not referenced by any live slice, so nothing plans to deliver or verify it. |
 | `W06` | warning | A closed work slice changed no test files and no test debt entry is recorded about it, under an optional test policy. |
+| `W07` | warning | The first slice of a capability does not reach every component the design gives that capability (`justified_by`). A spike may prove a risk first. |
 | `X01` | warning / error | An addition is still undecided (a warning while the design is drafted, an error once slices exist). |
 | `X02` | error | A cut addition was applied but something that only it justified is still in the design. |
 | `X03` | error | A cut addition was applied but the non-goal it becomes is not among the non-goals. |
