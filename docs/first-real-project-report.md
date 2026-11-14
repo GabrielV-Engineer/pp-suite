@@ -368,3 +368,40 @@ and Spec Kit's `tasks-template.md` as installed in the project. Nothing was chan
 - **What the checks cannot see:** sharing a component does not prove a dependency is real, so `W08` catches only the plain case; the reasons in
   the plan table, which the person approves, cover the rest. `W07` is only as good as `justified_by`: in this project `ui` does not list CAP-002,
   although recordings are imported from the patient screen. That may be a gap in the design; it is the owner's to decide.
+
+---
+
+# Review, 2026-11-14: debt meant for SL-010 that SL-010 did not pay (F-P2)
+
+The owner saw that a debt entry was put off to SL-010 and SL-010 closed without it. Sources: `.sddpp/debt.yaml`, the frontmatter and
+audits of SL-008 to SL-010, `.sddpp/answers.jsonl`, `PPSUITE-LOG.md` (lines 735 and 736) and the git history since SL-008. Nothing was
+changed in the project.
+
+- **State:** 11 of 22 slices done (SL-008, SL-009 and SL-010 since the last review, each carried by one `/pp`; SL-009 and SL-010 took about
+  7 minutes each, SL-010 at 368 production lines). `validate --strict` and `check-git` 0 and 0. Every approval since is in the panel ledger.
+- **What happened (F-P2):** three entries named SL-010 in their trigger: DEBT-STO-001 ("Before or within SL-010", cost medium), DEBT-UI-004
+  ("When SL-010 touches the turn row") and DEBT-UI-003 ("in SL-009 or SL-010", cost medium). SL-010 closed and all three are open.
+  DEBT-STO-001 got worse: SL-010 added two more writers to the file it is about, through the one write path SL-010 itself made, where a
+  lock would have paid it. DEBT-UI-004 was half paid (the turn row split out, 69 to 59 lines) and not recorded. DEBT-UI-003 was not
+  mentioned. The owner approved DEBT-STO-001 in the panel at 23:37 and SL-010 at 23:54; nothing on the second question named the first.
+  The agent noticed DEBT-STO-001 only in the audit, as a deviation.
+- **Cause:** a trigger is free text that `ppc` only shows on the entry's own card; the contract let only a refactor or fix slice pay debt,
+  so "within SL-010", a feature slice, could not be recorded; and closing a slice asked nothing about the debt meant for it. The wider
+  pattern: 16 entries, 0 paid in 11 slices (DEBT-PIPE-005 and DEBT-PIPE-002, which SL-022 fixed, were never recorded as paid either).
+  The same gap was seen once before, in the three-way test ([report](e2e-test-report.md), "Differences found in the pp-suite flow itself", point 2: "A feature slice can partly pay debt but cannot say so").
+- **Fixed** (the owner chose a structured fix, and that a feature slice may pay debt; `ca66f7c` to `8a8ed68`):
+  - a feature slice may pay the debt of the components it touches (`PAYERS`, `T09`), and any payer must touch them;
+  - `ppc ask DEBT-X --pay-in SL-NNN` offers "pay it in SL-NNN" (`ppc approve DEBT-X --pay-in SL-NNN`) in place of "pay it later", and asks
+    whether to schedule an open entry there;
+  - a slice's card lists what it pays and the open debt in its components by cost of waiting, and asks about the medium and high ones
+    before the slice's approval; the approval question says which debt the slice also pays;
+  - `ppc finish` does not close a feature slice that pays debt until its audit says, entry by entry, `debt_paid` or `debt_unpaid` with a
+    reason; unpaid debt is open again, and `W09` and `ppc next` ask which slice pays it now;
+  - `/pp-build` treats `pays` as part of the work; `/pp-audit` asks with `--pay-in` and accounts against the diff.
+- **Checked:** Node 544 tests; 15 breaks on purpose, all caught; the agreement test runs `ppc approve … --pay-in …` through the real guard
+  and ledger; the whole flow run once through the CLI on a copy of the example (propose, ask, approve into a slice, card, refuse a close
+  without account, close with an unpaid entry, `W09` and `next`, schedule again, clean). On this project, read-only: SL-011's card lists
+  nine open entries and asks about three (DEBT-APP-002, DEBT-UI-003, DEBT-STO-001).
+- **What it cannot see:** `ppc` checks that the slice gives an account, not that the account is true; an agent can list as paid what it did
+  not fix. The three entries above are not flagged by `W09`, since they were never scheduled: they are the owner's to decide (proposed:
+  DEBT-STO-001 into SL-011, DEBT-UI-004 dropped as covered by DEBT-UI-005, DEBT-UI-003 into the next slice on the transcript screen).
