@@ -44,9 +44,10 @@ const USAGE = `ppc — pp-suite contract tool
     ppc apply-change <CR-ID> [dir]       mark it applied, once the design revision has risen and the constitution follows it
 
   Slice cycle (each step changes the project or nothing at all)
-    ppc approve [<id>] [--by <name>] [--accept <reason> | --drop [--reason <why>]] [dir]
+    ppc approve [<id>] [--by <name>] [--accept <reason> | --drop [--reason <why>] | --pay-in <slice>] [dir]
                                          HUMAN ONLY: approve a slice to start, its red tests, or decide a debt entry; with no id,
-                                         the one decision that is waiting. --by defaults to the git user.name
+                                         the one decision that is waiting; --pay-in approves debt into the slice that pays it.
+                                         --by defaults to the git user.name
     ppc show <id> | reread [dir]         the card of what is being decided, in plain words
     ppc approve-slice <slice> --by <name> [dir]
                                          HUMAN ONLY: planned -> ready
@@ -54,8 +55,9 @@ const USAGE = `ppc — pp-suite contract tool
     ppc approve-red --by <name> [dir]    HUMAN ONLY: approve the committed red tests, enter green
     ppc approve-debt <DEBT-ID> --by <name> [--accept <reason> | --drop [--reason <why>]] [dir]
                                          HUMAN ONLY: decide on proposed debt (default: it becomes open; --reason records why it was dropped)
-    ppc schedule-debt <DEBT-ID> --slice <refactor slice> [dir]
-                                         assign an approved (open) debt to a planned refactor slice that touches its component
+    ppc schedule-debt <DEBT-ID> --slice <slice> [dir]
+                                         assign an approved (open) debt to a planned feature, fix or refactor slice that touches
+                                         its component; that slice pays it
     ppc decide-addition <ADD-ID>... (--keep --reason <why> | --cut) [--alone] [--by <name>] [dir]
                                          several ids are decided the same way; additions that overlap must be decided
                                          together (--alone decides one on purpose)
@@ -64,9 +66,10 @@ const USAGE = `ppc — pp-suite contract tool
                                          decides; an assistant may run it for what the person told it in the conversation
     ppc reread (--all | SL-001 ...) [dir]
                                          HUMAN ONLY: say you read what changed in the design since the slices were planned (clears W03)
-    ppc ask <id> [--budget-reason <why>] [--mutation-reason <why>] [dir]
+    ppc ask <id> [--budget-reason <why>] [--mutation-reason <why>] [--pay-in <slice>] [dir]
                                          the question for the panel that decides it: the option that approves ends with the exact
-                                         command; with a reason, the exception that lets a slice in progress close
+                                         command; with a reason, the exception that lets a slice in progress close; with
+                                         --pay-in, a debt entry is approved or scheduled into the slice that pays it
     ppc additions [dir]                  the additions in plain words: what needs you, what a recommendation settles
     ppc refactor [dir]                   green -> refactor
     ppc finish <slice> --audit <file.json> [--budget-reason <text>] [--mutation-reason <text>] [dir]
@@ -83,12 +86,12 @@ const USAGE = `ppc — pp-suite contract tool
     ppc help [<command>]                 this text, or only the lines of one command; \`ppc <command> --help\` does the same and nothing else
 `;
 
-const VALUE_OPTIONS = new Set(['--by', '--audit', '--files', '--slice', '--accept', '--budget-reason', '--mutation-reason', '--reason', '--task', '--specify', '--title', '--problem', '--proposal', '--component', '--adr', '--qa', '--but-cut', '--but-keep']);
+const VALUE_OPTIONS = new Set(['--by', '--audit', '--files', '--slice', '--accept', '--budget-reason', '--mutation-reason', '--reason', '--task', '--specify', '--title', '--problem', '--proposal', '--component', '--adr', '--qa', '--but-cut', '--but-keep', '--pay-in']);
 // What each command accepts. Anything else is refused: an option that is silently ignored can turn a request for help, or a typo,
 // into an approval (`ppc approve --help` once approved the one slice that could be approved).
 const OPTIONS = {
-  rules: [], validate: ['--strict', '--design'], 'check-git': [], start: [], 'approve-slice': ['--by'], approve: ['--by', '--accept', '--drop', '--reason'],
-  show: [], ask: ['--budget-reason', '--mutation-reason'], reread: ['--all'], 'approve-debt': ['--by', '--accept', '--drop', '--reason'], 'schedule-debt': ['--slice'],
+  rules: [], validate: ['--strict', '--design'], 'check-git': [], start: [], 'approve-slice': ['--by'], approve: ['--by', '--accept', '--drop', '--reason', '--pay-in'],
+  show: [], ask: ['--budget-reason', '--mutation-reason', '--pay-in'], reread: ['--all'], 'approve-debt': ['--by', '--accept', '--drop', '--reason'], 'schedule-debt': ['--slice'],
   'decide-addition': ['--keep', '--cut', '--alone', '--by', '--reason', '--accept-recommended', '--but-cut', '--but-keep'], additions: [],
   'change-request': ['--slice', '--title', '--problem', '--proposal', '--component', '--adr', '--qa', '--budgets'],
   'decide-change': ['--accept', '--reject', '--by', '--reason'], 'apply-change': [], 'approve-red': ['--by'], refactor: [],
@@ -184,7 +187,7 @@ switch (command) {
     const isId = (p) => /^(SL|DEBT|CR|[A-Z]+)-/.test(p) && !p.includes('/');
     const id = positionals.find(isId);
     const root = resolve(positionals.find((p) => p !== id) ?? '.');
-    transition(() => approve(root, id, { by: options.get('by') ?? gitUserName(root), accept: options.get('accept'), drop: flags.has('--drop'), reason: options.get('reason') }));
+    transition(() => approve(root, id, { by: options.get('by') ?? gitUserName(root), accept: options.get('accept'), drop: flags.has('--drop'), reason: options.get('reason'), payIn: options.get('pay-in') }));
     break;
   }
   case 'show': {
@@ -204,7 +207,7 @@ switch (command) {
     const root = resolve(positionals.find((p) => p !== id) ?? '.');
     let question;
     try {
-      question = id ? askFor(loadProject(root), id, { redFiles: redCommitFiles(root, id), budgetReason: options.get('budget-reason'), mutationReason: options.get('mutation-reason') }) : null;
+      question = id ? askFor(loadProject(root), id, { redFiles: redCommitFiles(root, id), budgetReason: options.get('budget-reason'), mutationReason: options.get('mutation-reason'), payIn: options.get('pay-in') }) : null;
     } catch (error) {
       if (!(error instanceof DecisionError)) throw error;
       console.error(error.message);

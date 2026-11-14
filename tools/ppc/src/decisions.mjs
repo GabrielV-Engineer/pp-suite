@@ -1,4 +1,5 @@
 import { execFileSync } from 'node:child_process';
+import { payProblem } from './policy.mjs';
 
 // The card of one thing a person decides, in plain words: what it is and what approving it means. `ppc show <id>` prints it and
 // the `/pp` skill shows it in the chat before asking. Pure over the loaded model, except the red tests, whose files come from
@@ -131,7 +132,7 @@ function carried(flag, reason) {
 }
 
 /** The panel question (the input of the AskUserQuestion tool) for a decision, or null when there is nothing to decide on that id. */
-export function askFor(model, id, { redFiles, budgetReason, mutationReason } = {}) {
+export function askFor(model, id, { redFiles, budgetReason, mutationReason, payIn } = {}) {
   if (id === 'reread') {
     const behind = model.slices.map((s) => s.data).filter((s) => !['done', 'dropped'].includes(s.status) && s.blueprint_revision < model.blueprint.data.revision);
     if (!behind.length) return null;
@@ -157,6 +158,27 @@ export function askFor(model, id, { redFiles, budgetReason, mutationReason } = {
     return { questions: [{ question: `Do the red tests of ${id}${files} say what you want? They are the specification.`, header: 'Red tests', multiSelect: false, options: [choose('Yes, approve the tests', 'ppc approve', 'The tests are locked and the code is written to pass them (green)'), ...SAY_NO] }] };
   }
   const debt = model.debt.flatMap((d) => d.data.entries).find((e) => e.id === id);
+  if (debt && payIn !== undefined) {
+    // The slice that will pay it, proposed by the agent: offered in place of "pay it later", which leaves debt tied to no slice.
+    const payer = model.slices.find((s) => s.data.id === payIn)?.data;
+    if (!payer) throw new DecisionError(`--pay-in: unknown slice ${payIn}`);
+    if (!['proposed', 'open'].includes(debt.status)) return null;
+    const problem = payProblem(payer, debt);
+    if (problem) throw new DecisionError(`--pay-in: ${problem}`);
+    const pays = `${payIn} pays it: fixing it is part of that slice, and when it closes its audit says whether it was paid`;
+    if (debt.status === 'open') {
+      return { questions: [{ question: `Pay ${id} "${debt.title}" in ${payIn} "${payer.title}"?`, header: 'Debt', multiSelect: false, options: [
+        choose(`Yes, ${payIn} pays it`, `ppc schedule-debt ${id} --slice ${payIn}`, pays),
+        { label: 'Not yet', description: 'It stays open, tied to no slice' },
+      ] }] };
+    }
+    return { questions: [{ question: `What do we do with ${id} "${debt.title}"?`, header: 'Debt', multiSelect: false, options: [
+      choose(`Pay it in ${payIn}`, `ppc approve ${id} --pay-in ${payIn}`, pays),
+      choose('Live with it', `ppc approve ${id} --accept "${ACCEPT_REASON}"`, 'Accepted for good: it is recorded and will not be paid'),
+      choose('Drop it', `ppc approve ${id} --drop --reason "${DROP_REASON}"`, 'Discarded: it was not a real debt'),
+      { label: 'Not yet', description: 'Nothing is decided; it waits for you' },
+    ] }] };
+  }
   if (debt?.status === 'proposed') {
     return { questions: [{ question: `What do we do with ${id} "${debt.title}"?`, header: 'Debt', multiSelect: false, options: [
       choose('Pay it later', `ppc approve ${id}`, 'Open debt: it stays on the list, to be scheduled and paid'),

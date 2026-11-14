@@ -268,6 +268,58 @@ test('ask: the three outcomes of a debt entry are three different commands, and 
   assert.ok(ask.questions[0].options.length <= 4);
 });
 
+// Found in the first real project (F-P2): debt meant for SL-010 was approved as open, with the slice only named in its trigger text,
+// so nothing tied it to SL-010. The panel now offers to approve it into the slice that pays it.
+const commandsOf = (ask) => withCommand(ask).map((o) => o.label.split(' — ').at(-1));
+
+test('ask --pay-in: a proposed debt entry can be approved into the slice that pays it, and "open with no slice" is not offered', (t) => {
+  const ask = askFor(loadProject(repo(t).dir), 'DEBT-BE-001', { payIn: 'SL-004' }); // SL-004: planned feature slice on the backend
+  assert.deepEqual(commandsOf(ask), ['ppc approve DEBT-BE-001 --pay-in SL-004', 'ppc approve DEBT-BE-001 --accept "accepted in the panel"', 'ppc approve DEBT-BE-001 --drop --reason "dropped in the panel"']);
+  assert.match(ask.questions[0].options[0].description, /SL-004 pays it/);
+  assert.ok(ask.questions[0].options.length <= 4 && ask.questions[0].options.some((o) => !o.label.includes(' — ppc ')));
+});
+
+test('ask --pay-in: an open debt entry is asked whether to schedule it into that slice', (t) => {
+  const r = repo(t);
+  approve(r.dir, 'DEBT-BE-001', { by: 'owner' });
+  const ask = askFor(loadProject(r.dir), 'DEBT-BE-001', { payIn: 'SL-004' });
+  assert.match(ask.questions[0].question, /DEBT-BE-001.*SL-004/);
+  assert.deepEqual(commandsOf(ask), ['ppc schedule-debt DEBT-BE-001 --slice SL-004']);
+});
+
+test('ask --pay-in: a slice that cannot pay the debt is refused, and says why', (t) => {
+  const r = repo(t);
+  const model = loadProject(r.dir);
+  const refused = (payIn, pattern) => assert.throws(() => askFor(model, 'DEBT-BE-001', { payIn }), (e) => e instanceof DecisionError && pattern.test(e.message), payIn);
+  refused('SL-099', /unknown slice SL-099/);
+  refused('SL-001', /skeleton/); // the skeleton pays no debt
+  sl(model, 'SL-003').components = ['frontend'];
+  refused('SL-003', /does not touch backend/);
+  sl(model, 'SL-005').status = 'in_progress';
+  refused('SL-005', /planned or ready/);
+  sl(model, 'SL-006').status = 'done';
+  refused('SL-006', /feature slice that is done/);
+});
+
+test('approve --pay-in: the entry is approved and scheduled into the slice in one step, or nothing changes', (t) => {
+  const r = repo(t);
+  const before = readFileSync(join(r.dir, '.sddpp/debt.yaml'), 'utf8');
+  fails(() => approve(r.dir, 'DEBT-BE-001', { by: 'owner', payIn: 'SL-001' }), /skeleton/);
+  assert.equal(readFileSync(join(r.dir, '.sddpp/debt.yaml'), 'utf8'), before, 'a refused schedule leaves the entry proposed');
+  fails(() => approve(r.dir, 'SL-002', { by: 'owner', payIn: 'SL-004' }), /--pay-in applies to a debt entry/);
+  approve(r.dir, 'DEBT-BE-001', { by: 'owner', payIn: 'SL-004' });
+  const entry = loadProject(r.dir).debt[0].data.entries.find((e) => e.id === 'DEBT-BE-001');
+  assert.deepEqual([entry.status, entry.paid_by, entry.approved_by], ['scheduled', 'SL-004', 'owner']);
+  assert.deepEqual(slice(r.dir, 'SL-004').pays, ['DEBT-BE-001']);
+  assert.deepEqual(errorsOf(loadProject(r.dir)), []);
+  const cli = repo(t);
+  const out = spawnSync('node', [CLI, 'approve', 'DEBT-BE-001', '--pay-in', 'SL-004', '--by', 'owner', cli.dir], { encoding: 'utf8' });
+  assert.equal(out.status, 0, out.stderr);
+  assert.equal(slice(cli.dir, 'SL-004').pays[0], 'DEBT-BE-001');
+  const asked = spawnSync('node', [CLI, 'ask', 'DEBT-BE-001', '--pay-in', 'SL-004', cli.dir], { encoding: 'utf8' });
+  assert.equal(asked.status, 1, 'a scheduled entry has nothing left to ask');
+});
+
 test('ask: a change request is accepted or rejected, and a rejection carries its fixed reason', (t) => {
   const ask = askFor(loadProject(repo(t).dir), 'CR-0001');
   assert.deepEqual(withCommand(ask).map((o) => o.label.split(' — ').at(-1)), ['ppc decide-change CR-0001 --accept', 'ppc decide-change CR-0001 --reject --reason "rejected in the panel"']);
@@ -327,7 +379,7 @@ test('the commands in the labels are exactly what the guard accepts once the per
   let n = 0;
   sl(model, 'SL-002').status = 'in_progress'; // a slice being closed, for the exception questions
   const exception = { budgetReason: "the owner's lock file is generated; hand-written code is about 390", mutationReason: 'a reason that is long enough' };
-  for (const [id, extra] of [['SL-001'], ['DEBT-BE-001'], ['CR-0001'], ['reread'], ['SL-002', exception], ['SL-002', { budgetReason: exception.budgetReason }]]) {
+  for (const [id, extra] of [['SL-001'], ['DEBT-BE-001'], ['DEBT-BE-001', { payIn: 'SL-004' }], ['CR-0001'], ['reread'], ['SL-002', exception], ['SL-002', { budgetReason: exception.budgetReason }]]) {
     for (const option of withCommand(askFor(model, id, extra))) {
       n += 1;
       const command = option.label.split(' — ').at(-1);

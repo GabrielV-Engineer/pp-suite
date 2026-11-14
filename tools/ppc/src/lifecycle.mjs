@@ -5,16 +5,14 @@ import { loadProject } from './load.mjs';
 import { validateModel } from './validate.mjs';
 import { checkGit, dirtyPaths, measure } from './gitcheck.mjs';
 import { runMutation, sliceProductionFiles } from './mutation.mjs';
-import { modeOf, testPolicy } from './policy.mjs';
+import { modeOf, testPolicy, PAYERS, payProblem } from './policy.mjs';
 import { generatedGlobs } from './testpaths.mjs';
 import { overlapGroup, triage } from './additions.mjs';
 import { nextSteps } from './next.mjs';
 import { gitSubjects } from './session.mjs';
 
 // The slices that pay debt: a refactor slice changes structure, a fix slice behavior (often through a change request).
-// The slice types that may pay debt. A feature slice pays the debt of the components it touches (the owner's choice, 2026-11-14,
-// after three entries meant for a feature slice of the first real project went unpaid); its audit says what it paid.
-export const PAYERS = ['refactor', 'fix', 'feature'];
+export { PAYERS } from './policy.mjs';
 
 /** A refused transition. The message says why; nothing was changed. */
 export class LifecycleError extends Error {}
@@ -293,8 +291,9 @@ export function reread(root, { ids = [], all = false } = {}) {
  * progress in the red phase); a debt id decides the debt; with no id it takes the one decision `ppc next` is asking for, and
  * refuses to guess when there are several. A change request is decided with `ppc decide-change`, which needs accept or reject.
  */
-export function approve(root, id, { by, accept, drop, reason } = {}) {
+export function approve(root, id, { by, accept, drop, reason, payIn } = {}) {
   if (!by || !by.trim()) fail('no name to record: set one with `git config user.name "<your name>"` or pass --by <name>');
+  if (!id?.startsWith('DEBT-') && payIn !== undefined) fail('--pay-in applies to a debt entry: `ppc approve DEBT-… --pay-in SL-…`');
   // Options that mean something only for a debt entry are not ignored elsewhere: ignoring them would approve what the person meant to drop.
   if (!id?.startsWith('DEBT-') && (accept !== undefined || drop || reason !== undefined)) fail('--accept, --drop and --reason apply to a debt entry: name it with `ppc approve DEBT-… --drop`');
   if (id) {
@@ -302,7 +301,7 @@ export function approve(root, id, { by, accept, drop, reason } = {}) {
       const entry = loadValid(root).slices.find((s) => s.data.id === id);
       return entry?.data.status === 'in_progress' && entry.data.phase === 'red' ? approveRed(root, by) : approveSlice(root, id, by);
     }
-    if (id.startsWith('DEBT-')) return approveDebt(root, id, { by, accept, drop, reason });
+    if (id.startsWith('DEBT-')) return approveDebt(root, id, { by, accept, drop, reason, payIn });
     if (id.startsWith('CR-')) fail(`${id} is a change request: decide it with \`ppc decide-change ${id} --accept\` or \`--reject --reason <why>\``);
     fail(`${id} is not something to approve here: a slice (SL-…) or a debt entry (DEBT-…)`);
   }
@@ -326,8 +325,9 @@ export function approve(root, id, { by, accept, drop, reason } = {}) {
  * HUMAN ONLY: decide on a debt entry the AI proposed. Default: it becomes open (a real debt to pay);
  * `accept` records that it will be lived with, and why; `drop` discards it, optionally with the `reason`.
  */
-export function approveDebt(root, id, { by, accept, drop, reason } = {}) {
+export function approveDebt(root, id, { by, accept, drop, reason, payIn } = {}) {
   return transact(root, () => {
+    if (payIn !== undefined && (accept !== undefined || drop)) fail('--pay-in keeps the debt to pay; it does not go with --accept or --drop');
     if (!by || !by.trim()) fail('--by <name> is required: a human decides on technical debt');
     if (accept !== undefined && drop) fail('use --accept <reason> or --drop, not both');
     if (accept !== undefined && accept.trim().length < 10) fail('--accept needs a reason of at least 10 characters');
@@ -341,6 +341,8 @@ export function approveDebt(root, id, { by, accept, drop, reason } = {}) {
 
     setDebtFields(root, register, id, { status, approved_by: by.trim(), ...(status === 'accepted' ? { accepted_reason: accept.trim() } : {}), ...(status === 'dropped' && reason !== undefined ? { dropped_reason: reason.trim() } : {}) });
     ensureValid(root);
+    // Approved into the slice that pays it, in the same step: if that slice cannot pay it, the entry stays as it was.
+    if (payIn !== undefined) return { ...scheduleDebt(root, id, payIn), approved: true };
     return { debt: id, status };
   });
 }
@@ -360,11 +362,9 @@ export function scheduleDebt(root, debtId, sliceId) {
     const target = model.slices.find((s) => s.data.id === sliceId) ?? fail(`unknown slice ${sliceId}`);
     const s = target.data;
     if (debt.status !== 'open') fail(`${debtId} is ${debt.status}; only an open debt (one a person approved with ppc approve-debt) can be scheduled`);
-    if (!PAYERS.includes(s.type)) fail(`${sliceId} is a ${s.type} slice. Debt is paid by a feature, fix or refactor slice that touches its component`);
-    if (s.type === 'feature' && s.status === 'done') fail(`${sliceId} is a feature slice that is done; it can no longer pay ${debtId}. Schedule it into a planned slice, or plan a fix slice`);
+    const problem = payProblem(s, debt);
+    if (problem) fail(problem);
     const paidAlready = s.status === 'done';
-    if (!['planned', 'ready'].includes(s.status) && !paidAlready) fail(`${sliceId} is ${s.status}; debt can be scheduled only into a slice that is planned or ready, or recorded as paid by one that is done`);
-    if (!s.components.includes(debt.component) && !(debt.also_affects ?? []).some((c) => s.components.includes(c))) fail(`${sliceId} does not touch ${debt.component}, where ${debtId} lives`);
     setDebtFields(root, register, debtId, { status: paidAlready ? 'paid' : 'scheduled', paid_by: sliceId });
     editFrontmatter(root, target.file, (doc) => {
       const pays = doc.get('pays');

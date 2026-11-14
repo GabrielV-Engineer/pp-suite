@@ -2,7 +2,7 @@ import Ajv2020 from 'ajv/dist/2020.js';
 import addFormats from 'ajv-formats';
 import { readFileSync } from 'node:fs';
 import { basename } from 'node:path';
-import { modeOf, testPolicy } from './policy.mjs';
+import { modeOf, testPolicy, PAYERS, touchesDebt } from './policy.mjs';
 
 const SCHEMA_DIR = new URL('../../../contract/v0.1/schemas/', import.meta.url);
 const SCHEMA_NAMES = ['blueprint', 'slice', 'debt', 'adr', 'evidence', 'change-request', 'active', 'additions'];
@@ -323,8 +323,8 @@ export function validateModel(model, { now = new Date() } = {}) {
         const payer = sliceById.get(e.paid_by)?.data;
         if (!payer) error('T09', df.file, `${e.id} is paid by unknown slice ${e.paid_by}`);
         else {
-          if (!['refactor', 'fix', 'feature'].includes(payer.type)) error('T09', df.file, `${e.id} must be paid by a feature, fix or refactor slice, ${payer.id} is ${payer.type}`);
-          else if (!payer.components.includes(e.component) && !(e.also_affects ?? []).some((c) => payer.components.includes(c))) error('T09', df.file, `${e.id} is paid by ${payer.id}, but ${payer.id} does not touch ${e.component}`);
+          if (!PAYERS.includes(payer.type)) error('T09', df.file, `${e.id} must be paid by a feature, fix or refactor slice, ${payer.id} is ${payer.type}`);
+          else if (!touchesDebt(payer, e)) error('T09', df.file, `${e.id} is paid by ${payer.id}, but ${payer.id} does not touch ${e.component}`);
           if (!(payer.pays ?? []).includes(e.id)) error('T09', df.file, `${payer.id} does not list ${e.id} in "pays"`);
           if (e.status === 'paid' && payer.status !== 'done') error('L05', df.file, `${e.id} is paid but ${payer.id} is ${payer.status}`);
         }
