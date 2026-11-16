@@ -56,7 +56,9 @@ a command to type in a terminal. Instead:
 2. Identify the slice's commits with `git log --oneline` and their message prefixes: `red(<id>)`,
    `green(<id>)`, `refactor(<id>)` or, in the light cycle, `build(<id>)`. Use the full sha you see in `git log`.
 3. **The real app.** If the slice lists `screens`, open the real app, not a test double: run `app.check` from
-   `.architect/ui.md` (or, if it has none, the way the project starts, and propose adding it). Save a screenshot of each
+   `.architect/ui.md`. If it has none, write that command inside the project in this slice (a script that starts the app
+   with synthetic data, opens each screen and saves a screenshot), commit it with the slice, and name it in `app.check` in
+   a separate commit `docs(design): app.check`, which you do not list in the audit; the next slices reuse it. Save a screenshot of each
    screen the slice builds to under `.sddpp/ui-checks/<slice id>/`, read the console, and compare each screenshot with the
    approved mockup of that screen and with `.architect/ui.md` (states, tokens, words, contrast). Show the person the
    screenshots and the mockups as links, side by side. A difference becomes a deviation, or a debt entry if it stays; a

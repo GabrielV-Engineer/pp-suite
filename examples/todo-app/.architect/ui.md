@@ -1,4 +1,6 @@
 ---
+app:
+  check: npm run ui-check
 screens:
   - id: SCR-01
     name: Tasks

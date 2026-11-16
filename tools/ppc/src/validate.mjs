@@ -78,6 +78,7 @@ export const RULES = {
   U04: 'A screen names a capability or a file that does not exist.',
   U05: 'A screen\'s mockup is not approved, or changed after a person approved it.',
   U06: 'An unfinished work slice on a frontend component names no screen, or names a screen that does not exist.',
+  U07: 'Slices build to screens and the interface document names no command that opens the real app (app.check).',
   X05: 'An addition points at something that does not exist (a design id, or another addition it overlaps), or its id is duplicated.',
 };
 
@@ -239,6 +240,11 @@ export function validateModel(model, { now = new Date() } = {}) {
       else if (model.uiFiles?.[s.mockup] && model.uiFiles[s.mockup] !== s.mockup_sha256) warn('U05', ui.file, `${s.id} "${s.name}": its mockup changed after ${s.approved_by} approved it; ask again: ppc ask ${s.id}`);
       else if (s.image && model.uiFiles?.[s.image] && s.image_sha256 && model.uiFiles[s.image] !== s.image_sha256) warn('U05', ui.file, `${s.id} "${s.name}": its image changed after ${s.approved_by} approved it; ask again: ppc ask ${s.id}`);
     }
+  }
+
+  // U07: once slices build to screens, the check of the real app is one command of the project, not a script per audit
+  if (model.ui && !model.ui.data?.app?.check && slices.some(({ data: s }) => (s.screens ?? []).length)) {
+    warn('U07', model.ui.file, 'slices build to screens but there is no app.check: write, in the project, a command that opens the real app and saves a screenshot of each screen, and name it in app.check');
   }
 
   // U06: a work slice on the interface names the screens it builds to

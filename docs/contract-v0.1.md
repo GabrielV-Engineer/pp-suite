@@ -181,6 +181,7 @@ Errors fail validation; warnings fail only with `--strict`. `ppc rules` prints t
 | `U04` | error | A screen names a capability or a file (its mockup or image) that does not exist. |
 | `U05` | warning | A screen's mockup is not approved, or it (or its image) changed after a person approved it (`ppc approve SCR-NN` records the hash). |
 | `U06` | warning, error for an unknown screen | An unfinished work slice on a frontend component names no screen (`screens`), or names a screen that does not exist. |
+| `U07` | warning | Slices build to screens and the interface document names no command that opens the real app (`app.check`). |
 
 Cross-reference rules run only when `blueprint.yaml` itself is valid, since everything else points at it.
 

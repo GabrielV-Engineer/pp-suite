@@ -226,3 +226,19 @@ test('ask and approve SCR-NN: the answer names the mockup it saw, and is refused
   assert.equal(approve(r.dir, 'SCR-01', { by: 'owner', mockup: now.slice(0, 12) }).screen, 'SCR-01');
   assert.throws(() => approve(r.dir, 'SL-002', { by: 'owner', mockup: now.slice(0, 12) }), (e) => e instanceof LifecycleError && /--mockup applies to a screen/.test(e.message));
 });
+
+// Found in the first real project (SL-021): with no app.check, the audit wrote a throwaway script outside the repository to open the
+// real window and grab it, so every slice on the interface would write its own. U07 asks for the command once slices build to screens.
+test('U07: slices build to screens and the interface document names no command that opens the real app', () => {
+  const m = base();
+  delete m.ui.data.app;
+  const u07 = found(m, 'U07');
+  assert.equal(u07.length, 1);
+  assert.equal(u07[0].severity, 'warning');
+  assert.match(u07[0].message, /app\.check/);
+  assert.deepEqual(found(base(), 'U07'), [], 'the example names one');
+  const noScreens = base();
+  delete noScreens.ui.data.app;
+  for (const s of noScreens.slices) delete s.data.screens;
+  assert.deepEqual(found(noScreens, 'U07'), [], 'before any slice builds to a screen, it is not needed yet');
+});
