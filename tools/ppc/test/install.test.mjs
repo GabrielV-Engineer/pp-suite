@@ -5,7 +5,7 @@ import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rm
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { readPins, plan, apply, InstallError, DROPPED_SKILLS } from '../src/install.mjs';
+import { readPins, plan, apply, renderPlan, InstallError, DROPPED_SKILLS } from '../src/install.mjs';
 import { shortSkills, longSkillNames } from '../src/skills.mjs';
 import { CLI } from './helpers.mjs';
 
@@ -491,4 +491,33 @@ test('init: while an extension is still to be installed, removing its long skill
   for (const name of longSkillNames(SUITE)) assert.equal(p.steps.find((s) => s.id === `drop-long-${name}`).done, false, name);
   const order = p.steps.map((s) => s.id);
   assert.ok(order.indexOf('extension-sddpp-cycle') < order.indexOf('drop-long-speckit-sddpp-cycle-build'));
+});
+
+// ── what draws and captures the interface (F-U1): reported, never installed, never blocking ──
+test('the pins list three capture tools for each kind of project, each with how to install it', () => {
+  for (const kind of ['web', 'electron', 'desktop_webview', 'mobile']) {
+    const tools = pins.capture.tools[kind];
+    assert.equal(tools.length, 3, kind);
+    for (const tool of tools) {
+      assert.ok(tool.name && tool.install && Array.isArray(tool.bin), `${kind}: ${JSON.stringify(tool)}`);
+      assert.ok(tool.seen === null || /^\d+\.\d+\.\d+/.test(tool.seen), 'a version seen, or null when it is not on npm');
+    }
+  }
+  assert.ok(pins.capture.design_skills.includes('frontend-design'));
+});
+
+test('plan: the capture tool and the design skills on the machine are reported, as information that blocks nothing', (t) => {
+  const bare = plan(project(t, { specify: true }), env(machine(installed), { home: mkdtempSync(join(tmpdir(), 'home-')) }));
+  assert.equal(check(bare, 'capture-tool').status, 'info');
+  assert.match(check(bare, 'capture-tool').found, /none/);
+  assert.match(check(bare, 'design-skills').found, /none/);
+  assert.deepEqual(bare.blocked, []);
+  const bin = mkdtempSync(join(tmpdir(), 'bin-'));
+  writeFileSync(join(bin, 'playwright-cli'), '');
+  const home = mkdtempSync(join(tmpdir(), 'home-'));
+  mkdirSync(join(home, '.claude/skills/frontend-design'), { recursive: true });
+  const ready = plan(project(t, { specify: true }), env(machine(installed), { home, pathDirs: [bin] }));
+  assert.match(check(ready, 'capture-tool').found, /playwright-cli/);
+  assert.match(check(ready, 'design-skills').found, /frontend-design/);
+  assert.match(renderPlan(ready), /info +Interface capture tool/);
 });

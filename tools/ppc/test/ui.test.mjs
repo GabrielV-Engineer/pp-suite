@@ -143,3 +143,31 @@ test('show and ask SCR-NN: the card links the mockup, and the panel approves it 
   const cli = spawnSync('node', [CLI, 'approve', 'SCR-01', '--by', 'owner', r.dir], { encoding: 'utf8' });
   assert.equal(cli.status, 0, cli.stderr);
 });
+
+// ── ppc next offers the interface step, and the screens to approve ──
+import { nextSteps } from '../src/next.mjs';
+
+test('next: before planning, a design with a frontend and no ui.md is designed first, then its mockups are approved', () => {
+  const m = base();
+  m.slices = [];
+  m.ui = null;
+  assert.deepEqual(nextSteps(m, []).actions.map((a) => a.command), ['/pp-design ui']);
+  const drawn = base();
+  drawn.slices = [];
+  delete screen(drawn).approved_by;
+  delete screen(drawn).mockup_sha256;
+  const action = nextSteps(drawn, []).actions[0];
+  assert.deepEqual([action.who, action.command, action.decision], ['human', 'ppc approve SCR-01', { type: 'screen', id: 'SCR-01' }]);
+  assert.equal(nextSteps(base(), []).actions.some((a) => a.command === '/pp-design ui'), false, 'an approved interface lets the work go on');
+});
+
+test('next: once slices exist, a missing interface or an unapproved mockup waits for the person without stopping the work', () => {
+  const missing = base();
+  missing.ui = null;
+  const steps = nextSteps(missing, []);
+  assert.ok(steps.waiting.some((w) => w.command === '/pp-design ui'));
+  assert.ok(!steps.actions.some((a) => a.command === '/pp-design ui'), 'the slices go on');
+  const changed = base();
+  changed.uiFiles[MOCKUP] = '0'.repeat(64);
+  assert.ok(nextSteps(changed, []).waiting.some((w) => w.decision?.type === 'screen' && w.decision.id === 'SCR-01'));
+});

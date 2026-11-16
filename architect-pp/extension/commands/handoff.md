@@ -25,6 +25,10 @@ the plan**. It is a format conversion, not a redesign: do not improve, add or re
 - **Do not carry over:** the build order and its steps, setup and bootstrap commands, rollback commands, directory
   listings that only serve the build, source code, the model-routing and skills sections, and the generated project
   instructions for the builder. List each dropped section in your report.
+- **The interface goes to its own step.** The blueprint's design-system section (palette, type, component style) and any
+  screens, layouts or navigation it describes are not converted here: `/pp-design ui` reads them from the blueprint file
+  when it designs the interface with the person. Do not write `.architect/ui.md`, and say in the report which of these
+  sections the blueprint has, so they are not lost.
 - **Never invent.** A quality attribute needs a metric and a target taken from numbers or checks the blueprint states
   (a contrast ratio, a binding address, a latency, a count). If the blueprint states none for a concern, do not
   create a quality attribute for it. A capability is a behavior a person can see; a technical or cosmetic goal that
@@ -96,6 +100,6 @@ the plan**. It is a format conversion, not a redesign: do not improve, add or re
    conversion, and report it if the cause is in the blueprint's design.
 8. The project rules (a short block in `CLAUDE.md`) are written by `ppc constitution`, never by you. Run it now. It copies
    nothing from the design; it only says where the design is and how to work.
-9. Report: the files written; the sections dropped; the additions you flagged; the quality attributes you did not
+9. Report: the files written; the sections dropped; the interface sections left for `/pp-design ui`; the additions you flagged; the quality attributes you did not
    create because the blueprint gave no measure; every warning left, with its cause. Say plainly what you decided
    on your own.

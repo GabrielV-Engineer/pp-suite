@@ -339,7 +339,7 @@ switch (command) {
     break;
   case 'contract': {
     const suite = resolve(new URL('../../..', import.meta.url).pathname);
-    console.log(`schemas: ${join(suite, 'contract/v0.1/schemas')}\ndocument: ${join(suite, 'docs/contract-v0.1.md')}\nexample: ${join(suite, 'examples/todo-app')}`);
+    console.log(`schemas: ${join(suite, 'contract/v0.1/schemas')}\ndocument: ${join(suite, 'docs/contract-v0.1.md')}\nexample: ${join(suite, 'examples/todo-app')}\ndesign guide: ${join(suite, 'architect-pp/extension/design-guide.md')}`);
     break;
   }
   case 'init': {

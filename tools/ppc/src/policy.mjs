@@ -33,3 +33,6 @@ export function payProblem(slice, debt) {
   if (!touchesDebt(slice, debt)) return `${slice.id} does not touch ${debt.component}, where ${debt.id} lives`;
   return null;
 }
+
+/** Whether a screen's mockup (and image) is approved as it is now: approved_by is set and the hashes recorded then still match. */
+export const screenApproved = (model, s) => Boolean(s.approved_by) && model.uiFiles?.[s.mockup] === s.mockup_sha256 && (!s.image || !s.image_sha256 || model.uiFiles?.[s.image] === s.image_sha256);

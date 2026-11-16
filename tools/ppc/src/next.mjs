@@ -6,7 +6,7 @@
 
 import { existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { modeOf, testPolicy } from './policy.mjs';
+import { modeOf, testPolicy, screenApproved } from './policy.mjs';
 import { askFor } from './decisions.mjs';
 
 const RED = '/pp-red';
@@ -130,6 +130,15 @@ function stepsOf(model, subjects, errors, facts) {
     const e = entries.get(id);
     if (e?.status === 'open' && !e.paid_by) waiting.push({ who: 'human', what: `${by} closed without paying ${id}: ${e.title}. Choose the next slice that touches ${e.component} to pay it`, command: `ppc ask ${id} --pay-in <slice>` });
   }
+  // The interface (F-U1): with a frontend, the screens are designed and their mockups approved before slices are built to them
+  const hasFrontend = model.blueprint?.data.components?.some((c) => c.kind === 'frontend');
+  const unapprovedScreens = (Array.isArray(model.ui?.data?.screens) ? model.ui.data.screens : []).filter((s) => !screenApproved(model, s));
+  const screenDecision = (s) => ({ who: 'human', what: `Approve the mockup of ${s.id} "${s.name}" as the reference the slices build to (\`ppc show ${s.id}\`)`, command: `ppc approve ${s.id}`, decision: { type: 'screen', id: s.id } });
+  const designUi = { who: 'agent', what: 'Design the interface with the person: screens, navigation, states, visual system, and the mockups they approve', command: '/pp-design ui' };
+  if (slices.length) {
+    if (hasFrontend && !model.ui) waiting.push({ ...designUi, what: `${designUi.what} (rule U01; the slices go on meanwhile)` });
+    waiting.push(...unapprovedScreens.map(screenDecision));
+  }
   const blocked = live
     .filter((s) => ['planned', 'ready'].includes(s.status) && unfinished(s, byId).length)
     .map((s) => ({ slice: s.id, waits_for: unfinished(s, byId) }));
@@ -168,6 +177,8 @@ function stepsOf(model, subjects, errors, facts) {
         { who: 'agent', what: `Remove ${unapplied.map((a) => a.id).join(', ')} from the design and record them as non-goals`, command: '/pp-design cuts' },
       ]);
     }
+    if (hasFrontend && !model.ui) return result('The design has a frontend and no interface yet; design it before planning, so every slice on a screen is built to an approved mockup.', [designUi]);
+    if (unapprovedScreens.length) return result(`${unapprovedScreens.length} screen mockup${unapprovedScreens.length === 1 ? ' waits' : 's wait'} for the person's approval before slices are planned.`, unapprovedScreens.map(screenDecision));
     return result('The design is ready and no slices are planned yet.', [{ who: 'agent', what: 'Plan the thin vertical slices from the design; the person approves the list before it is written', command: SLICES }]);
   }
 

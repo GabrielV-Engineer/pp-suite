@@ -14,10 +14,11 @@ const part = (dir, name, extension, word, when) => ({ file: `${dir}/${name}.md`,
 export const SHORT_SKILLS = [
   {
     name: 'pp-design',
-    description: "DESIGN: turn The Architect's blueprint into the checked design (.architect/), or carry out the additions the person cut",
+    description: "DESIGN: turn The Architect's blueprint into the checked design (.architect/), design the interface with the person (ui), or carry out the additions the person cut",
     parts: [
       part(ARCHITECT, 'handoff', 'architect-pp', 'handoff', 'there is no `.architect/blueprint.yaml` yet: turn the blueprint into the design'),
       part(ARCHITECT, 'apply-cuts', 'architect-pp', 'cuts', 'additions in `.architect/additions.yaml` are decided `cut` and not yet `applied`: remove them from the design'),
+      part(ARCHITECT, 'ui', 'architect-pp', 'ui', 'the design has a `frontend` component and no `.architect/ui.md` or screens without an approved mockup, or the person asks to design or change the interface: interview them and draw the mockups'),
     ],
   },
   { name: 'pp-plan', parts: [part(CYCLE, 'slices', 'sddpp-cycle', 'slices')] },

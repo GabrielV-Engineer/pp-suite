@@ -1,17 +1,150 @@
 {
   "checked": "2026-10-26",
-  "node": { "min": 22, "tested": "24.21.0" },
-  "python": { "tested": "3.14.8" },
+  "node": {
+    "min": 22,
+    "tested": "24.21.0"
+  },
+  "python": {
+    "tested": "3.14.8"
+  },
   "speckit": {
     "version": "1.2.4.dev0",
     "commit": "67e0f7294e6e728ab60bf7b4590deb470448bc2d",
     "repository": "https://github.com/github/spec-kit",
     "note": "Tested at this commit (a development build after release v1.2.3). The published release v1.2.3 was not tested."
   },
-  "claude_code": { "tested": "2.1.310" },
+  "claude_code": {
+    "tested": "2.1.310"
+  },
   "the_architect": {
     "version": "2.6.0",
     "commit": "a25b09e85933e227e50464ee007428a59f90aa0b",
     "repository": "https://github.com/Hainrixz/the-architect"
+  },
+  "capture": {
+    "note": "Recommended, never required: /pp-design ui offers the three for the kind of project when no capture tool is found, and the person decides. `seen` is the latest version on npm on the date in `checked_capture`, not a tested version; null when the tool is not on npm.",
+    "checked_capture": "2026-11-16",
+    "tools": {
+      "web": [
+        {
+          "name": "Playwright CLI",
+          "install": "npm install -g @playwright/cli",
+          "bin": [
+            "playwright-cli"
+          ],
+          "seen": "0.1.24",
+          "home": "https://github.com/microsoft/playwright"
+        },
+        {
+          "name": "Puppeteer",
+          "install": "npm install --save-dev puppeteer",
+          "bin": [],
+          "seen": "25.17.0",
+          "home": "https://pptr.dev"
+        },
+        {
+          "name": "Chrome headless",
+          "install": "install Google Chrome or Chromium; capture with --headless --screenshot",
+          "bin": [
+            "google-chrome",
+            "chromium",
+            "chromium-browser"
+          ],
+          "seen": null,
+          "home": "https://developer.chrome.com/docs/chromium/headless"
+        }
+      ],
+      "electron": [
+        {
+          "name": "Playwright (Electron)",
+          "install": "npm install --save-dev playwright",
+          "bin": [],
+          "seen": "1.65.1",
+          "home": "https://playwright.dev/docs/api/class-electron"
+        },
+        {
+          "name": "WebdriverIO",
+          "install": "npm install --save-dev webdriverio",
+          "bin": [],
+          "seen": "10.2.0",
+          "home": "https://webdriver.io"
+        },
+        {
+          "name": "The system's screenshot tool",
+          "install": "already on most systems (GNOME Screenshot, screencapture on macOS, Snipping Tool on Windows)",
+          "bin": [
+            "gnome-screenshot",
+            "screencapture"
+          ],
+          "seen": null,
+          "home": ""
+        }
+      ],
+      "desktop_webview": [
+        {
+          "name": "Playwright CLI on the UI served locally",
+          "install": "npm install -g @playwright/cli",
+          "bin": [
+            "playwright-cli"
+          ],
+          "seen": "0.1.24",
+          "home": "https://github.com/microsoft/playwright"
+        },
+        {
+          "name": "WebdriverIO with tauri-driver (Tauri)",
+          "install": "npm install --save-dev webdriverio; cargo install tauri-driver",
+          "bin": [
+            "tauri-driver"
+          ],
+          "seen": "10.2.0",
+          "home": "https://v2.tauri.app/develop/tests/webdriver/"
+        },
+        {
+          "name": "The system's screenshot tool",
+          "install": "already on most systems (GNOME Screenshot, screencapture on macOS, Snipping Tool on Windows)",
+          "bin": [
+            "gnome-screenshot",
+            "screencapture"
+          ],
+          "seen": null,
+          "home": ""
+        }
+      ],
+      "mobile": [
+        {
+          "name": "Maestro",
+          "install": "see its install page (a shell installer)",
+          "bin": [
+            "maestro"
+          ],
+          "seen": null,
+          "home": "https://maestro.mobile.dev"
+        },
+        {
+          "name": "Appium",
+          "install": "npm install -g appium",
+          "bin": [
+            "appium"
+          ],
+          "seen": "4.0.0",
+          "home": "https://appium.io"
+        },
+        {
+          "name": "Detox (React Native)",
+          "install": "npm install --save-dev detox",
+          "bin": [],
+          "seen": "20.51.4",
+          "home": "https://wix.github.io/Detox/"
+        }
+      ]
+    },
+    "design_skills": [
+      "frontend-design",
+      "taste-skill",
+      "design-taste-frontend",
+      "awesome-design-md",
+      "web-design-guidelines",
+      "emil-design-eng"
+    ]
   }
 }

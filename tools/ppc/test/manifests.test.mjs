@@ -29,9 +29,9 @@ for (const dir of EXTENSIONS) {
   });
 }
 
-test('the Architect.PP extension offers the hand-off, the cut-applying step and the change-applying step', () => {
+test('the Architect.PP extension offers the hand-off, the interface, the cut-applying step and the change-applying step', () => {
   const manifest = parse(readFileSync(join(SUITE, 'architect-pp/extension/extension.yml'), 'utf8'));
-  assert.deepEqual(manifest.provides.commands.map((c) => c.name).sort(), ['speckit.architect-pp.apply-change', 'speckit.architect-pp.apply-cuts', 'speckit.architect-pp.handoff']);
+  assert.deepEqual(manifest.provides.commands.map((c) => c.name).sort(), ['speckit.architect-pp.apply-change', 'speckit.architect-pp.apply-cuts', 'speckit.architect-pp.handoff', 'speckit.architect-pp.ui']);
 });
 
 // ── the three reviews that replace Spec Kit's clarify, analyze and converge ─────

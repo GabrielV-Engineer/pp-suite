@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { payProblem } from './policy.mjs';
+import { payProblem, screenApproved } from './policy.mjs';
 
 // The card of one thing a person decides, in plain words: what it is and what approving it means. `ppc show <id>` prints it and
 // the `/pp` skill shows it in the chat before asking. Pure over the loaded model, except the red tests, whose files come from
@@ -78,7 +78,6 @@ function screenCard(model, s) {
   return out.join('\n');
 }
 const screenOf = (model, id) => model.ui?.data?.screens?.find?.((s) => s.id === id);
-const screenApproved = (model, s) => s.approved_by && model.uiFiles?.[s.mockup] === s.mockup_sha256 && (!s.image || !s.image_sha256 || model.uiFiles?.[s.image] === s.image_sha256);
 
 function changeCard(model, entry) {
   const out = [`${entry.data.id}  ${entry.data.title}`, row('Raised by', entry.data.raised_by), row('Status', entry.data.status)];

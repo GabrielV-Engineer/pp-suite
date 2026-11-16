@@ -31,9 +31,9 @@ const SUITE = fileURLToPath(new URL('../../../', import.meta.url));
 const DECIDES = readFileSync(`${SUITE}sdd-pp/shared/when-the-person-decides.md`, 'utf8').trim();
 const CYCLE = (name) => `${SUITE}sdd-pp/extension/sddpp-cycle/commands/${name}.md`;
 const ARCHITECT = (name) => `${SUITE}architect-pp/extension/commands/${name}.md`;
-const MEETS_DECISIONS = [...['build', 'red', 'green', 'refactor', 'audit', 'slices', 'clarify'].map(CYCLE), ARCHITECT('apply-change')];
+const MEETS_DECISIONS = [...['build', 'red', 'green', 'refactor', 'audit', 'slices', 'clarify'].map(CYCLE), ARCHITECT('apply-change'), ARCHITECT('ui')];
 const ALL_SKILLS = [...['build', 'red', 'green', 'refactor', 'audit', 'slices', 'clarify', 'analyze', 'converge', 'prompts', 'session-start'].map(CYCLE),
-  ...['handoff', 'apply-cuts', 'apply-change'].map(ARCHITECT), `${SUITE}sdd-pp/skills/pp/SKILL.md`];
+  ...['handoff', 'apply-cuts', 'apply-change', 'ui'].map(ARCHITECT), `${SUITE}sdd-pp/skills/pp/SKILL.md`];
 
 test('every skill that can meet a decision says how to put it to the person, in the same words', () => {
   for (const file of MEETS_DECISIONS) assert.ok(readFileSync(file, 'utf8').includes(DECIDES), `${file} carries "When the person decides" verbatim`);

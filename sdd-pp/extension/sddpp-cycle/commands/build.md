@@ -29,7 +29,7 @@ $ARGUMENTS
 
 ## When the person decides
 
-Approving a slice or its red tests, accepting or rejecting a change request, deciding a debt entry, an exception to the
+Approving a slice, its red tests or a screen's mockup, accepting or rejecting a change request, deciding a debt entry, an exception to the
 budget or the mutation score, and saying they read what changed in the design are the person's decisions. Never give them
 a command to type in a terminal. Instead:
 

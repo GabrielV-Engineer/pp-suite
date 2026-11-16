@@ -64,6 +64,14 @@ export function plan(root, env, { shim = false, allowUntested = false, update = 
     if (blocks && check.status !== 'ok') blocked.push({ id: check.id, why: `${check.label}: ${check.status}${check.found ? ` (${check.found})` : ''}` });
   };
 
+  // ── what draws and captures the interface: information for /pp-design ui, never a block and never installed here ──
+  const bins = [...new Set(Object.values(pins.capture.tools).flat().flatMap((tool) => tool.bin))];
+  const capture = bins.filter((b) => pathDirs.some((d) => existsSync(join(d, b))));
+  add({ id: 'capture-tool', label: 'Interface capture tool (optional)', status: 'info', found: capture.length ? capture.join(', ') : 'none; /pp-design ui approves the HTML mockup and offers three tools for the kind of project' });
+  const skillDirs = [join(home, '.claude/skills'), join(root, '.claude/skills')];
+  const design = pins.capture.design_skills.filter((s) => skillDirs.some((d) => existsSync(join(d, s))));
+  add({ id: 'design-skills', label: 'Design skills (optional)', status: 'info', found: design.length ? design.join(', ') : "none; /pp-design ui uses pp-suite's own design guide" });
+
   // ── the machine ──
   const major = Number(String(nodeVersion).split('.')[0]);
   add({ id: 'node', label: 'Node.js', status: major >= pins.node.min ? 'ok' : 'differs', found: nodeVersion, wanted: `>= ${pins.node.min} (tested ${pins.node.tested})` }, { blocks: true });
@@ -220,15 +228,15 @@ export function apply(root, env, { run, shim = false, allowUntested = false, upd
   return { ran, plan: plan(root, env, { shim, allowUntested, update }) };
 }
 
-const MARK = { ok: 'ok     ', differs: 'DIFFERS', missing: 'MISSING' };
+const MARK = { ok: 'ok     ', differs: 'DIFFERS', missing: 'MISSING', info: 'info   ' };
 
 /** The report a person reads: what was found, what blocks, and the exact commands the steps would run. */
 export function renderPlan(p, { applied = false } = {}) {
   const out = ['Checks:'];
   for (const c of p.checks) {
-    const detail = [c.found && `found ${c.found}`, c.status !== 'ok' && c.wanted && `wanted ${c.wanted}`].filter(Boolean).join(', ');
+    const detail = [c.found && `found ${c.found}`, !['ok', 'info'].includes(c.status) && c.wanted && `wanted ${c.wanted}`].filter(Boolean).join(', ');
     out.push(`  ${MARK[c.status]}  ${c.label}${detail ? ` (${detail})` : ''}`);
-    if (c.status !== 'ok' && c.fix) out.push(`           fix: ${c.fix}`);
+    if (!['ok', 'info'].includes(c.status) && c.fix) out.push(`           fix: ${c.fix}`);
   }
   if (p.blocked.length) out.push('', 'Blocked:', ...p.blocked.map((b) => `  - ${b.why}`));
   const pending = p.steps.filter((s) => !s.done);
