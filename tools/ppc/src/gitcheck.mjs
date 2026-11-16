@@ -11,6 +11,30 @@ const TESTS_LOCKED_KINDS = ['green', 'refactor', 'structural'];
 
 export const isBookkeeping = (path) => BOOKKEEPING.test(path);
 
+/**
+ * The files a slice would change that belong to components it does not list (rule C09). Only components that declare `paths`
+ * take part; tests, bookkeeping, generated files and files no component claims are free. `noPaths` when no component declares any.
+ */
+function foreignFiles(model, s, files, generated = []) {
+  const claimed = (model.blueprint?.data.components ?? []).filter((c) => c.paths?.length);
+  const foreign = new Map();
+  if (!claimed.length) return { foreign, noPaths: true };
+  for (const p of files.filter((x) => !isBookkeeping(x) && !isTestPath(x) && !isGeneratedPath(x, generated))) {
+    const owners = claimed.filter((c) => c.paths.some((pattern) => matchesGlob(pattern, p))).map((c) => c.id);
+    if (owners.length && !owners.some((id) => s.components.includes(id))) foreign.set(p, owners);
+  }
+  return { foreign, noPaths: false };
+}
+
+/**
+ * Before any code is written (found in the first real project, F-D8): which components the files a slice is about to change belong
+ * to that the slice does not list. The same rule C09 applies at the close.
+ */
+export function touches(model, s, files) {
+  const { foreign, noPaths } = foreignFiles(model, s, files, generatedGlobs(model.blueprint?.data));
+  return { noPaths, foreign: Object.fromEntries(foreign), missing: [...new Set([...foreign.values()].flat())] };
+}
+
 function git(root, args) {
   return execFileSync('git', args, { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 64 * 1024 * 1024 });
 }
@@ -137,13 +161,8 @@ export function checkGit(model, root, { tips = new Map() } = {}) {
       if (design.length) add('C08', file, `${s.id}: ${sha} (${kind}) changes ${design.join(', ')}; the design is read-only for a build: open a change request (ppc change-request) and let Architect.PP revise it`);
       // C09: a slice changes the files of the components it lists. Only components that declare `paths` take part, and tests,
       // documentation and files no component claims are free.
-      const claimed = (model.blueprint?.data.components ?? []).filter((c) => c.paths?.length);
-      if (claimed.length) {
-        const foreign = new Map();
-        for (const p of paths.filter((x) => !isBookkeeping(x) && !isTestPath(x) && !isGeneratedPath(x, generated))) {
-          const owners = claimed.filter((c) => c.paths.some((pattern) => matchesGlob(pattern, p))).map((c) => c.id);
-          if (owners.length && !owners.some((id) => s.components.includes(id))) foreign.set(p, owners);
-        }
+      const { foreign, noPaths } = foreignFiles(model, s, paths, generated);
+      if (!noPaths) {
         if (foreign.size) {
           const names = [...new Set([...foreign.values()].flat())];
           add('C09', file, `${s.id}: ${sha} (${kind}) changes ${[...foreign.keys()].join(', ')}, which belong to ${names.join(', ')}; the slice lists ${s.components.join(', ')}. List the component in the slice or leave the file alone`);

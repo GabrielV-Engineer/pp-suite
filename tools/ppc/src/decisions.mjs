@@ -163,7 +163,7 @@ function carried(flag, reason) {
 }
 
 /** The panel question (the input of the AskUserQuestion tool) for a decision, or null when there is nothing to decide on that id. */
-export function askFor(model, id, { redFiles, budgetReason, mutationReason, payIn } = {}) {
+export function askFor(model, id, { redFiles, budgetReason, mutationReason, payIn, addComponent } = {}) {
   if (id === 'reread') {
     const behind = model.slices.map((s) => s.data).filter((s) => !['done', 'dropped'].includes(s.status) && s.blueprint_revision < model.blueprint.data.revision);
     if (!behind.length) return null;
@@ -178,6 +178,15 @@ export function askFor(model, id, { redFiles, budgetReason, mutationReason, payI
     return { questions: [{ question: `${id} "${slice.title}" can close only with an exception to ${what}. Record it?`, header: 'Exception', multiSelect: false, options: [
       choose('Yes, record the exception', `ppc finish ${id} --audit ${AUDIT_INPUT}${flags}`, 'The slice closes, with this reason recorded in its audit'),
       { label: 'No', description: 'It stays open: split it, or change the code until it fits' },
+      { label: 'Not yet', description: 'Nothing is decided; it waits for you' },
+    ] }] };
+  }
+  if (slice && addComponent !== undefined) {
+    if (['done', 'dropped'].includes(slice.status) || slice.components.includes(addComponent)) return null;
+    if (!model.blueprint?.data.components.some((c) => c.id === addComponent)) throw new DecisionError(`--add-component: unknown component ${addComponent}`);
+    return { questions: [{ question: `${id} "${slice.title}" needs ${addComponent} too. Add it to the slice?`, header: 'Slice', multiSelect: false, options: [
+      choose(`Yes, add ${addComponent}`, `ppc widen ${id} --component ${addComponent}`, `The slice may change ${addComponent}'s files; the design does not change`),
+      { label: 'No', description: 'The slice stays as it is: the work is done without that component, or the slice is split' },
       { label: 'Not yet', description: 'Nothing is decided; it waits for you' },
     ] }] };
   }

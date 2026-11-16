@@ -149,6 +149,27 @@ export function stop(root, id) {
   });
 }
 
+/**
+ * HUMAN ONLY: add a component to a slice that is not done (found in the first real project, F-D8: a slice missed a component its
+ * work needed, and the only way to add it was a change request that raised the design's revision although the design did not
+ * change). Which components a slice touches is part of the plan; the design only says which components exist.
+ */
+export function widen(root, id, component) {
+  return transact(root, () => {
+    const model = loadValid(root);
+    const entry = model.slices.find((s) => s.data.id === id) ?? fail(`unknown slice ${id}`);
+    const s = entry.data;
+    if (!component) fail('--component <id> is required');
+    if (!model.blueprint.data.components.some((c) => c.id === component)) fail(`unknown component ${component}; a component the design does not have is a change request`);
+    if (s.components.includes(component)) fail(`${id} already lists ${component}`);
+    if (['done', 'dropped'].includes(s.status)) fail(`${id} is ${s.status}; only a slice still to be built can be widened`);
+    const components = [...s.components, component];
+    editFrontmatter(root, entry.file, (doc) => doc.set('components', components));
+    ensureValid(root);
+    return { slice: id, components };
+  });
+}
+
 /** A human approves a planned slice to start. The only way a slice becomes ready. */
 export function approveSlice(root, id, by) {
   return transact(root, () => {

@@ -18,6 +18,10 @@ $ARGUMENTS
 - **Tests follow the test policy** (`test_policy` in `.architect/blueprint.yaml`, or in the slice):
   `required` means the slice cannot close without test files; `optional` means they are expected, and if there are none
   `ppc finish` proposes a debt entry for a person to decide; `none` means they are not asked for.
+- **Check the components before writing code.** List the files you are about to change and run `ppc touches <id> <files>`.
+  If it names a component the slice does not list, stop before writing code and put it to the person: `ppc ask <id>
+  --add-component <component>` (see **When the person decides**). Adding a component is not a design change; a component
+  the design does not have is, and goes through a change request. Run it again if the work turns out to need more files.
 - **The interface is built to its approved mockups.** If the slice lists `screens`, read `.architect/ui.md` (its
   Navigation, States, Visual system and Accessibility) and open the approved mockup of each screen
   (`.architect/ui/mockups/SCR-NN.html`, and its image if there is one). Use the tokens and the words they use; draw

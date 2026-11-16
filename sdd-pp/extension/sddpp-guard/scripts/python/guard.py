@@ -36,7 +36,7 @@ LOCKED_PHASES = {"green", "refactor"}
 # `ppc decide-addition` is not in it: the owner decided (2026-10-30) that telling the assistant in the conversation what to cut or
 # keep is permission enough. Writing the decision into additions.yaml by hand stays blocked (DECISION_FIELD, CONTRACT_DIR).
 APPROVAL = re.compile(
-    r"\bppc(\.mjs)?\s+(approve|reread|decide(?!-addition))"
+    r"\bppc(\.mjs)?\s+(approve|reread|widen|decide(?!-addition))"
     # `ppc finish ... --budget-reason ...` records an exception to a rule: that is a decision too
     r"|\bppc(\.mjs)?\s+finish\b[^\n]*--(budget|mutation)-reason",
     re.IGNORECASE,

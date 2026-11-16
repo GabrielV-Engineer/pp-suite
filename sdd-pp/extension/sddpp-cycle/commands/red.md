@@ -10,6 +10,10 @@ $ARGUMENTS
 
 ## Rules for this phase
 
+- **Check the components before writing code.** List the files you are about to change and run `ppc touches <id> <files>`.
+  If it names a component the slice does not list, stop before writing code and put it to the person: `ppc ask <id>
+  --add-component <component>` (see **When the person decides**). Adding a component is not a design change; a component
+  the design does not have is, and goes through a change request. Run it again if the work turns out to need more files.
 - You write **tests only**. No production code, no stubs, no configuration of the application.
 - The tests are the specification. A person will read them and approve them before any code exists,
   so make them easy to read.

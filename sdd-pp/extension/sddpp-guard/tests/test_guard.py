@@ -239,6 +239,14 @@ class GuardTest(unittest.TestCase):
         rename = {"file_path": ".architect/ui.md", "old_string": "    name: Tasks", "new_string": "    name: Task list"}
         self.assertEqual(self.code(root, payload("Edit", **rename)), 0)
 
+    def test_widening_a_slice_is_the_persons_decision(self):
+        # Found in the first real project (F-D8): adding a component to a slice widens its scope, so a person decides it.
+        root = self.project({"slice": None, "phase": None})
+        code, message = guard.decide(payload("Bash", command="ppc widen SL-015 --component pipeline"), root)
+        self.assertEqual(code, 2)
+        self.assertIn("human", message)
+        self.assertEqual(guard.decide(payload("Bash", command="ppc touches SL-015 src/psybook/pipeline/run.py"), root)[0], 0)
+
     def test_the_agent_cannot_record_an_exception_through_ppc_finish_either(self):
         root = self.project({"slice": "SL-002", "phase": "green"})
         for cmd in ('ppc finish SL-002 --audit a.json --budget-reason "too big but fine"',

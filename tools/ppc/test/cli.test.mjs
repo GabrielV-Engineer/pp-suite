@@ -15,7 +15,7 @@ function planSl001({ write, dir, git }) {
   git('commit', '-q', '-am', 'plan SL-001 again');
 }
 
-const COMMANDS = ['validate', 'check-git', 'start', 'stop', 'approve-slice', 'approve', 'show', 'ask', 'reread', 'approve-debt', 'schedule-debt', 'decide-addition', 'additions',
+const COMMANDS = ['validate', 'check-git', 'start', 'stop', 'touches', 'widen', 'approve-slice', 'approve', 'show', 'ask', 'reread', 'approve-debt', 'schedule-debt', 'decide-addition', 'additions',
   'change-request', 'decide-change', 'apply-change', 'approve-red', 'refactor', 'finish', 'mutation', 'next', 'overview', 'constitution', 'session', 'init', 'prompt', 'status'];
 
 // Found in the first real project's fourth review: `ppc approve --help` approved the one approvable slice, in the person's name,

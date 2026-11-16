@@ -3,7 +3,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { loadProject } from '../src/load.mjs';
 import { validateModel, designFindings, RULES } from '../src/validate.mjs';
-import { checkGit } from '../src/gitcheck.mjs';
+import { checkGit, touches } from '../src/gitcheck.mjs';
 import { designState, nextSteps, nextJson, noDesignNext, overview, renderNext } from '../src/next.mjs';
 import { execFileSync } from 'node:child_process';
 import { checkConstitution, writeConstitution, ConstitutionError } from '../src/constitution.mjs';
@@ -15,7 +15,7 @@ import { sessionContext, gitSubjects, gitUserName, buildFacts, panelAnswers } fr
 import { renderAdditions } from '../src/additions.mjs';
 import { renderDecision, askFor, redCommitFiles, DecisionError, AUDIT_INPUT } from '../src/decisions.mjs';
 import { buildPrompts, resolveTarget, writePrompts } from '../src/prompts.mjs';
-import { start, stop, approve, reread, approveSlice, approveRed, approveDebt, scheduleDebt, decideAddition, toRefactor, finish, mutate, status, LifecycleError } from '../src/lifecycle.mjs';
+import { start, stop, widen, approve, reread, approveSlice, approveRed, approveDebt, scheduleDebt, decideAddition, toRefactor, finish, mutate, status, LifecycleError } from '../src/lifecycle.mjs';
 
 const USAGE = `ppc — pp-suite contract tool
 
@@ -53,6 +53,9 @@ const USAGE = `ppc — pp-suite contract tool
                                          HUMAN ONLY: planned -> ready
     ppc start <slice> [dir]              ready -> in progress, red phase
     ppc stop <slice> [dir]               in progress -> ready again, while the slice has no commits of its own (undo a start)
+    ppc touches <slice> <file>... [dir]  before writing code: the components those files belong to that the slice does not list
+    ppc widen <slice> --component <id> [dir]
+                                         HUMAN ONLY: add a component to a slice still to be built (no design change)
     ppc approve-red --by <name> [dir]    HUMAN ONLY: approve the committed red tests, enter green
     ppc approve-debt <DEBT-ID> --by <name> [--accept <reason> | --drop [--reason <why>]] [dir]
                                          HUMAN ONLY: decide on proposed debt (default: it becomes open; --reason records why it was dropped)
@@ -87,12 +90,12 @@ const USAGE = `ppc — pp-suite contract tool
     ppc help [<command>]                 this text, or only the lines of one command; \`ppc <command> --help\` does the same and nothing else
 `;
 
-const VALUE_OPTIONS = new Set(['--by', '--audit', '--files', '--slice', '--accept', '--budget-reason', '--mutation-reason', '--reason', '--task', '--specify', '--title', '--problem', '--proposal', '--component', '--adr', '--qa', '--but-cut', '--but-keep', '--pay-in']);
+const VALUE_OPTIONS = new Set(['--by', '--audit', '--files', '--slice', '--accept', '--budget-reason', '--mutation-reason', '--reason', '--task', '--specify', '--title', '--problem', '--proposal', '--component', '--adr', '--qa', '--but-cut', '--but-keep', '--pay-in', '--add-component']);
 // What each command accepts. Anything else is refused: an option that is silently ignored can turn a request for help, or a typo,
 // into an approval (`ppc approve --help` once approved the one slice that could be approved).
 const OPTIONS = {
   rules: [], validate: ['--strict', '--design'], 'check-git': [], start: [], stop: [], 'approve-slice': ['--by'], approve: ['--by', '--accept', '--drop', '--reason', '--pay-in'],
-  show: [], ask: ['--budget-reason', '--mutation-reason', '--pay-in'], reread: ['--all'], 'approve-debt': ['--by', '--accept', '--drop', '--reason'], 'schedule-debt': ['--slice'],
+  show: [], ask: ['--budget-reason', '--mutation-reason', '--pay-in', '--add-component'], touches: [], widen: ['--component'], reread: ['--all'], 'approve-debt': ['--by', '--accept', '--drop', '--reason'], 'schedule-debt': ['--slice'],
   'decide-addition': ['--keep', '--cut', '--alone', '--by', '--reason', '--accept-recommended', '--but-cut', '--but-keep'], additions: [],
   'change-request': ['--slice', '--title', '--problem', '--proposal', '--component', '--adr', '--qa', '--budgets'],
   'decide-change': ['--accept', '--reject', '--by', '--reason'], 'apply-change': [], 'approve-red': ['--by'], refactor: [],
@@ -180,6 +183,32 @@ switch (command) {
   case 'start':
     transition(() => start(dirAt(1), positionals[0]));
     break;
+  case 'touches': {
+    const root = resolve('.');
+    const [id, ...files] = positionals;
+    const dir = files.length && existsSync(join(files.at(-1), '.architect')) ? files.pop() : null;
+    const model = loadProject(dir ? resolve(dir) : root);
+    const s = model.slices.find((x) => x.data.id === id)?.data;
+    if (!s || !files.length) {
+      console.error(s ? 'usage: ppc touches <slice> <file>... [dir]' : `unknown slice ${id}`);
+      process.exit(2);
+    }
+    const r = touches(model, s, files);
+    if (r.noPaths) {
+      console.log('No component of the design declares `paths`, so ppc cannot tell which files belong to which: check by reading the code.');
+      break;
+    }
+    if (!r.missing.length) {
+      console.log(`${id} lists every component these files belong to.`);
+      break;
+    }
+    for (const [file, owners] of Object.entries(r.foreign)) console.log(`${file} belongs to ${owners.join(', ')}`);
+    console.log(`\n${id} lists ${s.components.join(', ')}. Before writing code, put it to the person: ${r.missing.map((c) => `ppc ask ${id} --add-component ${c}`).join('  ·  ')}`);
+    process.exit(1);
+  }
+  case 'widen':
+    transition(() => widen(dirAt(1), positionals[0], options.get('component')));
+    break;
   case 'stop':
     transition(() => stop(dirAt(1), positionals[0]));
     break;
@@ -211,7 +240,7 @@ switch (command) {
     const root = resolve(positionals.find((p) => p !== id) ?? '.');
     let question;
     try {
-      question = id ? askFor(loadProject(root), id, { redFiles: redCommitFiles(root, id), budgetReason: options.get('budget-reason'), mutationReason: options.get('mutation-reason'), payIn: options.get('pay-in') }) : null;
+      question = id ? askFor(loadProject(root), id, { redFiles: redCommitFiles(root, id), budgetReason: options.get('budget-reason'), mutationReason: options.get('mutation-reason'), payIn: options.get('pay-in'), addComponent: options.get('add-component') }) : null;
     } catch (error) {
       if (!(error instanceof DecisionError)) throw error;
       console.error(error.message);
