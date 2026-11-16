@@ -138,7 +138,7 @@ test('show and ask SCR-NN: the card links the mockup, and the panel approves it 
   assert.match(card, new RegExp(`\\[${MOCKUP}\\]\\(${MOCKUP}\\)`));
   const ask = askFor(m, 'SCR-01');
   assert.match(ask.questions[0].question, /SCR-01 "Tasks"/);
-  assert.deepEqual(ask.questions[0].options.filter((o) => o.label.includes(' — ppc ')).map((o) => o.label.split(' — ').at(-1)), ['ppc approve SCR-01']);
+  assert.deepEqual(ask.questions[0].options.filter((o) => o.label.includes(' — ppc ')).map((o) => o.label.split(' — ').at(-1)), [`ppc approve SCR-01 --mockup ${m.uiFiles[MOCKUP].slice(0, 12)}`]);
   assert.equal(askFor(loadProject(repo(t).dir), 'SCR-01'), null, 'an approved, unchanged mockup has nothing to ask');
   const cli = spawnSync('node', [CLI, 'approve', 'SCR-01', '--by', 'owner', r.dir], { encoding: 'utf8' });
   assert.equal(cli.status, 0, cli.stderr);
@@ -209,4 +209,20 @@ test('approve SCR-NN: works before any slice exists, judged on the design alone'
   const broken = unapproved(t);
   broken.write({ '.architect/ui.md': readFileSync(join(broken.dir, '.architect/ui.md'), 'utf8').replace('## Accessibility', '## Access') });
   assert.throws(() => approve(broken.dir, 'SCR-01', { by: 'owner' }), (e) => e instanceof LifecycleError && /U03/.test(e.message), 'a design error still stops it');
+});
+
+// Found in the first real project (F-D15): the owner approved SCR-01 in the panel, the mockup then changed with CR-0015, and
+// `ppc next` still offered to run that answer. The approval names the mockup it was about, so an answer about an older one fails.
+test('ask and approve SCR-NN: the answer names the mockup it saw, and is refused once the mockup changed', (t) => {
+  const r = unapproved(t);
+  const sha = loadProject(r.dir).uiFiles[MOCKUP];
+  const label = askFor(loadProject(r.dir), 'SCR-01').questions[0].options[0].label;
+  assert.match(label, new RegExp(`— ppc approve SCR-01 --mockup ${sha.slice(0, 12)}$`));
+  r.write({ [MOCKUP]: '<!doctype html><p>a new version</p>\n' });
+  const before = readFileSync(join(r.dir, '.architect/ui.md'), 'utf8');
+  assert.throws(() => approve(r.dir, 'SCR-01', { by: 'owner', mockup: sha.slice(0, 12) }), (e) => e instanceof LifecycleError && /changed since/.test(e.message));
+  assert.equal(readFileSync(join(r.dir, '.architect/ui.md'), 'utf8'), before, 'nothing was approved');
+  const now = loadProject(r.dir).uiFiles[MOCKUP];
+  assert.equal(approve(r.dir, 'SCR-01', { by: 'owner', mockup: now.slice(0, 12) }).screen, 'SCR-01');
+  assert.throws(() => approve(r.dir, 'SL-002', { by: 'owner', mockup: now.slice(0, 12) }), (e) => e instanceof LifecycleError && /--mockup applies to a screen/.test(e.message));
 });

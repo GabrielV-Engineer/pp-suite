@@ -342,8 +342,9 @@ export function reread(root, { ids = [], all = false } = {}) {
  * progress in the red phase); a debt id decides the debt; with no id it takes the one decision `ppc next` is asking for, and
  * refuses to guess when there are several. A change request is decided with `ppc decide-change`, which needs accept or reject.
  */
-export function approve(root, id, { by, accept, drop, reason, payIn } = {}) {
+export function approve(root, id, { by, accept, drop, reason, payIn, mockup } = {}) {
   if (!by || !by.trim()) fail('no name to record: set one with `git config user.name "<your name>"` or pass --by <name>');
+  if (!id?.startsWith('SCR-') && mockup !== undefined) fail('--mockup applies to a screen: `ppc approve SCR-… --mockup <hash>`');
   if (!id?.startsWith('DEBT-') && payIn !== undefined) fail('--pay-in applies to a debt entry: `ppc approve DEBT-… --pay-in SL-…`');
   // Options that mean something only for a debt entry are not ignored elsewhere: ignoring them would approve what the person meant to drop.
   if (!id?.startsWith('DEBT-') && (accept !== undefined || drop || reason !== undefined)) fail('--accept, --drop and --reason apply to a debt entry: name it with `ppc approve DEBT-… --drop`');
@@ -353,7 +354,7 @@ export function approve(root, id, { by, accept, drop, reason, payIn } = {}) {
       return entry?.data.status === 'in_progress' && entry.data.phase === 'red' ? approveRed(root, by) : approveSlice(root, id, by);
     }
     if (id.startsWith('DEBT-')) return approveDebt(root, id, { by, accept, drop, reason, payIn });
-    if (id.startsWith('SCR-')) return approveScreen(root, id, by);
+    if (id.startsWith('SCR-')) return approveScreen(root, id, by, { mockup });
     if (id.startsWith('CR-')) fail(`${id} is a change request: decide it with \`ppc decide-change ${id} --accept\` or \`--reject --reason <why>\``);
     fail(`${id} is not something to approve here: a slice (SL-…), a debt entry (DEBT-…) or a screen (SCR-…)`);
   }
@@ -377,7 +378,7 @@ export function approve(root, id, { by, accept, drop, reason, payIn } = {}) {
  * HUMAN ONLY: approve a screen's mockup (`.architect/ui.md`): record who approved it and the hash of the mockup, and of its image
  * when there is one, so a later change makes the approval stale (U05). The approved mockup is what the slices build to.
  */
-export function approveScreen(root, id, by) {
+export function approveScreen(root, id, by, { mockup: seen } = {}) {
   // A design decision, made before slices are planned as often as after: judged on the design's own rules (T06, "a capability
   // has no slice", fires on every project that has not planned yet).
   const designErrors = (model) => designFindings(validateModel(model)).filter((f) => f.severity === 'error');
@@ -390,6 +391,7 @@ export function approveScreen(root, id, by) {
   const s = ui.data.screens[index];
   const mockup = model.uiFiles[s.mockup] ?? fail(`${id}: its mockup ${s.mockup} does not exist`);
   const image = s.image ? (model.uiFiles[s.image] ?? fail(`${id}: its image ${s.image} does not exist`)) : undefined;
+  if (seen !== undefined && !mockup.startsWith(seen)) fail(`${id}: its mockup changed since you were asked (you saw ${seen}, it is now ${mockup.slice(0, 12)}); look at it again: ppc ask ${id}`);
   if (s.approved_by && s.mockup_sha256 === mockup && (!image || s.image_sha256 === image)) fail(`${id} is already approved by ${s.approved_by}, as it is now`);
   const abs = join(root, ui.file);
   const before = readFileSync(abs, 'utf8');

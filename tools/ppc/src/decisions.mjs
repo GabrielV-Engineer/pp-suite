@@ -248,7 +248,8 @@ export function askFor(model, id, { redFiles, budgetReason, mutationReason, payI
   if (shown) {
     if (screenApproved(model, shown)) return null;
     return { questions: [{ question: `Approve the mockup of ${id} "${shown.name}" (${shown.mockup}) as the reference the slices build to?`, header: 'Screen', multiSelect: false, options: [
-      choose('Yes, approve it', `ppc approve ${id}`, 'It becomes the reference: every slice on this screen is built and checked against it'), ...SAY_NO] }] };
+      // the answer names the mockup the person saw: if it changes before the command runs, ppc approve refuses (F-D15)
+      choose('Yes, approve it', `ppc approve ${id} --mockup ${String(model.uiFiles?.[shown.mockup] ?? '').slice(0, 12)}`, 'It becomes the reference: every slice on this screen is built and checked against it'), ...SAY_NO] }] };
   }
   const change = model.changeRequests.find((c) => c.data.id === id)?.data;
   if (change?.status === 'open') {
