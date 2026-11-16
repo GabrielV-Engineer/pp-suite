@@ -362,8 +362,8 @@ test('ask: an unknown id, or one with nothing left to decide, has no question', 
   const r = repo(t);
   assert.equal(askFor(loadProject(r.dir), 'SL-099'), null);
   assert.equal(askFor(loadProject(r.dir), 'SL-001'), null, 'a slice that is already ready');
-  approve(r.dir, 'DEBT-BE-001', { by: 'owner' });
-  assert.equal(askFor(loadProject(r.dir), 'DEBT-BE-001'), null, 'a debt entry that is already decided');
+  approve(r.dir, 'DEBT-BE-001', { by: 'owner', accept: 'the list stays short in practice' });
+  assert.equal(askFor(loadProject(r.dir), 'DEBT-BE-001'), null, 'a debt entry that is accepted for good');
 });
 
 test('ask: every question fits the panel: a short header, two to four options, a way out that is not a command', (t) => {

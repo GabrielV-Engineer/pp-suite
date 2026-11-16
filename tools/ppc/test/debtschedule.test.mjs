@@ -97,7 +97,7 @@ test('schedule: twice is refused, and a refusal changes nothing', (t) => {
   const { dir } = opened(t);
   scheduleDebt(dir, 'DEBT-BE-001', 'SL-008');
   const before = read(dir, '.sddpp/debt.yaml');
-  fails(() => scheduleDebt(dir, 'DEBT-BE-001', 'SL-008'), /open/);
+  fails(() => scheduleDebt(dir, 'DEBT-BE-001', 'SL-008'), /already scheduled into SL-008/);
   assert.equal(read(dir, '.sddpp/debt.yaml'), before);
 });
 

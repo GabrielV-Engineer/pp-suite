@@ -195,9 +195,16 @@ export function askFor(model, id, { redFiles, budgetReason, mutationReason, payI
     // The slice that will pay it, proposed by the agent: offered in place of "pay it later", which leaves debt tied to no slice.
     const payer = model.slices.find((s) => s.data.id === payIn)?.data;
     if (!payer) throw new DecisionError(`--pay-in: unknown slice ${payIn}`);
-    if (!['proposed', 'open'].includes(debt.status)) return null;
+    if (!['proposed', 'open', 'scheduled'].includes(debt.status)) return null;
     const problem = payProblem(payer, debt);
     if (problem) throw new DecisionError(`--pay-in: ${problem}`);
+    if (debt.status === 'scheduled') {
+      if (debt.paid_by === payIn) return null;
+      return { questions: [{ question: `Move ${id} "${debt.title}" from ${debt.paid_by} to ${payIn} "${payer.title}"?`, header: 'Debt', multiSelect: false, options: [
+        choose(`Yes, ${payIn} pays it`, `ppc schedule-debt ${id} --slice ${payIn}`, `${debt.paid_by} no longer pays it; ${payIn} does, and its audit says whether it was paid`),
+        { label: 'Not yet', description: `It stays with ${debt.paid_by}` },
+      ] }] };
+    }
     const pays = `${payIn} pays it: fixing it is part of that slice, and when it closes its audit says whether it was paid`;
     if (debt.status === 'open') {
       return { questions: [{ question: `Pay ${id} "${debt.title}" in ${payIn} "${payer.title}"?`, header: 'Debt', multiSelect: false, options: [
@@ -210,6 +217,14 @@ export function askFor(model, id, { redFiles, budgetReason, mutationReason, payI
       choose('Live with it', `ppc approve ${id} --accept "${ACCEPT_REASON}"`, 'Accepted for good: it is recorded and will not be paid'),
       choose('Drop it', `ppc approve ${id} --drop --reason "${DROP_REASON}"`, 'Discarded: it was not a real debt'),
       { label: 'Not yet', description: 'Nothing is decided; it waits for you' },
+    ] }] };
+  }
+  if (debt?.status === 'open') {
+    // An open entry a later decision made moot can still be closed (F-D9); to tie it to a slice, ask with --pay-in.
+    return { questions: [{ question: `${id} "${debt.title}" is open debt. Keep it open, live with it, or drop it?`, header: 'Debt', multiSelect: false, options: [
+      choose('Live with it', `ppc approve ${id} --accept "${ACCEPT_REASON}"`, 'Accepted for good: it is recorded and will not be paid'),
+      choose('Drop it', `ppc approve ${id} --drop --reason "${DROP_REASON}"`, 'Discarded: a later decision covers it, or it was not a real debt'),
+      { label: 'Keep it open', description: 'Nothing changes; it waits for a slice to pay it' },
     ] }] };
   }
   if (debt?.status === 'proposed') {

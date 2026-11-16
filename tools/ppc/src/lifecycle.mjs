@@ -398,7 +398,13 @@ export function approveDebt(root, id, { by, accept, drop, reason, payIn } = {}) 
     const model = loadValid(root);
     const register = model.debt.find((d) => d.data.entries.some((e) => e.id === id)) ?? fail(`unknown debt ${id}`);
     const entry = register.data.entries.find((e) => e.id === id);
-    if (entry.status !== 'proposed') fail(`${id} is ${entry.status}; only a proposed entry can be decided`);
+    // An open entry can still be accepted or dropped (found in the first real project, F-D9: an entry a later decision covered
+    // stayed open, because only a proposed one could be decided). Anything further along is decided already.
+    if (entry.status === 'open' && accept === undefined && !drop) {
+      if (payIn !== undefined) return { ...scheduleDebt(root, id, payIn), approved: false };
+      fail(`${id} is already open; to change that: --accept "<why>", --drop --reason "<why>", or ppc schedule-debt ${id} --slice <slice>`);
+    }
+    if (!['proposed', 'open'].includes(entry.status)) fail(`${id} is ${entry.status}; only a proposed or open entry can be decided`);
     const status = accept !== undefined ? 'accepted' : drop ? 'dropped' : 'open';
 
     setDebtFields(root, register, id, { status, approved_by: by.trim(), ...(status === 'accepted' ? { accepted_reason: accept.trim() } : {}), ...(status === 'dropped' && reason !== undefined ? { dropped_reason: reason.trim() } : {}) });
@@ -425,9 +431,23 @@ export function scheduleDebt(root, debtId, sliceId) {
     const debt = register.data.entries.find((e) => e.id === debtId);
     const target = model.slices.find((s) => s.data.id === sliceId) ?? fail(`unknown slice ${sliceId}`);
     const s = target.data;
-    if (debt.status !== 'open') fail(`${debtId} is ${debt.status}; only an open debt (one a person approved with ppc approve-debt) can be scheduled`);
+    // A scheduled entry moves while the slice that was to pay it has not started (found in the first real project, F-D14: the
+    // owner split that slice and the entry could not follow the part that pays it).
+    const from = debt.status === 'scheduled' ? model.slices.find((x) => x.data.id === debt.paid_by) : undefined;
+    if (debt.status === 'scheduled') {
+      if (debt.paid_by === sliceId) fail(`${debtId} is already scheduled into ${sliceId}`);
+      if (!from || !['planned', 'ready'].includes(from.data.status)) fail(`${debtId} is scheduled into ${debt.paid_by}, and ${debt.paid_by} is ${from?.data.status ?? 'unknown'}; it moves only while that slice has not started`);
+      if (from.data.type === 'refactor' && (from.data.pays ?? []).filter((d) => d !== debtId).length === 0) fail(`${debt.paid_by} is a refactor slice and pays nothing else; drop that slice or give it other debt first`);
+    } else if (debt.status !== 'open') fail(`${debtId} is ${debt.status}; only an open or scheduled debt (one a person approved) can be scheduled`);
     const problem = payProblem(s, debt);
     if (problem) fail(problem);
+    if (from) {
+      editFrontmatter(root, from.file, (doc) => {
+        const left = (from.data.pays ?? []).filter((d) => d !== debtId);
+        if (left.length) doc.set('pays', left);
+        else doc.delete('pays');
+      });
+    }
     const paidAlready = s.status === 'done';
     setDebtFields(root, register, debtId, { status: paidAlready ? 'paid' : 'scheduled', paid_by: sliceId });
     editFrontmatter(root, target.file, (doc) => {
@@ -437,7 +457,7 @@ export function scheduleDebt(root, debtId, sliceId) {
       } else doc.set('pays', [debtId]);
     });
     ensureValid(root);
-    return { debt: debtId, slice: sliceId, status: paidAlready ? 'paid' : 'scheduled' };
+    return { debt: debtId, slice: sliceId, status: paidAlready ? 'paid' : 'scheduled', ...(from ? { moved_from: from.data.id } : {}) };
   });
 }
 
