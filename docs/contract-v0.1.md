@@ -104,6 +104,15 @@ that component's code), and `also_affects` links the others. Status flow: `propo
   request; a feature slice pays it as part of its own work, and its audit says whether it did). `dropped` may carry `dropped_reason` (optional, at least 10 characters), the person's reason for discarding it.
 - `origin` says where it came from: a `slice`, a `decision` (ADR), the `blueprint`, or an `audit`.
 
+## Interface (`.architect/ui.md`)
+
+Optional, and expected when the design has a `frontend` component (`U01`). Its frontmatter (`ui.schema.json`) lists the screens:
+each has an id (`SCR-NN`), the capabilities it shows, the states it draws (`ready`, `loading`, `empty`, `error`), an HTML
+mockup under `.architect/ui/` and, optionally, a PNG of it. A person approves a screen with `ppc approve SCR-NN`, which records
+`approved_by` and the hash of the mockup (and image); if the file changes afterwards, the approval is stale (`U05`). The body
+has six sections: Navigation, Flows, States, Visual system, Accessibility (every text and background pair), Sizes. `app.check`
+names a command that opens the real app and writes screenshots, for the audit.
+
 ## Rules checked by `ppc validate`
 
 Errors fail validation; warnings fail only with `--strict`. `ppc rules` prints this table.
@@ -166,6 +175,11 @@ Errors fail validation; warnings fail only with `--strict`. `ppc rules` prints t
 | `X03` | error | A cut addition was applied but the non-goal it becomes is not among the non-goals. |
 | `X04` | warning / error | An addition was decided to be cut but the cut was not applied (a warning while drafting, an error once slices exist). |
 | `X05` | error | An addition points at something that does not exist (a design id, or another addition it overlaps), or its id is duplicated. |
+| `U01` | warning | The design has a frontend component and no interface document (`.architect/ui.md`); `/pp-design ui` writes it. |
+| `U02` | error | A capability the design puts in a frontend component (`justified_by`) has no screen in the interface document. |
+| `U03` | error | The interface document lacks a section a builder reads: Navigation, Flows, States, Visual system, Accessibility, Sizes. |
+| `U04` | error | A screen names a capability or a file (its mockup or image) that does not exist. |
+| `U05` | warning | A screen's mockup is not approved, or it (or its image) changed after a person approved it (`ppc approve SCR-NN` records the hash). |
 
 Cross-reference rules run only when `blueprint.yaml` itself is valid, since everything else points at it.
 

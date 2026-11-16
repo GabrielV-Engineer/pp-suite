@@ -1,5 +1,6 @@
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
+import { createHash } from 'node:crypto';
 import { parse as parseYaml } from 'yaml';
 
 export const REQUIRED_FILES = [
@@ -33,6 +34,8 @@ export function loadProject(root) {
     active: null,
     specs: {},
     additions: null,
+    ui: null,
+    uiFiles: {},
   };
   const fail = (file, message) => model.errors.push({ rule: 'PARSE', severity: 'error', file, message });
   const read = (file) => readFileSync(join(root, file), 'utf8');
@@ -88,6 +91,27 @@ export function loadProject(root) {
       model.additions = { file: '.architect/additions.yaml', data: parseYaml(read('.architect/additions.yaml')) };
     } catch (e) {
       fail('.architect/additions.yaml', `invalid YAML: ${e.message}`);
+    }
+  }
+
+  // The interface document, and a hash of every file its screens name, so the validator stays free of file access. null = missing.
+  if (existsSync(join(root, '.architect/ui.md'))) {
+    try {
+      const { data, body } = splitFrontmatter(read('.architect/ui.md'));
+      if (!data || typeof data !== 'object') fail('.architect/ui.md', 'missing YAML frontmatter');
+      else model.ui = { file: '.architect/ui.md', data, body };
+    } catch (e) {
+      fail('.architect/ui.md', `invalid frontmatter: ${e.message}`);
+    }
+    for (const s of Array.isArray(model.ui?.data.screens) ? model.ui.data.screens : []) {
+      for (const file of [s?.mockup, s?.image]) {
+        if (typeof file !== 'string' || file in model.uiFiles || !file.startsWith('.architect/ui/') || file.includes('..')) continue;
+        try {
+          model.uiFiles[file] = createHash('sha256').update(readFileSync(join(root, file))).digest('hex');
+        } catch {
+          model.uiFiles[file] = null;
+        }
+      }
     }
   }
 

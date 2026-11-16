@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tasks (mockup)</title>
+<style>
+  :root { --bg: #ffffff; --text: #1f2933; --muted: #52606d; --border: #d9e2ec; --primary: #1d4ed8; --on-primary: #ffffff; --space: 8px; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #111827; --text: #f3f4f6; --muted: #9ca3af; --border: #374151; --primary: #93c5fd; --on-primary: #111827; } }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.5 system-ui, sans-serif; }
+  main { max-width: 640px; margin: 0 auto; padding: calc(var(--space) * 3) calc(var(--space) * 2); }
+  h1 { font-size: 1.5rem; margin: 0 0 var(--space); }
+  .finding { color: var(--muted); margin: 0 0 calc(var(--space) * 3); }
+  form { display: flex; gap: var(--space); margin-bottom: calc(var(--space) * 3); }
+  input { flex: 1; padding: var(--space); border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--text); }
+  button { padding: var(--space) calc(var(--space) * 2); border: 0; border-radius: 6px; background: var(--primary); color: var(--on-primary); }
+  ul { list-style: none; padding: 0; margin: 0; }
+  li { padding: var(--space) 0; border-bottom: 1px solid var(--border); }
+  section + section { margin-top: calc(var(--space) * 4); }
+  h2 { font-size: 0.875rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+</style>
+</head>
+<body>
+<main>
+  <section aria-label="ready">
+    <h2>Ready</h2>
+    <h1>Tasks</h1>
+    <p class="finding">2 open, 1 done</p>
+    <form><input aria-label="New task" placeholder="Buy milk"><button>Add</button></form>
+    <ul><li>Buy milk</li><li>Call the plumber</li><li><s>Pay rent</s></li></ul>
+  </section>
+  <section aria-label="loading"><h2>Loading</h2><p class="finding">Loading tasks…</p></section>
+  <section aria-label="empty"><h2>Empty</h2><p class="finding">No tasks yet. Add the first one.</p></section>
+  <section aria-label="error"><h2>Error</h2><p class="finding">The tasks could not be loaded. Try again.</p></section>
+</main>
+</body>
+</html>

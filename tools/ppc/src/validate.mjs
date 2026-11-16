@@ -5,7 +5,7 @@ import { basename } from 'node:path';
 import { modeOf, testPolicy, PAYERS, touchesDebt } from './policy.mjs';
 
 const SCHEMA_DIR = new URL('../../../contract/v0.1/schemas/', import.meta.url);
-const SCHEMA_NAMES = ['blueprint', 'slice', 'debt', 'adr', 'evidence', 'change-request', 'active', 'additions'];
+const SCHEMA_NAMES = ['blueprint', 'slice', 'debt', 'adr', 'evidence', 'change-request', 'active', 'additions', 'ui'];
 const WORK_TYPES = ['skeleton', 'feature', 'fix'];
 /** Heuristic budgets by declared level, a guard against over-engineering. They are defaults, not findings of any study. */
 const LEVEL_LIMITS = {
@@ -13,6 +13,7 @@ const LEVEL_LIMITS = {
   standard: { components: 8, capabilities: 20, quality_attributes: 8 },
 };
 const ADR_HEADINGS = ['Context', 'Decision', 'Rejected alternatives', 'Consequences'];
+const UI_SECTIONS = ['Navigation', 'Flows', 'States', 'Visual system', 'Accessibility', 'Sizes'];
 
 /** Every rule the validator can emit. docs/contract-v0.1.md mirrors this table. */
 export const RULES = {
@@ -71,11 +72,16 @@ export const RULES = {
   X02: 'A cut addition was applied but something that only it justified is still in the design.',
   X03: 'A cut addition was applied but the non-goal it becomes is not among the non-goals.',
   X04: 'An addition was decided to be cut but the cut was not applied (a warning while the design is drafted, an error once slices exist).',
+  U01: 'The design has a frontend component and no interface document (.architect/ui.md).',
+  U02: 'A capability the design puts in a frontend component has no screen in the interface document.',
+  U03: 'The interface document lacks a section a builder reads (Navigation, Flows, States, Visual system, Accessibility, Sizes).',
+  U04: 'A screen names a capability or a file that does not exist.',
+  U05: 'A screen\'s mockup is not approved, or changed after a person approved it.',
   X05: 'An addition points at something that does not exist (a design id, or another addition it overlaps), or its id is duplicated.',
 };
 
 /** The rules that judge a design on its own, before any slice or debt register exists. */
-const DESIGN_RULES = new Set(['PARSE', 'SCHEMA', 'R00', 'T07', 'T08', 'A01', 'W02', 'D01', 'D02', 'D03', 'D04', 'X01', 'X02', 'X03', 'X04', 'X05']);
+const DESIGN_RULES = new Set(['PARSE', 'SCHEMA', 'R00', 'T07', 'T08', 'A01', 'W02', 'D01', 'D02', 'D03', 'D04', 'X01', 'X02', 'X03', 'X04', 'X05', 'U01', 'U02', 'U03', 'U04', 'U05']);
 
 /** Keep only the findings about `.architect/`, from the rules that concern the design. */
 export function designFindings(findings) {
@@ -211,6 +217,27 @@ export function validateModel(model, { now = new Date() } = {}) {
   }
   if (bp.capabilities.length >= 4 && bp.capabilities.every((c) => c.priority === 'must')) {
     warn('D04', model.blueprint.file, `all ${bp.capabilities.length} capabilities are a must; decide what is only a should or a could`);
+  }
+
+  // ── the interface: U01-U05 ────────────────────────────────────
+  const frontends = bp.components.filter((c) => c.kind === 'frontend');
+  if (frontends.length && !model.ui) warn('U01', model.blueprint.file, `${frontends.map((c) => c.id).join(', ')} is a frontend and there is no .architect/ui.md; run /pp-design ui to design its screens`);
+  if (model.ui && checked([model.ui], 'ui').length) {
+    const ui = model.ui;
+    const screens = ui.data.screens;
+    for (const cap of new Set(frontends.flatMap((c) => c.justified_by ?? []).filter((r) => r.startsWith('CAP-')))) {
+      if (!screens.some((s) => s.capabilities.includes(cap))) error('U02', ui.file, `${cap} is in a frontend component but no screen shows it`);
+    }
+    for (const section of UI_SECTIONS) if (!hasHeading(ui.body, section)) error('U03', ui.file, `the interface document has no "## ${section}" section`);
+    for (const s of screens) {
+      for (const cap of s.capabilities) if (!caps.has(cap)) error('U04', ui.file, `${s.id} names unknown capability ${cap}`);
+      for (const [what, file] of [['mockup', s.mockup], ['image', s.image]]) {
+        if (file !== undefined && !model.uiFiles?.[file]) error('U04', ui.file, `${s.id}: its ${what} ${file} does not exist`);
+      }
+      if (!s.approved_by) warn('U05', ui.file, `${s.id} "${s.name}" is not approved; put it to the person: ppc ask ${s.id}`);
+      else if (model.uiFiles?.[s.mockup] && model.uiFiles[s.mockup] !== s.mockup_sha256) warn('U05', ui.file, `${s.id} "${s.name}": its mockup changed after ${s.approved_by} approved it; ask again: ppc ask ${s.id}`);
+      else if (s.image && model.uiFiles?.[s.image] && s.image_sha256 && model.uiFiles[s.image] !== s.image_sha256) warn('U05', ui.file, `${s.id} "${s.name}": its image changed after ${s.approved_by} approved it; ask again: ppc ask ${s.id}`);
+    }
   }
 
   // ── slices: T01-T06, T14, L01, W01, W03, W04 ──────────────────
