@@ -70,7 +70,7 @@ Rara vez necesitas más que `/pp`. Los demás ejecutan una fase a propósito; lo
 | Comando | Qué hace | Lo más parecido en Spec Kit | En OpenSpec |
 |---|---|---|---|
 | `/pp` | El siguiente paso, uno tras otro hasta que una decisión es tuya. `/pp SL-022` decide ese | — | — |
-| `/pp-design` | El blueprint de The Architect se vuelve el diseño verificado; `cuts` quita lo que cortaste | `/speckit-specify` | `/openspec-explore` |
+| `/pp-design` | El blueprint de The Architect se vuelve el diseño verificado; `ui` diseña la interfaz contigo (pantallas, estados, maquetas que apruebas); `cuts` quita lo que cortaste | `/speckit-specify` | `/openspec-explore` |
 | `/pp-plan` | Slices verticales finos a partir del diseño | `/speckit-plan`, `/speckit-tasks` | `/openspec-propose` |
 | `/pp-build` | Construye el slice en curso, tests junto al código; `prompts` escribe los prompts de una tarea | `/speckit-implement` | `/openspec-apply-change` |
 | `/pp-check` | Revisa: `clarify`, `analyze` o `converge` | `/speckit-converge` | `/openspec-verify-change` |

@@ -24,8 +24,11 @@ person can run it again at any time.
 
 - Write only `.architect/ui.md` and files under `.architect/ui/`. Never write `approved_by`, `mockup_sha256` or
   `image_sha256`: the person approves a screen with `ppc approve SCR-NN`, through the panel.
-- **Once slices exist, a change to the interface is a change to the design.** If `.sddpp/slices/` has any slice, do not
-  edit `ui.md` or an approved mockup directly. Run the interview, then open a change request with
+- **A project that has slices and no `ui.md` yet** (it adopts the interface document late): write `ui.md` and the mockups
+  directly, describing the interface as it is built and the screens its planned slices will add. That records what exists;
+  it changes nothing. Anything that would change what is built is the next rule.
+- **Once slices exist, a change to the interface is a change to the design.** If `.sddpp/slices/` has any slice and
+  `ui.md` exists, do not edit `ui.md` or an approved mockup directly. Run the interview, then open a change request with
   `ppc change-request --slice <the slice in progress, or the first planned slice on that screen> --component <the frontend
   component> --title ... --problem ... --proposal ...` that states the screens and sections to change, and put it to the
   person (see **When the person decides**). If they accept it, `/pp-change` revises the design, which includes this step's

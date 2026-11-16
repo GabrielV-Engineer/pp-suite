@@ -405,3 +405,48 @@ changed in the project.
 - **What it cannot see:** `ppc` checks that the slice gives an account, not that the account is true; an agent can list as paid what it did
   not fix. The three entries above are not flagged by `W09`, since they were never scheduled: they are the owner's to decide (proposed:
   DEBT-STO-001 into SL-011, DEBT-UI-004 dropped as covered by DEBT-UI-005, DEBT-UI-003 into the next slice on the transcript screen).
+
+---
+
+# Review, 2026-11-16: SL-011 to SL-017 and SL-023 to SL-025; the interface, and the agent's own findings (F-U1, F-D9 to F-D14)
+
+Sources: the git history since SL-010, the slices' audits, `.sddpp/debt.yaml`, the change requests, `PPSUITE-LOG.md` (lines 737 to 777) and the
+three session transcripts since 2026-11-14 (searched for panel questions, guard answers and the word "terminal"). Nothing was changed in the project.
+
+- **State:** 21 of 27 slices done; `validate --strict` and `check-git` 0 and 0. 13 debt entries paid (none before F-P2), the ones a slice could
+  not pay declared with a reason and moved on. 50 panel questions in three sessions, and the guard asked a second time 0 times. Thirteen change
+  requests in all; the design is at revision 15.
+- **F-U1, the interface was barely designed:** the hand-off dropped The Architect's design-system section without naming it; the interface
+  was a few lines of `architecture.md` that `ppc` never reads (routes, empty states, tokens, "calm, clinical"). The navigation arrived with
+  CR-0010 after 22 slices and screens were rewritten for it (SL-023; SL-017 rewrote SL-016's); contrast failed twice (DEBT-UI-001,
+  DEBT-UI-008, the latter passing a criterion that named two pairs); components grew past the project's own limit (DEBT-UI-005).
+- **F-D12, no test opened the real app:** every interface test used a double of the Python bridge that was ready from the start; the real app
+  failed at start-up (`e.list_patients is not a function`) until the owner ran it after SL-023. DEBT-APP-001 had said so since SL-001, with a
+  low cost of waiting.
+- **The agent's own findings, from its log:** F-D9 (an open entry a later one covered could not be dropped), F-D11 (a refactor slice that lists
+  its debt could not have it scheduled: the schema and T10 each wanted the other first), F-D13 (a refactor slice paying test debt was blocked
+  from writing the tests, and undoing its start took git in a terminal), F-D14 (a scheduled entry could not follow a split slice), F-D8
+  (twice a slice missed a component its work needed; C09 found it at the close) and F-D10 (the budget counts deleted lines, so moving code
+  looks like writing it).
+- **Fixed** (the owner chose a validated interface document, a check in the real app for every slice with screens, and the interview at the
+  start and whenever the developer wants it; `1441d26` to `c2b8139`):
+  - `.architect/ui.md`: screens tied to capabilities, their states, the HTML mockup a person approved and its hash; six sections; rules `U01`
+    to `U06`; `ppc approve SCR-NN` in the panel, the guard keeping its approval fields human-only;
+  - `/pp-design ui`: the interview in the panel, `ui.md`, one mockup per screen following pp-suite's own design guide (its ideas from reading
+    three design skills, no text copied) and any design skills installed; three capture tools per kind of project, offered and installed only
+    if the person picks one; `ppc next` offers it before planning, and while slices go on in a project that has none;
+  - slices name their `screens`; `/pp-build` builds to the approved mockups; `ppc finish` needs `ui_check` (the command that opened the real
+    app, its console errors, screenshots that exist or the reason there are none);
+  - F-D13 and F-D11: a refactor slice whose debt is all test debt starts with its tests open (`tests_open`; the guard, C02 and L03 agree);
+    `ppc stop` undoes a start; `schedule-debt` accepts a refactor slice that already lists the debt;
+  - F-D9 and F-D14: an open entry can be accepted or dropped; a scheduled entry moves while its slice has not started.
+- **Checked:** Node 575 tests, guard 71; 42 breaks on purpose across the new parts, all caught; the interface flow run through the CLI on a
+  copy of the example, which found one fault (a screen could not be approved before planning, since T06 fires then; fixed in `c2b8139`).
+- **What the checks cannot see:** whether the mockups are good, and whether the app looks like them: `ppc` checks that a mockup was approved and
+  that a check of the real app was made, not the resemblance; the person sees the screenshots. F-D10 waits for the owner's decision; F-D8 is
+  left for later.
+- **Tried on a copy of this project:** `ppc init --apply --update`, then `claude -p "/pp-design ui"` without a person (0.38 USD, 9 turns). It read
+  the design and did not ask what it already settles (tone, tokens, the shell); it saw that slices exist; it kept the project's non-goals
+  (no mobile, no WCAG focus rules in v1); with no panel in that mode it asked its four questions in the chat and stopped without writing. It
+  found one gap, fixed in the skill: a project that has slices and no `ui.md` yet writes its first one directly, describing what is built;
+  only changes to what is built go through a change request. Not seen: the interview in the real panel, and the mockups.

@@ -69,7 +69,7 @@ You rarely need more than `/pp`. The others run one phase on purpose; the names 
 | Command | What it does | Closest in Spec Kit | Closest in OpenSpec |
 |---|---|---|---|
 | `/pp` | The next step, on and on until a decision is yours. `/pp SL-022` decides that one | — | — |
-| `/pp-design` | The Architect's blueprint becomes the checked design; `cuts` removes what you cut | `/speckit-specify` | `/openspec-explore` |
+| `/pp-design` | The Architect's blueprint becomes the checked design; `ui` designs the interface with you (screens, states, mockups you approve); `cuts` removes what you cut | `/speckit-specify` | `/openspec-explore` |
 | `/pp-plan` | Thin vertical slices from the design | `/speckit-plan`, `/speckit-tasks` | `/openspec-propose` |
 | `/pp-build` | Builds the slice in progress, tests with the code; `prompts` writes the prompts of a task | `/speckit-implement` | `/openspec-apply-change` |
 | `/pp-check` | Reviews: `clarify`, `analyze` or `converge` | `/speckit-converge` | `/openspec-verify-change` |
