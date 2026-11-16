@@ -622,6 +622,24 @@ function uiCheckOf(root, s, input) {
   return check;
 }
 
+/**
+ * How the whole suite ran at the close (found in the first real project, SL-032: a failure outside the slice was only a line in
+ * the deviations). A failure needs a proposed test debt entry in `debt_created`, so the person decides it like any other debt.
+ */
+function suiteOf(model, input) {
+  const suite = input.suite;
+  if (suite === undefined) return undefined;
+  if (typeof suite?.command !== 'string' || suite.command.trim().length < 3) fail('"suite" needs "command": what ran the whole suite');
+  if (!Number.isInteger(suite.failed) || suite.failed < 0) fail('"suite" needs "failed": how many tests failed (0 when none)');
+  if (suite.failed > 0) {
+    const entries = new Map(model.debt.flatMap((d) => d.data.entries ?? []).map((e) => [e.id, e]));
+    if (!(input.debt_created ?? []).some((d) => entries.get(d)?.kind === 'test')) {
+      fail(`${suite.failed} test${suite.failed === 1 ? '' : 's'} of the suite failed. Propose a debt entry of kind test for them (which tests, why) and list it in "debt_created"; the person decides it, and can tie it to the slice that fixes it`);
+    }
+  }
+  return suite;
+}
+
 export function finish(root, id, input, { mutationRunner, now = new Date() } = {}) {
   return transact(root, () => {
     const model = loadValid(root);
@@ -671,6 +689,7 @@ export function finish(root, id, input, { mutationRunner, now = new Date() } = {
       }
       const account = debtAccount(s, input);
       const ui_check = uiCheckOf(root, s, input);
+      const suite = suiteOf(model, input);
       const debt_created = [...(input.debt_created ?? [])];
       if (withoutTests && policy === 'optional') debt_created.push(proposeTestDebt(root, model, s, now.toISOString().slice(0, 10)));
       const audit = {
@@ -687,6 +706,7 @@ export function finish(root, id, input, { mutationRunner, now = new Date() } = {
         ...(account.paid.length ? { debt_paid: account.paid } : {}),
         ...(account.unpaid.length ? { debt_unpaid: account.unpaid } : {}),
         ...(ui_check ? { ui_check } : {}),
+        ...(suite ? { suite } : {}),
       };
       editFrontmatter(root, entry.file, (doc) => {
         doc.set('status', 'done');

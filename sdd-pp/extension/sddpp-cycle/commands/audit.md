@@ -106,6 +106,10 @@ a command to type in a terminal. Instead:
 
    Kinds: `red`, `green`, `refactor`, `build`, `structural`, `docs`. Do not add `mutation_score`: `ppc finish` rejects it.
 
+   Run the project's whole test suite, not only the slice's tests, and add `"suite": { "command": "<what ran it>", "failed":
+   <how many failed> }`. If any failed, inside the slice or not, propose a debt entry of kind `test` for them (step 4) and
+   list it in `debt_created`: `ppc finish` refuses a failed suite without one, so the failure reaches the person.
+
    If the slice lists `screens`, add the check of step 3: `"ui_check": { "command": "<what opened the real app>",
    "console_errors": <how many>, "screenshots": [".sddpp/ui-checks/<slice id>/SCR-01.png"] }` (or `"screenshots": []` with
    `"no_screenshots_reason"`). `ppc finish` does not close a slice with screens without it, and checks the screenshots exist.

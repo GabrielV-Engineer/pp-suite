@@ -77,6 +77,13 @@
         "debt_created": { "type": "array", "items": { "type": "string", "pattern": "^DEBT-[A-Z]{2,5}-\\d{3,}$" } },
         "deviations": { "type": "array", "items": { "type": "string", "minLength": 3 } },
         "debt_paid": { "type": "array", "items": { "type": "string", "pattern": "^DEBT-[A-Z]{2,5}-\\d{3,}$" }, "uniqueItems": true, "description": "The debt in `pays` this slice paid." },
+        "suite": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["command", "failed"],
+          "description": "How the whole test suite ran at the close; a failure goes with a proposed test debt entry.",
+          "properties": { "command": { "type": "string", "minLength": 3 }, "failed": { "type": "integer", "minimum": 0 } }
+        },
         "ui_check": {
           "type": "object",
           "additionalProperties": false,
