@@ -77,6 +77,19 @@
         "debt_created": { "type": "array", "items": { "type": "string", "pattern": "^DEBT-[A-Z]{2,5}-\\d{3,}$" } },
         "deviations": { "type": "array", "items": { "type": "string", "minLength": 3 } },
         "debt_paid": { "type": "array", "items": { "type": "string", "pattern": "^DEBT-[A-Z]{2,5}-\\d{3,}$" }, "uniqueItems": true, "description": "The debt in `pays` this slice paid." },
+        "ui_check": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["command", "console_errors", "screenshots"],
+          "description": "How the audit opened the real app of a slice with screens: the command, the console errors, and the screenshots it wrote (or why there are none).",
+          "properties": {
+            "command": { "type": "string", "minLength": 3 },
+            "console_errors": { "type": "integer", "minimum": 0 },
+            "screenshots": { "type": "array", "items": { "type": "string", "pattern": "^\\.sddpp/ui-checks/" } },
+            "no_screenshots_reason": { "type": "string", "minLength": 10 },
+            "notes": { "type": "string" }
+          }
+        },
         "debt_unpaid": {
           "type": "array",
           "description": "The debt in `pays` this slice did not pay, and why; that debt is open again.",

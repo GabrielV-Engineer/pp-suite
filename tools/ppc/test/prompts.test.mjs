@@ -200,7 +200,7 @@ test('writePrompts: never overwrites a file a person may have edited, unless for
 });
 
 test('the prompt files do not break validation', (t) => {
-  const { dir } = repo(t);
+  const { dir } = repo(t, { screens: true });
   writePrompts(dir, 'SL-002', 'red');
   const out = spawnSync('node', [CLI, 'validate', dir, '--strict'], { encoding: 'utf8' });
   assert.equal(out.status, 0, out.stdout + out.stderr);

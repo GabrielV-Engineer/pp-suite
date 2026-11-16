@@ -524,6 +524,32 @@ function debtAccount(s, input) {
   return { paid, unpaid: unpaid.map((u) => ({ id: u.id, reason: u.reason.trim() })) };
 }
 
+/**
+ * The check of the real app that a slice building to screens gives at its close (found in the first real project, F-D12: no
+ * test opened the real app for 23 slices, and it failed at start-up). ppc checks the check was given and its screenshots exist,
+ * not that the screens look right: the person sees the screenshots.
+ */
+function uiCheckOf(root, s, input) {
+  const screens = s.screens ?? [];
+  const check = input.ui_check;
+  if (!screens.length || !WORK_TYPES.includes(s.type)) return check;
+  if (!check || typeof check !== 'object') {
+    fail(`${s.id} builds to ${screens.join(', ')}. Open the real app (\`app.check\` in .architect/ui.md, or how the project starts) and say what you saw: "ui_check": { "command": "<what you ran>", "console_errors": <how many>, "screenshots": [".sddpp/ui-checks/${s.id}/<screen>.png"] }`);
+  }
+  if (typeof check.command !== 'string' || check.command.trim().length < 3) fail('"ui_check" needs "command": what opened the real app');
+  if (!Number.isInteger(check.console_errors) || check.console_errors < 0) fail('"ui_check" needs "console_errors": how many errors the real app printed (0 when none)');
+  const shots = check.screenshots ?? [];
+  if (!Array.isArray(shots)) fail('"ui_check": "screenshots" is a list of files');
+  for (const shot of shots) {
+    if (typeof shot !== 'string' || !shot.startsWith(`.sddpp/ui-checks/`) || shot.includes('..')) fail(`"ui_check": a screenshot goes under .sddpp/ui-checks/${s.id}/ (got ${shot})`);
+    if (!existsSync(join(root, shot))) fail(`"ui_check": the screenshot ${shot} does not exist`);
+  }
+  if (!shots.length && !(typeof check.no_screenshots_reason === 'string' && check.no_screenshots_reason.trim().length >= 10)) {
+    fail('"ui_check" has no screenshots: take them, or say why there are none in "no_screenshots_reason"');
+  }
+  return check;
+}
+
 export function finish(root, id, input, { mutationRunner, now = new Date() } = {}) {
   return transact(root, () => {
     const model = loadValid(root);
@@ -572,6 +598,7 @@ export function finish(root, id, input, { mutationRunner, now = new Date() } = {
         }
       }
       const account = debtAccount(s, input);
+      const ui_check = uiCheckOf(root, s, input);
       const debt_created = [...(input.debt_created ?? [])];
       if (withoutTests && policy === 'optional') debt_created.push(proposeTestDebt(root, model, s, now.toISOString().slice(0, 10)));
       const audit = {
@@ -587,6 +614,7 @@ export function finish(root, id, input, { mutationRunner, now = new Date() } = {
         ...(input.mutation_override_reason ? { mutation_override_reason: input.mutation_override_reason } : {}),
         ...(account.paid.length ? { debt_paid: account.paid } : {}),
         ...(account.unpaid.length ? { debt_unpaid: account.unpaid } : {}),
+        ...(ui_check ? { ui_check } : {}),
       };
       editFrontmatter(root, entry.file, (doc) => {
         doc.set('status', 'done');

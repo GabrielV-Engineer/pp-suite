@@ -55,7 +55,15 @@ a command to type in a terminal. Instead:
 1. Run `ppc status`. The slice must be in the green or refactor phase (strict cycle) or the build phase (light cycle), with everything committed.
 2. Identify the slice's commits with `git log --oneline` and their message prefixes: `red(<id>)`,
    `green(<id>)`, `refactor(<id>)` or, in the light cycle, `build(<id>)`. Use the full sha you see in `git log`.
-3. **Debt.** For every shortcut, compromise or known weakness you introduced or noticed, add an entry to
+3. **The real app.** If the slice lists `screens`, open the real app, not a test double: run `app.check` from
+   `.architect/ui.md` (or, if it has none, the way the project starts, and propose adding it). Save a screenshot of each
+   screen the slice builds to under `.sddpp/ui-checks/<slice id>/`, read the console, and compare each screenshot with the
+   approved mockup of that screen and with `.architect/ui.md` (states, tokens, words, contrast). Show the person the
+   screenshots and the mockups as links, side by side. A difference becomes a deviation, or a debt entry if it stays; a
+   console error is a fault to fix before closing. With no capture tool, open the app, say what you saw, and give the reason
+   in `no_screenshots_reason`. The first real project's interface failed at start-up for 23 slices because every test used
+   a double that was always ready.
+4. **Debt.** For every shortcut, compromise or known weakness you introduced or noticed, add an entry to
    the debt register `.sddpp/debt.yaml` (create it with `entries:` if it does not exist). Name the owning component in
    `component:`, and use the next free id for it (`DEBT-<code>-NNN`, the code is in `.architect/blueprint.yaml`):
 
@@ -74,15 +82,15 @@ a command to type in a terminal. Instead:
    ```
 
    If a slice already planned should pay it (the next one that touches the same component, say), name that slice in the
-   trigger and, in step 8, ask with `--pay-in <that slice>`, so the slice is tied to it and not only named in text.
+   trigger and, in step 9, ask with `--pay-in <that slice>`, so the slice is tied to it and not only named in text.
 
    Put every piece of free text (`title`, `description`, `rationale`, `trigger`) in double quotes, and write a double quote inside
    it as `\"`. A comma, a colon or a `#` in unquoted text breaks the register, and `ppc finish` then refuses the whole file.
 
    If there is none, say so explicitly. Do not invent debt to look thorough.
-4. **Deviations.** List anything that differs from the slice or the blueprint, or that you decided
+5. **Deviations.** List anything that differs from the slice or the blueprint, or that you decided
    without a record. If a decision needs an ADR, say so in the deviations; do not write ADRs.
-5. Write the audit input as `.sddpp/audit-input.json`:
+6. Write the audit input as `.sddpp/audit-input.json`:
 
    ```json
    {
@@ -96,13 +104,17 @@ a command to type in a terminal. Instead:
 
    Kinds: `red`, `green`, `refactor`, `build`, `structural`, `docs`. Do not add `mutation_score`: `ppc finish` rejects it.
 
+   If the slice lists `screens`, add the check of step 3: `"ui_check": { "command": "<what opened the real app>",
+   "console_errors": <how many>, "screenshots": [".sddpp/ui-checks/<slice id>/SCR-01.png"] }` (or `"screenshots": []` with
+   `"no_screenshots_reason"`). `ppc finish` does not close a slice with screens without it, and checks the screenshots exist.
+
    If the slice pays debt (`pays` in the slice file), account for every entry, checking each against the diff, not against
    the plan: `"debt_paid": ["DEBT-…"]` for what the commits fixed, and `"debt_unpaid": [{ "id": "DEBT-…", "reason": "<why
    not>" }]` for what they did not. A feature slice does not close without this account. What is not paid is open again,
    and `ppc next` asks the person which slice pays it now.
-6. Run `ppc finish <id> --audit .sddpp/audit-input.json`. If it refuses, read why, fix the cause and run
+7. Run `ppc finish <id> --audit .sddpp/audit-input.json`. If it refuses, read why, fix the cause and run
    it again. It either closes the slice or changes nothing.
-7. Delete `.sddpp/audit-input.json` and commit the bookkeeping with `chore(<id>): close slice`.
-8. Report to the person: what shipped, the measured size, the deviations, the debt paid and not paid, and the debt proposed.
+8. Delete `.sddpp/audit-input.json` and commit the bookkeeping with `chore(<id>): close slice`.
+9. Report to the person: what shipped, the measured size, the deviations, the debt paid and not paid, and the debt proposed.
    Then put each proposed debt entry to them, one question each (`ppc ask DEBT-…`, with `--pay-in <slice>` when a planned
    slice should pay it; see **When the person decides**), and each entry left unpaid (`ppc ask DEBT-… --pay-in <slice>`).

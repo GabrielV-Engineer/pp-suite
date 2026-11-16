@@ -93,7 +93,7 @@ test('an option a command does not know is refused and nothing is done', (t) => 
 });
 
 test('the options each command documents are still accepted', (t) => {
-  const r = repo(t);
+  const r = repo(t, { screens: true });
   planSl001(r);
   const named = run(r.dir, 'approve', 'SL-001', '--by', 'Ana');
   assert.equal(named.status, 0, named.stderr);

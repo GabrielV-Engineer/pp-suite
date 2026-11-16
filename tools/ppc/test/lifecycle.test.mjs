@@ -421,12 +421,13 @@ test('status describes the slice in progress, or says there is none', (t) => {
 const ppc = (cwd, ...args) => spawnSync('node', [CLI, ...args], { cwd, encoding: 'utf8' });
 
 test('CLI: the whole cycle through the commands', (t) => {
-  const { dir, commit } = repo(t);
+  const { dir, commit } = repo(t, { screens: true }); // the example as it is, so it ends valid in strict mode
   assert.equal(ppc(dir, 'start', 'SL-001', dir).status, 0);
   const red = commit('red', RED);
   assert.equal(ppc(dir, 'approve-red', '--by', 'reviewer', dir).status, 0);
   const green = commit('green', GREEN);
-  writeFileSync(join(dir, '../audit.json'), JSON.stringify({ commits: [{ sha: red, kind: 'red' }, { sha: green, kind: 'green' }], tests_added: 1 }));
+  const ui_check = { command: 'npm start', console_errors: 0, screenshots: [], no_screenshots_reason: 'a test project with no capture tool' };
+  writeFileSync(join(dir, '../audit.json'), JSON.stringify({ commits: [{ sha: red, kind: 'red' }, { sha: green, kind: 'green' }], tests_added: 1, ui_check }));
   const done = ppc(dir, 'finish', 'SL-001', '--audit', join(dir, '../audit.json'), dir);
   assert.equal(done.status, 0, done.stdout + done.stderr);
   assert.equal(ppc(dir, 'validate', dir, '--strict').status, 0);
