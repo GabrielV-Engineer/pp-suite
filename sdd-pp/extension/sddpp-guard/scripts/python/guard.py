@@ -44,7 +44,7 @@ APPROVAL = re.compile(
 
 # Fields that record a human decision. An agent never writes them: a person does, or `ppc` on a person's behalf.
 DECISION_FIELD = re.compile(r"(approved_by|red_approved_by|decided_by|accepted_reason|dropped_reason|budget_override_reason|mutation_override_reason)[\"']?\s*:")
-CONTRACT_DIR = re.compile(r"(^|/)(\.sddpp/|\.architect/additions\.yaml$)")
+CONTRACT_DIR = re.compile(r"(^|/)(\.sddpp/|\.architect/additions\.yaml$|\.architect/ui\.md$)")
 
 TEST_PATH = re.compile(
     r"(^|/)(tests?|__tests__|spec)/"  # tests/, test/, __tests__/, spec/
@@ -178,7 +178,7 @@ def _writes_a_decision(payload, root: Path) -> bool:
     if tool == "Bash":
         command = str(args.get("command", ""))
         # In a command line the path follows a space, so look for the folder anywhere in it.
-        return bool(".sddpp/" in command and DECISION_FIELD.search(command) and writes(command))
+        return bool((".sddpp/" in command or ".architect/ui.md" in command) and DECISION_FIELD.search(command) and writes(command))
     return False
 
 

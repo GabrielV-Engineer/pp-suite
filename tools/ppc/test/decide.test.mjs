@@ -404,7 +404,10 @@ test('the commands in the labels are exactly what the guard accepts once the per
   let n = 0;
   sl(model, 'SL-002').status = 'in_progress'; // a slice being closed, for the exception questions
   const exception = { budgetReason: "the owner's lock file is generated; hand-written code is about 390", mutationReason: 'a reason that is long enough' };
-  for (const [id, extra] of [['SL-001'], ['DEBT-BE-001'], ['DEBT-BE-001', { payIn: 'SL-004' }], ['CR-0001'], ['reread'], ['SL-002', exception], ['SL-002', { budgetReason: exception.budgetReason }]]) {
+  const ui = model.ui.data.screens[0];
+  delete ui.approved_by; // a screen to approve, for the agreement too
+  delete ui.mockup_sha256;
+  for (const [id, extra] of [['SL-001'], ['DEBT-BE-001'], ['DEBT-BE-001', { payIn: 'SL-004' }], ['SCR-01'], ['CR-0001'], ['reread'], ['SL-002', exception], ['SL-002', { budgetReason: exception.budgetReason }]]) {
     for (const option of withCommand(askFor(model, id, extra))) {
       n += 1;
       const command = option.label.split(' — ').at(-1);

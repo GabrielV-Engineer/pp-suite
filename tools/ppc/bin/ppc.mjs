@@ -45,7 +45,7 @@ const USAGE = `ppc — pp-suite contract tool
 
   Slice cycle (each step changes the project or nothing at all)
     ppc approve [<id>] [--by <name>] [--accept <reason> | --drop [--reason <why>] | --pay-in <slice>] [dir]
-                                         HUMAN ONLY: approve a slice to start, its red tests, or decide a debt entry; with no id,
+                                         HUMAN ONLY: approve a slice to start, its red tests, a screen's mockup (SCR-…), or decide a debt entry; with no id,
                                          the one decision that is waiting; --pay-in approves debt into the slice that pays it.
                                          --by defaults to the git user.name
     ppc show <id> | reread [dir]         the card of what is being decided, in plain words

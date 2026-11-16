@@ -209,6 +209,23 @@ class GuardTest(unittest.TestCase):
         applied = {"file_path": ".architect/additions.yaml", "old_string": "decision: pending", "new_string": "decision: pending\n    applied: true"}
         self.assertEqual(self.code(root, payload("Edit", **applied)), 0)
 
+    def test_the_agent_cannot_approve_a_screen_by_writing_the_interface_document(self):
+        # Found in the first real project (F-U1): a screen's mockup is approved by a person with `ppc approve SCR-NN`.
+        root = self.project(None)
+        (root / ".architect").mkdir()
+        (root / ".architect" / "ui.md").write_text("---\nscreens:\n  - id: SCR-01\n    name: Tasks\n---\n")
+        for tool, args in (
+            ("Edit", {"file_path": ".architect/ui.md", "old_string": "    name: Tasks", "new_string": "    name: Tasks\n    approved_by: me"}),
+            ("Write", {"file_path": ".architect/ui.md", "content": "---\nscreens:\n  - id: SCR-01\n    approved_by: me\n---\n"}),
+        ):
+            with self.subTest(tool=tool):
+                self.assertEqual(self.code(root, payload(tool, **args)), 2)
+        bash = "printf '    approved_by: me\\n' >> .architect/ui.md"
+        self.assertEqual(self.code(root, payload("Bash", command=bash)), 2)
+        # writing the screens themselves is the agent's work
+        rename = {"file_path": ".architect/ui.md", "old_string": "    name: Tasks", "new_string": "    name: Task list"}
+        self.assertEqual(self.code(root, payload("Edit", **rename)), 0)
+
     def test_the_agent_cannot_record_an_exception_through_ppc_finish_either(self):
         root = self.project({"slice": "SL-002", "phase": "green"})
         for cmd in ('ppc finish SL-002 --audit a.json --budget-reason "too big but fine"',

@@ -68,6 +68,18 @@ function debtCard(register, entry) {
   return out.join('\n');
 }
 
+function screenCard(model, s) {
+  const out = [`${s.id}  ${s.name}`, row('Shows', s.capabilities.join(', ')), row('States', s.states.join(', '))];
+  const approved = screenApproved(model, s);
+  out.push(row('Approved', approved ? `by ${s.approved_by}` : s.approved_by ? `by ${s.approved_by}, but it changed since` : 'not yet'));
+  out.push('', 'Open the mockup in a browser and look at every state before deciding.');
+  out.push(...readList([s.mockup, s.image, model.ui.file]));
+  if (!approved) out.push('', `To approve it as the reference the slices build to:  ppc approve ${s.id}`);
+  return out.join('\n');
+}
+const screenOf = (model, id) => model.ui?.data?.screens?.find?.((s) => s.id === id);
+const screenApproved = (model, s) => s.approved_by && model.uiFiles?.[s.mockup] === s.mockup_sha256 && (!s.image || !s.image_sha256 || model.uiFiles?.[s.image] === s.image_sha256);
+
 function changeCard(model, entry) {
   const out = [`${entry.data.id}  ${entry.data.title}`, row('Raised by', entry.data.raised_by), row('Status', entry.data.status)];
   const problem = section(entry.body, 'Problem');
@@ -109,6 +121,8 @@ export function renderDecision(model, id, extra = {}) {
     const entry = register.data.entries.find((e) => e.id === id);
     if (entry) return `${debtCard(register, entry)}\n`;
   }
+  const shown = screenOf(model, id);
+  if (shown) return `${screenCard(model, shown)}\n`;
   const change = model.changeRequests.find((c) => c.data.id === id);
   return change ? `${changeCard(model, change)}\n` : null;
 }
@@ -206,6 +220,12 @@ export function askFor(model, id, { redFiles, budgetReason, mutationReason, payI
       choose('Drop it', `ppc approve ${id} --drop --reason "${DROP_REASON}"`, 'Discarded: it was not a real debt'),
       { label: 'Not yet', description: 'Nothing is decided; it waits for you' },
     ] }] };
+  }
+  const shown = screenOf(model, id);
+  if (shown) {
+    if (screenApproved(model, shown)) return null;
+    return { questions: [{ question: `Approve the mockup of ${id} "${shown.name}" (${shown.mockup}) as the reference the slices build to?`, header: 'Screen', multiSelect: false, options: [
+      choose('Yes, approve it', `ppc approve ${id}`, 'It becomes the reference: every slice on this screen is built and checked against it'), ...SAY_NO] }] };
   }
   const change = model.changeRequests.find((c) => c.data.id === id)?.data;
   if (change?.status === 'open') {

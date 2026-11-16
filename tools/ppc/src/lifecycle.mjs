@@ -310,8 +310,9 @@ export function approve(root, id, { by, accept, drop, reason, payIn } = {}) {
       return entry?.data.status === 'in_progress' && entry.data.phase === 'red' ? approveRed(root, by) : approveSlice(root, id, by);
     }
     if (id.startsWith('DEBT-')) return approveDebt(root, id, { by, accept, drop, reason, payIn });
+    if (id.startsWith('SCR-')) return approveScreen(root, id, by);
     if (id.startsWith('CR-')) fail(`${id} is a change request: decide it with \`ppc decide-change ${id} --accept\` or \`--reject --reason <why>\``);
-    fail(`${id} is not something to approve here: a slice (SL-…) or a debt entry (DEBT-…)`);
+    fail(`${id} is not something to approve here: a slice (SL-…), a debt entry (DEBT-…) or a screen (SCR-…)`);
   }
   const model = loadValid(root);
   const next = nextSteps(model, gitSubjects(root), []);
@@ -328,6 +329,37 @@ export function approve(root, id, { by, accept, drop, reason, payIn } = {}) {
   return approveSlice(root, approvable[0].id, by);
 }
 
+
+/**
+ * HUMAN ONLY: approve a screen's mockup (`.architect/ui.md`): record who approved it and the hash of the mockup, and of its image
+ * when there is one, so a later change makes the approval stale (U05). The approved mockup is what the slices build to.
+ */
+export function approveScreen(root, id, by) {
+  const model = loadValid(root);
+  const ui = model.ui ?? fail('there is no .architect/ui.md: run /pp-design ui first');
+  const index = ui.data.screens.findIndex((s) => s.id === id);
+  if (index === -1) fail(`unknown screen ${id} (screens: ${ui.data.screens.map((s) => s.id).join(', ')})`);
+  const s = ui.data.screens[index];
+  const mockup = model.uiFiles[s.mockup] ?? fail(`${id}: its mockup ${s.mockup} does not exist`);
+  const image = s.image ? (model.uiFiles[s.image] ?? fail(`${id}: its image ${s.image} does not exist`)) : undefined;
+  if (s.approved_by && s.mockup_sha256 === mockup && (!image || s.image_sha256 === image)) fail(`${id} is already approved by ${s.approved_by}, as it is now`);
+  const abs = join(root, ui.file);
+  const before = readFileSync(abs, 'utf8');
+  editFrontmatter(root, ui.file, (doc) => {
+    const node = doc.getIn(['screens', index]);
+    node.set('approved_by', by.trim());
+    node.set('mockup_sha256', mockup);
+    if (image) node.set('image_sha256', image);
+    else node.delete('image_sha256');
+  });
+  try {
+    ensureValid(root);
+  } catch (error) {
+    writeFileSync(abs, before);
+    throw error;
+  }
+  return { screen: id, approved_by: by.trim() };
+}
 
 /**
  * HUMAN ONLY: decide on a debt entry the AI proposed. Default: it becomes open (a real debt to pay);

@@ -90,3 +90,56 @@ test('the U rules judge the design, so validate --design reports them', () => {
   screen(m).capabilities = ['CAP-002'];
   assert.ok(designFindings(validateModel(m)).some((f) => f.rule === 'U02'));
 });
+
+// ── approving a screen: a person, in the panel ────────────────────
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { spawnSync } from 'node:child_process';
+import { approve, LifecycleError } from '../src/lifecycle.mjs';
+import { askFor, renderDecision } from '../src/decisions.mjs';
+import { repo, CLI } from './helpers.mjs';
+
+/** The example with SCR-01 not approved yet. */
+function unapproved(t) {
+  const r = repo(t);
+  const text = readFileSync(join(r.dir, '.architect/ui.md'), 'utf8').replace(/^ {4}approved_by: .*\n/m, '').replace(/^ {4}mockup_sha256: .*\n/m, '');
+  r.write({ '.architect/ui.md': text });
+  r.git('commit', '-q', '-am', 'SCR-01 not approved');
+  return r;
+}
+
+test('approve SCR-NN: records who approved the mockup and its hash, and U05 goes away', (t) => {
+  const r = unapproved(t);
+  assert.equal(found(loadProject(r.dir), 'U05').length, 1);
+  assert.deepEqual(approve(r.dir, 'SCR-01', { by: 'owner' }), { screen: 'SCR-01', approved_by: 'owner' });
+  const s = screen(loadProject(r.dir));
+  assert.equal(s.approved_by, 'owner');
+  assert.equal(s.mockup_sha256, loadProject(r.dir).uiFiles[MOCKUP]);
+  assert.deepEqual(found(loadProject(r.dir), 'U05'), []);
+  assert.match(readFileSync(join(r.dir, '.architect/ui.md'), 'utf8'), /^## Navigation$/m, 'the body is kept');
+});
+
+test('approve SCR-NN: an unknown screen, a missing mockup, or one already approved as it is, is refused', (t) => {
+  const r = repo(t);
+  const refused = (id, pattern) => assert.throws(() => approve(r.dir, id, { by: 'owner' }), (e) => e instanceof LifecycleError && pattern.test(e.message), id);
+  refused('SCR-09', /unknown screen SCR-09/);
+  refused('SCR-01', /already approved/);
+  r.write({ [MOCKUP]: '<!doctype html><p>changed</p>\n' });
+  assert.deepEqual(approve(r.dir, 'SCR-01', { by: 'owner' }).screen, 'SCR-01', 'a changed mockup can be approved again');
+});
+
+test('show and ask SCR-NN: the card links the mockup, and the panel approves it with the exact command', (t) => {
+  const r = unapproved(t);
+  const m = loadProject(r.dir);
+  const card = renderDecision(m, 'SCR-01');
+  assert.match(card, /SCR-01 +Tasks/);
+  assert.match(card, /Shows: +CAP-001, CAP-002, CAP-003, CAP-004/);
+  assert.match(card, /States: +ready, loading, empty, error/);
+  assert.match(card, new RegExp(`\\[${MOCKUP}\\]\\(${MOCKUP}\\)`));
+  const ask = askFor(m, 'SCR-01');
+  assert.match(ask.questions[0].question, /SCR-01 "Tasks"/);
+  assert.deepEqual(ask.questions[0].options.filter((o) => o.label.includes(' — ppc ')).map((o) => o.label.split(' — ').at(-1)), ['ppc approve SCR-01']);
+  assert.equal(askFor(loadProject(repo(t).dir), 'SCR-01'), null, 'an approved, unchanged mockup has nothing to ask');
+  const cli = spawnSync('node', [CLI, 'approve', 'SCR-01', '--by', 'owner', r.dir], { encoding: 'utf8' });
+  assert.equal(cli.status, 0, cli.stderr);
+});
