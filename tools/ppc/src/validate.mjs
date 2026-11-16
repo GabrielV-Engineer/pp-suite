@@ -77,6 +77,7 @@ export const RULES = {
   U03: 'The interface document lacks a section a builder reads (Navigation, Flows, States, Visual system, Accessibility, Sizes).',
   U04: 'A screen names a capability or a file that does not exist.',
   U05: 'A screen\'s mockup is not approved, or changed after a person approved it.',
+  U06: 'An unfinished work slice on a frontend component names no screen, or names a screen that does not exist.',
   X05: 'An addition points at something that does not exist (a design id, or another addition it overlaps), or its id is duplicated.',
 };
 
@@ -237,6 +238,17 @@ export function validateModel(model, { now = new Date() } = {}) {
       if (!s.approved_by) warn('U05', ui.file, `${s.id} "${s.name}" is not approved; put it to the person: ppc ask ${s.id}`);
       else if (model.uiFiles?.[s.mockup] && model.uiFiles[s.mockup] !== s.mockup_sha256) warn('U05', ui.file, `${s.id} "${s.name}": its mockup changed after ${s.approved_by} approved it; ask again: ppc ask ${s.id}`);
       else if (s.image && model.uiFiles?.[s.image] && s.image_sha256 && model.uiFiles[s.image] !== s.image_sha256) warn('U05', ui.file, `${s.id} "${s.name}": its image changed after ${s.approved_by} approved it; ask again: ppc ask ${s.id}`);
+    }
+  }
+
+  // U06: a work slice on the interface names the screens it builds to
+  if (model.ui) {
+    const screenIds = new Set((Array.isArray(model.ui.data?.screens) ? model.ui.data.screens : []).map((s) => s?.id));
+    const frontendIds = new Set(frontends.map((c) => c.id));
+    for (const { file, data: s } of slices) {
+      if (!WORK_TYPES.includes(s.type) || ['done', 'dropped'].includes(s.status)) continue;
+      for (const id of s.screens ?? []) if (!screenIds.has(id)) error('U06', file, `${s.id} names unknown screen ${id}`);
+      if (s.components.some((c) => frontendIds.has(c)) && !(s.screens ?? []).length) warn('U06', file, `${s.id} touches the frontend but names no screen; list the screens of .architect/ui.md it builds to in "screens"`);
     }
   }
 

@@ -5,6 +5,7 @@ type: skeleton
 status: ready
 blueprint_revision: 1
 components: [frontend, backend, database]
+screens: [SCR-01]
 quality_attributes: [QA-002]
 acceptance:
   - id: AC-1

@@ -6,6 +6,7 @@ status: planned
 blueprint_revision: 1
 capability: CAP-004
 components: [frontend, backend]
+screens: [SCR-01]
 depends_on: [SL-003]
 acceptance:
   - id: AC-1

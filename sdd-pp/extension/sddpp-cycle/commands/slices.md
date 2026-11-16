@@ -36,6 +36,12 @@ first; do not run those, and do not write `spec.md`, `plan.md` or `tasks.md`.
 - **A risk may go first, openly.** To prove something before going end to end (an engine nobody has measured, a library
   nobody has tried), plan a `spike` (`timebox_hours`, `disposable: true`) and say which question it answers. A spike
   learns; it does not deliver the capability, so the capability still needs its own feature slice.
+- **A slice on the interface names its screens.** When `.architect/ui.md` exists, every work slice that touches a
+  `frontend` component lists in `screens` the screens it builds to (`SCR-NN`); it is built to their approved mockups.
+  Its criteria cover the states those screens list (loading, empty, error, not only ready) and, when a criterion is about
+  contrast or another measured quality, every case the interface document lists, not one example. `ppc validate` warns
+  on a slice that names none (`U06`). If the design has a frontend and no `ui.md`, say so and suggest `/pp-design ui`
+  first.
 - **A dependency is code or data.** B depends on A only when B cannot be built or tested without what A builds. Wanting A
   first is an order, not a dependency: say it in the order, not in `depends_on`, because `ppc` will not start a slice
   whose dependencies are unfinished. `ppc validate` warns on a dependency between slices that share no component (`W08`).
@@ -83,7 +89,8 @@ a command to type in a terminal. Instead:
    decision for a person.
 4. When they agree, write each slice file with the frontmatter that `slice.schema.json` defines (`id`, `title`, `type`,
    `status: planned`, `blueprint_revision` = the blueprint's current `revision`, `capability`, `quality_attributes`,
-   `components`, `depends_on`, `acceptance`), then `## Behavior` (two to four sentences) and `## Out of scope`.
+   `components`, `depends_on`, `acceptance`, and `screens` when it touches the interface), then `## Behavior` (two to
+   four sentences) and `## Out of scope`.
 5. Run `ppc validate .` and fix every error. Read the warnings: fix the ones your files caused (a `W07` or `W08` on a
    slice you wrote is one of them), report the others.
 6. Run `ppc overview` and report: the slices, the order, what is left for later.

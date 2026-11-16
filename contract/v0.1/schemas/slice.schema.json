@@ -39,6 +39,7 @@
       }
     },
     "test_policy": { "enum": ["required", "optional", "none"], "description": "Overrides the blueprint test policy for this slice." },
+    "screens": { "type": "array", "uniqueItems": true, "items": { "type": "string", "pattern": "^SCR-\\d{2,}$" }, "description": "The screens of .architect/ui.md this slice builds to; it is built to their approved mockups and checked against them." },
     "pays": { "type": "array", "items": { "type": "string", "pattern": "^DEBT-[A-Z]{2,5}-\\d{3,}$" }, "uniqueItems": true },
     "approved_by": { "type": "string", "minLength": 1, "description": "Human who approved this slice to start." },
     "mode": { "enum": ["light", "strict"], "description": "The cycle this slice follows. Light: build tests and code together, no approval of tests, no lock. Strict: red tests approved by a human, then green with the tests locked. `ppc start` records the mode it applied; without one the slice is checked as strict." },

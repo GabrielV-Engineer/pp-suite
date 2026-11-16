@@ -7,6 +7,7 @@ blueprint_revision: 1
 capability: CAP-001
 quality_attributes: [QA-001, QA-003]
 components: [frontend, backend, database]
+screens: [SCR-01]
 depends_on: [SL-001]
 acceptance:
   - id: AC-1

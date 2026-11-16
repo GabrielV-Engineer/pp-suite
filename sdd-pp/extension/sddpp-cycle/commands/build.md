@@ -18,6 +18,11 @@ $ARGUMENTS
 - **Tests follow the test policy** (`test_policy` in `.architect/blueprint.yaml`, or in the slice):
   `required` means the slice cannot close without test files; `optional` means they are expected, and if there are none
   `ppc finish` proposes a debt entry for a person to decide; `none` means they are not asked for.
+- **The interface is built to its approved mockups.** If the slice lists `screens`, read `.architect/ui.md` (its
+  Navigation, States, Visual system and Accessibility) and open the approved mockup of each screen
+  (`.architect/ui/mockups/SCR-NN.html`, and its image if there is one). Use the tokens and the words they use; draw
+  every state the screen lists. Where the mockup and the slice's criteria disagree, stop and say so: the design decides,
+  through a change request.
 - **The debt the slice pays is part of its work.** If the slice lists `pays`, read those entries in `.sddpp/debt.yaml` and fix
   them in this slice, with a test where the entry is about behavior. If one does not fit the budget or turns out bigger than
   its entry says, leave it and say so: the audit records it as not paid, with the reason.

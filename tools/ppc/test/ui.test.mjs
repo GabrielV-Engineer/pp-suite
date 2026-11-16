@@ -171,3 +171,30 @@ test('next: once slices exist, a missing interface or an unapproved mockup waits
   changed.uiFiles[MOCKUP] = '0'.repeat(64);
   assert.ok(nextSteps(changed, []).waiting.some((w) => w.decision?.type === 'screen' && w.decision.id === 'SCR-01'));
 });
+
+// ── slices name the screens they build to ──────────────────────────
+const sl = (m, id) => m.slices.find((s) => s.data.id === id).data;
+
+test('U06: an unfinished work slice on a frontend component names the screens it builds to, and only screens that exist', () => {
+  const none = base();
+  delete sl(none, 'SL-002').screens;
+  const u06 = found(none, 'U06');
+  assert.equal(u06.length, 1);
+  assert.equal(u06[0].severity, 'warning');
+  assert.match(u06[0].message, /SL-002 .*frontend.*names no screen/);
+  const unknown = base();
+  sl(unknown, 'SL-002').screens = ['SCR-09'];
+  assert.ok(found(unknown, 'U06').some((f) => f.severity === 'error' && /SCR-09/.test(f.message)));
+  const done = base();
+  delete sl(done, 'SL-002').screens;
+  sl(done, 'SL-002').status = 'dropped';
+  assert.deepEqual(found(done, 'U06'), [], 'a slice no longer to be built is not asked');
+  const backendOnly = base();
+  Object.assign(sl(backendOnly, 'SL-002'), { components: ['backend', 'database'] });
+  delete sl(backendOnly, 'SL-002').screens;
+  assert.deepEqual(found(backendOnly, 'U06'), [], 'a slice that does not touch the interface names no screen');
+  const noUi = base();
+  noUi.ui = null;
+  delete sl(noUi, 'SL-002').screens;
+  assert.deepEqual(found(noUi, 'U06'), [], 'without ui.md, U01 says what to do');
+});
