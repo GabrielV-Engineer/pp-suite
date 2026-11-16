@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync
 import { dirname, join } from 'node:path';
 import { Document, parseDocument, stringify } from 'yaml';
 import { loadProject } from './load.mjs';
-import { validateModel } from './validate.mjs';
+import { validateModel, designFindings } from './validate.mjs';
 import { checkGit, dirtyPaths, measure } from './gitcheck.mjs';
 import { runMutation, sliceProductionFiles } from './mutation.mjs';
 import { modeOf, testPolicy, PAYERS, payProblem, testsOpen } from './policy.mjs';
@@ -357,7 +357,12 @@ export function approve(root, id, { by, accept, drop, reason, payIn } = {}) {
  * when there is one, so a later change makes the approval stale (U05). The approved mockup is what the slices build to.
  */
 export function approveScreen(root, id, by) {
-  const model = loadValid(root);
+  // A design decision, made before slices are planned as often as after: judged on the design's own rules (T06, "a capability
+  // has no slice", fires on every project that has not planned yet).
+  const designErrors = (model) => designFindings(validateModel(model)).filter((f) => f.severity === 'error');
+  const model = loadProject(root);
+  const invalid = designErrors(model);
+  if (invalid.length) fail(`the design is invalid, fix it first:\n${describe(invalid)}`);
   const ui = model.ui ?? fail('there is no .architect/ui.md: run /pp-design ui first');
   const index = ui.data.screens.findIndex((s) => s.id === id);
   if (index === -1) fail(`unknown screen ${id} (screens: ${ui.data.screens.map((s) => s.id).join(', ')})`);
@@ -374,11 +379,10 @@ export function approveScreen(root, id, by) {
     if (image) node.set('image_sha256', image);
     else node.delete('image_sha256');
   });
-  try {
-    ensureValid(root);
-  } catch (error) {
+  const after = designErrors(loadProject(root));
+  if (after.length) {
     writeFileSync(abs, before);
-    throw error;
+    fail(`the approval would leave the design invalid:\n${describe(after)}`);
   }
   return { screen: id, approved_by: by.trim() };
 }

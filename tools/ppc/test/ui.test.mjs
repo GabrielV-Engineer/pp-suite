@@ -198,3 +198,15 @@ test('U06: an unfinished work slice on a frontend component names the screens it
   delete sl(noUi, 'SL-002').screens;
   assert.deepEqual(found(noUi, 'U06'), [], 'without ui.md, U01 says what to do');
 });
+
+// Found in the end-to-end trial: before any slice is planned T06 fires for every capability, which is normal at that stage, and
+// it stopped the approval of a screen, the step that comes before planning.
+test('approve SCR-NN: works before any slice exists, judged on the design alone', (t) => {
+  const r = unapproved(t);
+  r.git('rm', '-q', '-r', '.sddpp');
+  r.git('commit', '-q', '-m', 'no slices yet');
+  assert.deepEqual(approve(r.dir, 'SCR-01', { by: 'owner' }), { screen: 'SCR-01', approved_by: 'owner' });
+  const broken = unapproved(t);
+  broken.write({ '.architect/ui.md': readFileSync(join(broken.dir, '.architect/ui.md'), 'utf8').replace('## Accessibility', '## Access') });
+  assert.throws(() => approve(broken.dir, 'SCR-01', { by: 'owner' }), (e) => e instanceof LifecycleError && /U03/.test(e.message), 'a design error still stops it');
+});
