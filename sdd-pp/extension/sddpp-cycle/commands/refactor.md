@@ -13,6 +13,11 @@ $ARGUMENTS
 - Behavior does not change. The proof is that **the existing tests pass, untouched**. A guard blocks editing
   them. If a test has to change, the behavior is changing: stop and tell the human, who can reopen a red phase
   in a new slice.
+- **Paying test debt is the exception.** When every debt entry the slice pays is of kind `test` (a test that is missing,
+  such as one that opens the real app), `ppc start` opens the tests (`tests_open` in `.sddpp/active.json`): add the tests
+  the entries describe, and check each one fails when the behavior it guards is broken (undo the fix, then restore it).
+  Existing tests still stay as they are. If the slice was started as the wrong type, `ppc stop <id>` puts it back to ready
+  while it has no commits.
 - If the design is wrong or silent about something this slice needs, **stop**. Do not decide it yourself and do not work around it: open a change request with `ppc change-request --slice <id> --title ... --problem ... --proposal ... --qa|--component|--adr ...` and put it to the person (see **When the person decides**). If they accept it, the design is revised (`/pp-change`) before you go on; if not, go on without it, or stop and say what is blocked.
 - Change the structure only: names, duplication, where code lives, how it is configured. No new feature, no
   new error branch, no new option, no new dependency.

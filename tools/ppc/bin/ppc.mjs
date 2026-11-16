@@ -15,7 +15,7 @@ import { sessionContext, gitSubjects, gitUserName, buildFacts, panelAnswers } fr
 import { renderAdditions } from '../src/additions.mjs';
 import { renderDecision, askFor, redCommitFiles, DecisionError, AUDIT_INPUT } from '../src/decisions.mjs';
 import { buildPrompts, resolveTarget, writePrompts } from '../src/prompts.mjs';
-import { start, approve, reread, approveSlice, approveRed, approveDebt, scheduleDebt, decideAddition, toRefactor, finish, mutate, status, LifecycleError } from '../src/lifecycle.mjs';
+import { start, stop, approve, reread, approveSlice, approveRed, approveDebt, scheduleDebt, decideAddition, toRefactor, finish, mutate, status, LifecycleError } from '../src/lifecycle.mjs';
 
 const USAGE = `ppc — pp-suite contract tool
 
@@ -52,6 +52,7 @@ const USAGE = `ppc — pp-suite contract tool
     ppc approve-slice <slice> --by <name> [dir]
                                          HUMAN ONLY: planned -> ready
     ppc start <slice> [dir]              ready -> in progress, red phase
+    ppc stop <slice> [dir]               in progress -> ready again, while the slice has no commits of its own (undo a start)
     ppc approve-red --by <name> [dir]    HUMAN ONLY: approve the committed red tests, enter green
     ppc approve-debt <DEBT-ID> --by <name> [--accept <reason> | --drop [--reason <why>]] [dir]
                                          HUMAN ONLY: decide on proposed debt (default: it becomes open; --reason records why it was dropped)
@@ -90,7 +91,7 @@ const VALUE_OPTIONS = new Set(['--by', '--audit', '--files', '--slice', '--accep
 // What each command accepts. Anything else is refused: an option that is silently ignored can turn a request for help, or a typo,
 // into an approval (`ppc approve --help` once approved the one slice that could be approved).
 const OPTIONS = {
-  rules: [], validate: ['--strict', '--design'], 'check-git': [], start: [], 'approve-slice': ['--by'], approve: ['--by', '--accept', '--drop', '--reason', '--pay-in'],
+  rules: [], validate: ['--strict', '--design'], 'check-git': [], start: [], stop: [], 'approve-slice': ['--by'], approve: ['--by', '--accept', '--drop', '--reason', '--pay-in'],
   show: [], ask: ['--budget-reason', '--mutation-reason', '--pay-in'], reread: ['--all'], 'approve-debt': ['--by', '--accept', '--drop', '--reason'], 'schedule-debt': ['--slice'],
   'decide-addition': ['--keep', '--cut', '--alone', '--by', '--reason', '--accept-recommended', '--but-cut', '--but-keep'], additions: [],
   'change-request': ['--slice', '--title', '--problem', '--proposal', '--component', '--adr', '--qa', '--budgets'],
@@ -178,6 +179,9 @@ switch (command) {
   }
   case 'start':
     transition(() => start(dirAt(1), positionals[0]));
+    break;
+  case 'stop':
+    transition(() => stop(dirAt(1), positionals[0]));
     break;
   case 'approve-slice':
     transition(() => approveSlice(dirAt(1), positionals[0], options.get('by') ?? gitUserName(dirAt(1))));

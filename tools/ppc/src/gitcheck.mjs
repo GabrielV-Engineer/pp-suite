@@ -1,6 +1,7 @@
 import { execFileSync } from 'node:child_process';
 import { generatedGlobs, isGeneratedPath, isTestPath } from './testpaths.mjs';
 import { matchesGlob } from './globs.mjs';
+import { testsOpen } from './policy.mjs';
 
 const SHA = /^[0-9a-f]{7,40}$/;
 /** Contract bookkeeping is neither code nor tests: it is never measured and never trips C02/C03. */
@@ -126,7 +127,7 @@ export function checkGit(model, root, { tips = new Map() } = {}) {
       const tests = m.files.filter((f) => isTestPath(f.path)).map((f) => f.path);
       const productionFiles = m.files.filter((f) => !isTestPath(f.path)).map((f) => f.path);
 
-      if (tests.length && TESTS_LOCKED_KINDS.includes(kind)) {
+      if (tests.length && TESTS_LOCKED_KINDS.includes(kind) && !(kind === 'refactor' && testsOpen(model, s))) {
         tests.forEach((p) => reported.add(p));
         add('C02', file, `${s.id}: ${sha} (${kind}) touches ${tests.join(', ')}; tests are locked after the red phase`);
       }

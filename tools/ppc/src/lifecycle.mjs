@@ -5,7 +5,7 @@ import { loadProject } from './load.mjs';
 import { validateModel } from './validate.mjs';
 import { checkGit, dirtyPaths, measure } from './gitcheck.mjs';
 import { runMutation, sliceProductionFiles } from './mutation.mjs';
-import { modeOf, testPolicy, PAYERS, payProblem } from './policy.mjs';
+import { modeOf, testPolicy, PAYERS, payProblem, testsOpen } from './policy.mjs';
 import { generatedGlobs } from './testpaths.mjs';
 import { overlapGroup, triage } from './additions.mjs';
 import { nextSteps } from './next.mjs';
@@ -58,9 +58,9 @@ export function transact(root, work) {
 // ── helpers ───────────────────────────────────────────────────────────────────────
 const describe = (findings) => findings.map((f) => `  ${f.rule} ${f.file}: ${f.message}`).join('\n');
 
-export function loadValid(root) {
+export function loadValid(root, { allow = () => false } = {}) {
   const model = loadProject(root);
-  const errors = validateModel(model).filter((f) => f.severity === 'error');
+  const errors = validateModel(model).filter((f) => f.severity === 'error' && !allow(f));
   if (errors.length) fail(`the project is invalid, fix it first:\n${describe(errors)}`);
   return model;
 }
@@ -75,9 +75,9 @@ export function editFrontmatter(root, file, mutate) {
   writeFileSync(abs, `---\n${doc.toString({ lineWidth: 0, flowCollectionPadding: false }).trimEnd()}\n---\n${match[2]}`);
 }
 
-function writeActive(root, slice, phase) {
+function writeActive(root, slice, phase, extra = {}) {
   mkdirSync(join(root, '.sddpp'), { recursive: true });
-  writeFileSync(join(root, ACTIVE), `${JSON.stringify({ slice, phase })}\n`);
+  writeFileSync(join(root, ACTIVE), `${JSON.stringify({ slice, phase, ...extra })}\n`);
 }
 
 /** After a transition the project must still be valid; if it is not, the caller's transaction rolls back. */
@@ -121,9 +121,31 @@ export function start(root, id) {
       // Record the cycle that was applied, so a later change of the project default cannot rewrite this slice's history.
       if (WORK_TYPES.includes(s.type)) doc.set('mode', mode);
     });
-    writeActive(root, id, phase);
+    writeActive(root, id, phase, phase === 'refactor' && testsOpen(model, s) ? { tests_open: true } : {});
     ensureValid(root);
     return { slice: id, phase };
+  });
+}
+
+/**
+ * Undo a start: a slice in progress with no commits of its own goes back to ready (found in the first real project, F-D13: a slice
+ * started as the wrong type could only be undone with git in a terminal). Once it has commits, it is finished or changed instead.
+ */
+export function stop(root, id) {
+  return transact(root, () => {
+    const model = loadValid(root);
+    const entry = model.slices.find((s) => s.data.id === id) ?? fail(`unknown slice ${id}`);
+    if (entry.data.status !== 'in_progress') fail(`${id} is ${entry.data.status}, not in progress; there is nothing to stop`);
+    const own = gitSubjects(root).filter((subject) => new RegExp(`^\\w+\\(${id}\\)`).test(subject) && !/^(docs|chore)\(/.test(subject));
+    if (own.length) fail(`${id} already has commits (${own.slice(0, 3).join('; ')}); finish it, or change it with a change request, instead of stopping it`);
+    editFrontmatter(root, entry.file, (doc) => {
+      doc.set('status', 'ready');
+      doc.delete('phase');
+      doc.delete('mode');
+    });
+    writeActive(root, null, null);
+    ensureValid(root);
+    return { slice: id, status: 'ready' };
   });
 }
 
@@ -396,7 +418,9 @@ export function approveDebt(root, id, { by, accept, drop, reason, payIn } = {}) 
  */
 export function scheduleDebt(root, debtId, sliceId) {
   return transact(root, () => {
-    const model = loadValid(root);
+    // A slice that already lists this debt in `pays` (a refactor slice must list what it pays to be valid) is the plan being
+    // written: its T10 error is what this command resolves (found in the first real project, F-D11).
+    const model = loadValid(root, { allow: (f) => f.rule === 'T10' && f.message.startsWith(`${sliceId} pays ${debtId},`) });
     const register = model.debt.find((d) => d.data.entries.some((e) => e.id === debtId)) ?? fail(`unknown debt ${debtId}`);
     const debt = register.data.entries.find((e) => e.id === debtId);
     const target = model.slices.find((s) => s.data.id === sliceId) ?? fail(`unknown slice ${sliceId}`);
@@ -408,8 +432,9 @@ export function scheduleDebt(root, debtId, sliceId) {
     setDebtFields(root, register, debtId, { status: paidAlready ? 'paid' : 'scheduled', paid_by: sliceId });
     editFrontmatter(root, target.file, (doc) => {
       const pays = doc.get('pays');
-      if (pays?.items) pays.items.push(debtId);
-      else doc.set('pays', [debtId]);
+      if (pays?.items) {
+        if (!pays.items.some((item) => String(item.value ?? item) === debtId)) pays.items.push(debtId);
+      } else doc.set('pays', [debtId]);
     });
     ensureValid(root);
     return { debt: debtId, slice: sliceId, status: paidAlready ? 'paid' : 'scheduled' };

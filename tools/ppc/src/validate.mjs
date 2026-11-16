@@ -2,7 +2,7 @@ import Ajv2020 from 'ajv/dist/2020.js';
 import addFormats from 'ajv-formats';
 import { readFileSync } from 'node:fs';
 import { basename } from 'node:path';
-import { modeOf, testPolicy, PAYERS, touchesDebt } from './policy.mjs';
+import { modeOf, testPolicy, PAYERS, touchesDebt, testsOpen } from './policy.mjs';
 
 const SCHEMA_DIR = new URL('../../../contract/v0.1/schemas/', import.meta.url);
 const SCHEMA_NAMES = ['blueprint', 'slice', 'debt', 'adr', 'evidence', 'change-request', 'active', 'additions', 'ui'];
@@ -465,6 +465,7 @@ export function validateModel(model, { now = new Date() } = {}) {
     const s = inProgress[0].data;
     if (!active) error('L03', '.sddpp/active.json', `${s.id} is in progress but active.json is missing, so the test lock cannot work`);
     else if (active.data.slice !== s.id || active.data.phase !== s.phase) error('L03', active.file, `active.json says ${active.data.slice}/${active.data.phase}, slice file says ${s.id}/${s.phase}`);
+    else if (active.data.tests_open && !(s.phase === 'refactor' && testsOpen(model, s))) error('L03', active.file, `active.json opens the tests, but ${s.id} is not a refactor slice that pays test debt alone`);
   } else if (active && active.data.slice !== null) {
     error('L03', active.file, `active.json points at ${active.data.slice} but no slice is in progress`);
   }

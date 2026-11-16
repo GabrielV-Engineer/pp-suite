@@ -122,6 +122,16 @@ def read_phase(root: Path):
     return data.get("phase"), None
 
 
+def tests_open(root: Path) -> bool:
+    """True when `ppc start` opened the tests of a refactor slice that pays test debt alone (found in the first real project,
+    F-D13: such a slice could not add the tests it existed to add). Only the exact value true counts."""
+    try:
+        data = json.loads((root / ".sddpp" / "active.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return False
+    return isinstance(data, dict) and data.get("phase") == "refactor" and data.get("tests_open") is True
+
+
 def _changes_the_test_script(tool, args) -> bool:
     """True when a tool call is about to change the `test` script of a package.json."""
     if tool in FILE_TOOLS:
@@ -227,7 +237,7 @@ def decide(payload, root: Path):
         )
 
     phase, problem = read_phase(root)
-    if problem is None and phase not in LOCKED_PHASES:
+    if problem is None and (phase not in LOCKED_PHASES or tests_open(root)):
         return 0, ""
     # Either the slice is in a locked phase, or the state file is broken: fail closed for test files.
     where = f"the slice is in the {str(phase).upper()} phase" if problem is None else "the lock state is unknown"

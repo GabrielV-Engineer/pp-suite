@@ -8,6 +8,7 @@
   "required": ["slice", "phase"],
   "properties": {
     "slice": { "type": ["string", "null"], "pattern": "^SL-\\d{3,}$" },
-    "phase": { "enum": ["red", "green", "refactor", "build", null] }
+    "phase": { "enum": ["red", "green", "refactor", "build", null] },
+    "tests_open": { "const": true, "description": "Written by ppc start for a refactor slice whose debt is all test debt: the guard lets it write tests." }
   }
 }

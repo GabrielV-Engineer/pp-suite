@@ -36,3 +36,13 @@ export function payProblem(slice, debt) {
 
 /** Whether a screen's mockup (and image) is approved as it is now: approved_by is set and the hashes recorded then still match. */
 export const screenApproved = (model, s) => Boolean(s.approved_by) && model.uiFiles?.[s.mockup] === s.mockup_sha256 && (!s.image || !s.image_sha256 || model.uiFiles?.[s.image] === s.image_sha256);
+
+/**
+ * Whether a slice's tests are open in its refactor phase: a refactor slice whose debt is all of kind `test` exists to add tests, so
+ * the guard and C02 let it (found in the first real project, F-D13). Every other refactor keeps the tests locked.
+ */
+export function testsOpen(model, s) {
+  if (s.type !== 'refactor' || !(s.pays ?? []).length) return false;
+  const entries = new Map(model.debt.flatMap((d) => d.data.entries ?? []).map((e) => [e.id, e]));
+  return s.pays.every((id) => entries.get(id)?.kind === 'test');
+}

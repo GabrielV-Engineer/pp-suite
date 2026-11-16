@@ -55,6 +55,19 @@ class GuardTest(unittest.TestCase):
         self.assertEqual(self.code(root, payload("Edit", file_path="src/a.js")), 0)
         self.assertIn("REFACTOR", guard.decide(payload("Edit", file_path="tests/a.test.js"), root)[1])
 
+    def test_a_refactor_slice_that_pays_test_debt_may_write_tests(self):
+        # Found in the first real project (F-D13): a refactor slice paying test debt (no test opened the real window) was
+        # blocked from adding the tests it existed to add. `ppc start` opens the tests for such a slice only.
+        root = self.project({"slice": "SL-025", "phase": "refactor", "tests_open": True})
+        self.assertEqual(self.code(root, payload("Write", file_path="tests/test_native_window.py", content="x")), 0)
+        self.assertEqual(self.code(root, payload("Bash", command="printf x > tests/test_native_window.py")), 0)
+        # the open tests are for writing tests, not for deciding: approvals stay the person's
+        self.assertEqual(self.code(root, payload("Edit", file_path=".sddpp/slices/SL-025-x.md", old_string="status: planned", new_string="approved_by: me")), 2)
+        # any other value, or a green phase, keeps the lock
+        for state in ({"slice": "SL-025", "phase": "refactor", "tests_open": "yes"}, {"slice": "SL-002", "phase": "green", "tests_open": True}):
+            with self.subTest(state=state):
+                self.assertEqual(self.code(self.project(state), payload("Edit", file_path="tests/a.test.js")), 2)
+
     def test_idle_state_allows_everything(self):
         root = self.project({"slice": None, "phase": None})
         self.assertEqual(self.code(root, payload("Edit", file_path="tests/a.test.js")), 0)
