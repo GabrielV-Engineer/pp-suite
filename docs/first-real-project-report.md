@@ -450,3 +450,28 @@ three session transcripts since 2026-11-14 (searched for panel questions, guard 
   (no mobile, no WCAG focus rules in v1); with no panel in that mode it asked its four questions in the chat and stopped without writing. It
   found one gap, fixed in the skill: a project that has slices and no `ui.md` yet writes its first one directly, describing what is built;
   only changes to what is built go through a change request. Not seen: the interview in the real panel, and the mockups.
+
+---
+
+# Review, 2026-11-16 evening: SL-018 to SL-021, SL-031 to SL-034, and the interface adopted late
+
+Sources: the git history since `a1f3230`, `PPSUITE-LOG.md` (lines 778 to 791), the slices, the debt register and `.architect/ui.md`. Nothing was
+changed in the project; SL-026 was being built at the time.
+
+- **State:** 28 of 34 slices done; the MCP part (SL-018 to SL-021) is closed; SL-031 to SL-034 are fixes found by using the app. 17 change
+  requests. 13 debt entries paid, 11 open.
+- **`/pp-design ui` adopted after 18 slices:** `ui.md` and six mockups describing what is built; measuring every colour pair found five that
+  miss AA (three in the built app), listed as known gaps. The owner's later changes (more lilac, a logo, new components) went through
+  CR-0015, and the mockups were approved again. SL-021 was the first slice closed with `ui_check`.
+- **Findings and fixes** (`fcf775f` to `365bbc2`):
+  - F-D8 (three times a slice missed a component, found at the close): `ppc touches` checks the files before code is written, for any project
+    whose components declare `paths`; `ppc widen`, decided in the panel, adds the component without a change request or a new revision.
+  - F-D15 (an approval stayed valid after the mockup changed): the panel option names the mockup's hash, and `ppc approve` refuses another.
+  - SL-021 (no `app.check`, so the audit wrote a throwaway script outside the repository): `U07`, and the first audit that needs the command
+    writes it in the project.
+  - SL-032 (a failing test outside the slice was only a deviation): the audit states how the whole suite ran; a failure needs a proposed test
+    debt entry.
+- **Checked:** Node 584 tests, guard 72; each new check broken on purpose and caught (one test was tightened after a break went unnoticed).
+  On this project, read-only: `U07` fires; `ppc touches SL-026` with two of its files finds nothing missing.
+- **Left for later:** a change request the person opens without a slice, and `ppc next` putting an urgent fix first (SL-031); debt paid in
+  part (SL-019); the sizes in `## Sizes` covered by some criterion (SL-032, SL-034).

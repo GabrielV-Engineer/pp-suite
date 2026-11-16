@@ -94,6 +94,8 @@ The engine behind `/pp`; a person rarely types these. Each command either change
 | `ppc approve-slice <slice> [--by <name>]` | **a human** | `planned` → `ready`. The only way a slice becomes ready to start |
 | `ppc start <slice>` | anyone | `ready` → in progress, in the red phase (strict) or the build phase (light), and records the mode. Refuses a slice that is not approved, has unfinished dependencies, or when another slice is in progress. A refactor slice whose debt is all test debt starts with its tests open (`tests_open`) |
 | `ppc stop <slice>` | anyone | Undoes a start: a slice in progress with no commits of its own goes back to `ready` |
+| `ppc touches <slice> <file>...` | anyone | Before code is written: the components those files belong to (by the components' `paths`) that the slice does not list; it says so when no component declares paths |
+| `ppc widen <slice> --component <id>` | **a human** | Adds a component the design has to a slice still to be built, without a design change (`ppc ask <slice> --add-component <id>` puts it in the panel) |
 | `ppc approve-red --by <name>` | **a human** | Strict only. Approves the committed red tests and enters green. Refuses if code is uncommitted |
 | `ppc approve-debt <DEBT-ID> --by <name> [--accept <reason> \| --drop [--reason <why>]]` | **a human** | Decides on a debt entry the AI proposed: `open` (default), `accepted` (with a reason) or `dropped` (optionally with the reason, stored as `dropped_reason`) |
 | `ppc refactor` | anyone | Strict only. green → refactor (tests stay locked) |
