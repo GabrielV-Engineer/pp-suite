@@ -49,7 +49,7 @@ test('widen: a person adds a component to a slice that is not done, with no chan
   assert.deepEqual(validateModel(loadProject(r.dir)).filter((f) => f.severity === 'error'), []);
   const refused = (id, component, pattern) => assert.throws(() => widen(r.dir, id, component), (e) => e instanceof LifecycleError && pattern.test(e.message), `${id} ${component}`);
   refused('SL-004', 'database', /already lists database/);
-  refused('SL-004', 'cache', /unknown component cache/);
+  refused('SL-004', 'cache', /unknown component cache; a component the design does not have is a change request/);
 });
 
 test('ask --add-component: the panel offers the exact widen command', (t) => {
