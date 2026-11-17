@@ -10,12 +10,18 @@ permissions:
 
 jobs:
   contract:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        # 22 is the minimum the README states; 24 is the version in install/versions.json.
+        node: [22, 24]
+    name: contract (Node ${{ matrix.node }})
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
-          node-version: 24
+          node-version: ${{ matrix.node }}
           cache: npm
           cache-dependency-path: tools/ppc/package-lock.json
       - name: Install
@@ -28,21 +34,31 @@ jobs:
         run: node tools/ppc/bin/ppc.mjs validate examples/todo-app --strict
       - name: Audits match git history (the example has none yet)
         run: node tools/ppc/bin/ppc.mjs check-git examples/todo-app
+      - name: The README's quick start reports on a new project and changes nothing
+        run: |
+          project="$(mktemp -d)"
+          git -C "$project" init -q
+          node tools/ppc/bin/ppc.mjs init "$project" | tee init.log
+          grep -q 'Nothing was changed' init.log
+          test -z "$(ls -A "$project" | grep -v '^\.git$')"
 
   eval:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
       - name: Measuring-script tests (no dependencies)
         run: node --test "tools/eval/test/*.test.mjs"
 
   guard:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.14'
       - name: Test-lock guard unit tests
         run: python3 -m unittest discover -s sdd-pp/extension/sddpp-guard/tests -v
       - name: Session-start hook unit tests
