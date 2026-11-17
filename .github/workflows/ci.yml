@@ -35,11 +35,16 @@ jobs:
       - name: Audits match git history (the example has none yet)
         run: node tools/ppc/bin/ppc.mjs check-git examples/todo-app
       - name: The README's quick start reports on a new project and changes nothing
+        # The runner has no Spec Kit, so init reports it as blocking and exits 1 by design.
         run: |
           project="$(mktemp -d)"
           git -C "$project" init -q
-          node tools/ppc/bin/ppc.mjs init "$project" | tee init.log
-          grep -q 'Nothing was changed' init.log
+          status=0
+          node tools/ppc/bin/ppc.mjs init "$project" > init.log || status=$?
+          cat init.log
+          test "$status" -eq 1
+          grep -q 'Spec Kit (specify) is not installed' init.log
+          grep -q 'would run: write .*/.claude/skills/pp/SKILL.md' init.log
           test -z "$(ls -A "$project" | grep -v '^\.git$')"
 
   eval:
