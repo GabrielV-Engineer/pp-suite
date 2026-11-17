@@ -25,7 +25,9 @@ function moved(t) {
 
 test('reread: --all brings every unfinished slice to the current revision, and the W03 warnings go away', (t) => {
   const r = moved(t);
-  assert.ok(warnings(r.dir).length >= 5);
+  const before = warnings(r.dir);
+  assert.equal(before.length, 1, 'one warning for the design change');
+  assert.ok(before[0].message.includes('SL-002') && before[0].message.includes('SL-006'), 'it names the slices');
   const result = reread(r.dir, { all: true });
   assert.equal(result.revision, 3);
   assert.ok(result.reread.includes('SL-002') && result.reread.length >= 5);

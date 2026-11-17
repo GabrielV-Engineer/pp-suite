@@ -32,7 +32,7 @@ blueprint `revision` is bumped when Architect.PP applies it. The life of a reque
 | `accepted` / `rejected` | `ppc decide-change CR-NNNN --accept` or `--reject --reason ...` | **a person**; the guard blocks agents |
 | `applied` | `/pp-change CR-NNNN` revises `.architect/` and raises `revision`; then `ppc apply-change` checks that the revision rose (`T17`) and that the constitution follows the design | Architect.PP, then the tool |
 
-Slices planned against the older revision are flagged (`W03`, and listed by `ppc next`); nothing updates their
+Slices planned against the older revision are flagged (one `W03` warning that names them, and listed by `ppc next`); nothing updates their
 `blueprint_revision` automatically, since that is the reader saying "I read what changed". The person says it with
 `ppc reread --all` (or `ppc reread SL-003 ...`), after `ppc show reread` has told them which change requests were applied since;
 the command changes that one field of unfinished slices and nothing else, and the guard keeps it from an agent like the approvals.
@@ -163,7 +163,7 @@ Errors fail validation; warnings fail only with `--strict`. `ppc rules` prints t
 | `A01` | error / warning | An ADR lacks a required section (error when accepted, warning otherwise). |
 | `W01` | warning | A work slice does not state what it leaves out of scope. |
 | `W02` | warning | Evidence has expired and must be re-checked. |
-| `W03` | warning | An unfinished slice was planned against an older blueprint revision. |
+| `W03` | warning | Unfinished slices were planned against an older blueprint revision. One warning for all of them, naming the slices. |
 | `W04` | warning | A slice has many acceptance criteria and probably needs splitting. |
 | `W05` | warning | A quality attribute is not referenced by any live slice, so nothing plans to deliver or verify it. |
 | `W06` | warning | A closed work slice changed no test files and no test debt entry is recorded about it, under an optional test policy. |

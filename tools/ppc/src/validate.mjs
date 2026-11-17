@@ -61,7 +61,7 @@ export const RULES = {
   A01: 'An ADR lacks a required section.',
   W01: 'A work slice does not state what it leaves out of scope.',
   W02: 'Evidence has expired and must be re-checked.',
-  W03: 'An unfinished slice was planned against an older blueprint revision.',
+  W03: 'Unfinished slices were planned against an older blueprint revision (one warning for all of them).',
   W04: 'A slice has many acceptance criteria and probably needs splitting.',
   W05: 'A quality attribute is not referenced by any live slice, so nothing plans to deliver or verify it.',
   W06: 'A closed work slice changed no test files and no test debt entry is open about it, under an optional test policy.',
@@ -272,8 +272,14 @@ export function validateModel(model, { now = new Date() } = {}) {
     }
     if (s.phase && s.status !== 'in_progress') error('L01', file, `${s.id} has phase "${s.phase}" but status is ${s.status}`);
     if (WORK_TYPES.includes(s.type) && !hasHeading(body, 'Out of scope')) warn('W01', file, `${s.id} should state what it leaves out under "## Out of scope"`);
-    if (!['done', 'dropped'].includes(s.status) && s.blueprint_revision < bp.revision) warn('W03', file, `${s.id} was planned against revision ${s.blueprint_revision}, blueprint is at ${bp.revision}`);
     if ((s.acceptance?.length ?? 0) > 5) warn('W04', file, `${s.id} has ${s.acceptance.length} acceptance criteria; consider splitting it`);
+  }
+
+  // W03: one warning for a design change, not one per slice (19 planned slices gave 19 lines for every change request)
+  const outdated = slices.filter(({ data: s }) => !['done', 'dropped'].includes(s.status) && s.blueprint_revision < bp.revision).map(({ data: s }) => s.id);
+  if (outdated.length) {
+    const shown = outdated.length > 6 ? `${outdated.slice(0, 6).join(', ')} and ${outdated.length - 6} more` : outdated.join(', ');
+    warn('W03', model.blueprint.file, `${outdated.length} unfinished slice${outdated.length === 1 ? ' was' : 's were'} planned against an older revision than ${bp.revision} (${shown}); read what changed in the design, then run ppc reread`);
   }
 
   // T05: dependency cycles

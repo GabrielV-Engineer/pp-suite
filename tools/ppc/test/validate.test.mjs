@@ -255,10 +255,17 @@ test('W02: expired evidence is flagged', () => {
   assert.ok(!has(run(base(), { now: new Date('2026-10-25') }), 'W02'));
 });
 
-test('W03: unfinished slices planned against an older revision are flagged', () => {
+test('W03: unfinished slices planned against an older revision are flagged once, naming them', () => {
   const m = base();
   m.blueprint.data.revision = 2;
-  assert.ok(has(run(m), 'W03', 'warning'));
+  const found = run(m).filter((f) => f.rule === 'W03');
+  assert.equal(found.length, 1, 'one warning for the design change, not one per slice');
+  assert.equal(found[0].severity, 'warning');
+  const stale = m.slices.filter((s) => !['done', 'dropped'].includes(s.data.status) && s.data.blueprint_revision < 2);
+  assert.ok(stale.length >= 3);
+  for (const s of stale.slice(0, 3)) assert.ok(found[0].message.includes(s.data.id), `${s.data.id} is named`);
+  assert.ok(/ppc reread/.test(found[0].message), 'it says what clears it');
+  assert.ok(!has(run(base()), 'W03'));
 });
 
 // Found in the first real project (F-P1): the first slices of "import a recording" ran only through the engine and the
