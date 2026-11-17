@@ -8,7 +8,7 @@
 
 [Leer en español →](README.es.md)
 
-**Build with AI. Keep the wheel.** pp-suite is an agile way to build software with AI coding agents. You design the
+**Build with AI. Keep the wheel.** pp-suite is an agile way and open source toolkit to build software with AI coding agents. You design the
 project once, the agent builds it in thin slices that always run, and every decision that matters stays in your hands
 and on record, so the project still makes sense after weeks of AI-written code.
 
