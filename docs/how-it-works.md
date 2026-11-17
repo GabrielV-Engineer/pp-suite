@@ -24,8 +24,23 @@ building, the debt of an audit, the approval of the slices just planned) asks it
 
 The commands a person can type are short, in the style of Spec Kit's: `/pp-design`, `/pp-plan`, `/pp-build`, `/pp-check`,
 `/pp-audit`, `/pp-change`, and `/pp-red`, `/pp-green`, `/pp-refactor` for the strict cycle. `ppc init` writes them from the extension
-command files and removes the long names Spec Kit gives them (`/speckit-sddpp-cycle-build` and the like); see the table in the
-[README](../README.md#the-commands).
+command files and removes the long names Spec Kit gives them (`/speckit-sddpp-cycle-build` and the like). The names follow Spec
+Kit's, so that someone who knows Spec Kit or OpenSpec finds their way:
+
+| Command | Closest in Spec Kit | Closest in OpenSpec |
+|---|---|---|
+| `/pp` | — | — |
+| `/pp-design` | `/speckit-specify` | `/openspec-explore` |
+| `/pp-plan` | `/speckit-plan`, `/speckit-tasks` | `/openspec-propose` |
+| `/pp-build` | `/speckit-implement` | `/openspec-apply-change` |
+| `/pp-check` | `/speckit-converge` | `/openspec-verify-change` |
+| `/pp-audit` | — | `/openspec-archive-change` |
+| `/pp-change` | — | — |
+| `/pp-red`, `/pp-green`, `/pp-refactor` | — | — |
+
+Before 2026-11-12 these were `/speckit-architect-pp-handoff` and `-apply-cuts` (now `/pp-design`), `/speckit-sddpp-cycle-slices`
+(`/pp-plan`), `-build` and `-prompts` (`/pp-build`), `-clarify`, `-analyze`, `-converge` (`/pp-check`), `-audit`, `-red`, `-green`,
+`-refactor` and `/speckit-architect-pp-apply-change` (`/pp-change`). `ppc init --apply --update` replaces them in a project.
 
 **What counts as a person deciding.** The option of the panel that carries a decision out ends with the exact command it stands for
 (`Yes, approve it — ppc approve SL-001`). When the person picks it, a hook (`record_answer.py`) writes the answer into
