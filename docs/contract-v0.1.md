@@ -85,8 +85,6 @@ Status flow: `planned` → `ready` → `in_progress` → `done` (or `dropped`).
 - `done` needs an **audit** (commits, production lines, test lines, tests added, mutation score, decisions,
   debt created, deviations). A spike instead records its `outcome`. A slice that pays debt (`pays`) adds `debt_paid` and
   `debt_unpaid` (each with its reason); a feature slice must account for every entry, and an unpaid one is open again.
-- A slice may carry `spec: { file, story }`, the Markdown file and the heading of the user story it delivers
-  (`T15` checks that both exist). It is optional: it is the contract's link from a slice to its story.
 - A slice may carry `test_policy` (`required`, `optional` or `none`), which overrides the blueprint's. See
   "Test policy" below.
 - Only one slice may be in progress at a time, and `.sddpp/active.json` must match it.
@@ -125,7 +123,6 @@ Errors fail validation; warnings fail only with `--strict`. `ppc rules` prints t
 | `D01` | error | Components depend on each other in a circle. |
 | `D02` | error | A dependency between components points the wrong way for their kind (a frontend reaching the database, or a database depending on the layers above it). |
 | `D03` | warning | The design is larger than the complexity budget of its declared level (lite: 4 components, 8 capabilities, 5 quality attributes; standard: 8, 20, 8). The limits are heuristics I chose, not the result of a study. |
-| `D04` | warning | Every capability is a must (with four or more capabilities), so nothing was prioritized. |
 | `T01` | error | The plan references something that does not exist: a slice or a change request naming a capability, component, quality attribute, slice or ADR. |
 | `T05` | error | Slice dependencies contain a cycle. |
 | `T06` | error | A capability has no slice (no requirement without a slice). A spike only learns, so it does not count. |
@@ -135,7 +132,6 @@ Errors fail validation; warnings fail only with `--strict`. `ppc rules` prints t
 | `T12` | error | An id is duplicated, or a file name does not match its id. |
 | `T13` | error | A slice audit references unknown decisions or debt, or debt with the wrong origin. |
 | `T14` | error | A slice was planned against a blueprint revision that does not exist yet. |
-| `T15` | error | A slice points at a spec file or a user story that does not exist. |
 | `T16` | error | A closed work slice changed no test files although its test policy is required. |
 | `T17` | error | A change request is marked applied but the design revision has not risen since it was opened. |
 | `L01` | error | A slice has a phase while it is not in progress. |

@@ -32,7 +32,6 @@ export function loadProject(root) {
     changeRequests: [],
     debt: [],
     active: null,
-    specs: {},
     additions: null,
     ui: null,
     uiFiles: {},
@@ -72,17 +71,6 @@ export function loadProject(root) {
       model.debt.push({ file: '.sddpp/debt.yaml', data: parseYaml(read('.sddpp/debt.yaml')) });
     } catch (e) {
       fail('.sddpp/debt.yaml', `invalid YAML: ${e.message}`);
-    }
-  }
-
-  // Spec files that slices point at, read here so the validator stays free of file access. null = unreadable.
-  for (const { data } of model.slices) {
-    const file = data.spec?.file;
-    if (typeof file !== 'string' || file in model.specs || file.startsWith('/') || file.includes('..')) continue;
-    try {
-      model.specs[file] = read(file);
-    } catch {
-      model.specs[file] = null;
     }
   }
 

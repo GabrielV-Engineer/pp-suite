@@ -28,8 +28,8 @@ The Architect (upstream, MIT), not a rebuild. Three jobs:
    point: the quality of that guidance has not been evaluated here, only that it inflates scope when left alone.
 2. **Check the design before anything is built.** A deterministic linter over the blueprint, so that a rule decides
    and not a model's mood. Built so far: circular dependencies between components (`D01`), a frontend reaching the
-   database or a database depending on the layers above (`D02`), a complexity budget by declared level (`D03`),
-   no prioritization among the capabilities (`D04`). Together with the rules that already existed (every component
+   database or a database depending on the layers above (`D02`), a complexity budget by declared level (`D03`);
+   a rule against an all-`must` list (`D04`) was built and removed on 2026-11-16, see the roadmap. Together with the rules that already existed (every component
    has a reason, every decision lists rejected alternatives, every quality attribute has a metric and a target).
    Still to build: a "scope diet" step that asks the person to cut when the budget is exceeded, and checks on
    decisions and evidence.

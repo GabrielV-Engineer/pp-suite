@@ -27,13 +27,11 @@ export const RULES = {
   D01: 'Components depend on each other in a circle.',
   D02: 'A dependency between components points the wrong way for their kind (a frontend reaching the database, or a database depending on the layers above it).',
   D03: 'The design is larger than the complexity budget of its declared level.',
-  D04: 'Every capability is a must, so nothing was prioritized.',
   T09: 'A debt entry is inconsistent with its component, origin or paying slice (a feature, fix or refactor slice that touches its component).',
   T10: 'A slice pays a debt entry that does not point back at it.',
   T12: 'An id is duplicated, or a file name does not match its id.',
   T13: 'A slice audit references unknown decisions or debt, or debt with the wrong origin.',
   T14: 'A slice was planned against a blueprint revision that does not exist yet.',
-  T15: 'A slice points at a spec file or a user story that does not exist.',
   T17: 'A change request is marked applied but the design revision has not risen since it was opened.',
   T16: 'A closed work slice changed no test files although its test policy is required.',
   L01: 'A slice has a phase while it is not in progress.',
@@ -78,7 +76,7 @@ export const RULES = {
 };
 
 /** The rules that judge a design on its own, before any slice or debt register exists. */
-const DESIGN_RULES = new Set(['PARSE', 'SCHEMA', 'R00', 'T07', 'A01', 'W02', 'D01', 'D02', 'D03', 'D04', 'X01', 'X02', 'X03', 'X04', 'X05', 'U01', 'U02', 'U03', 'U04', 'U05']);
+const DESIGN_RULES = new Set(['PARSE', 'SCHEMA', 'R00', 'T07', 'A01', 'W02', 'D01', 'D02', 'D03', 'X01', 'X02', 'X03', 'X04', 'X05', 'U01', 'U02', 'U03', 'U04', 'U05']);
 
 /** Keep only the findings about `.architect/`, from the rules that concern the design. */
 export function designFindings(findings) {
@@ -205,15 +203,12 @@ export function validateModel(model, { now = new Date() } = {}) {
     }
   }
 
-  // ── D03, D04: a complexity budget, and a sign of unprioritized scope ──
+  // ── D03: a complexity budget ──────────────────────────────────
   const limits = LEVEL_LIMITS[bp.project.level];
   if (limits) {
     const sizes = { components: bp.components.length, capabilities: bp.capabilities.length, quality_attributes: bp.quality_attributes.length };
     const over = Object.entries(sizes).filter(([key, n]) => n > limits[key]).map(([key, n]) => `${n} ${key.replace('_', ' ')} (limit ${limits[key]})`);
     if (over.length) warn('D03', model.blueprint.file, `a ${bp.project.level} project has ${over.join(', ')}; cut scope or declare a larger level`);
-  }
-  if (bp.capabilities.length >= 4 && bp.capabilities.every((c) => c.priority === 'must')) {
-    warn('D04', model.blueprint.file, `all ${bp.capabilities.length} capabilities are a must; decide what is only a should or a could`);
   }
 
   // ── the interface: U01-U05 ────────────────────────────────────
@@ -253,7 +248,7 @@ export function validateModel(model, { now = new Date() } = {}) {
     }
   }
 
-  // ── slices: T01-T06, T14, L01, W01, W03, W04 ──────────────────
+  // ── slices: T01, T14, L01, L06, W01, W04 ──────────────────────
   for (const { file, data: s, body } of slices) {
     if (s.capability && !caps.has(s.capability)) error('T01', file, `${s.id} references unknown capability ${s.capability}`);
     for (const c of s.components) if (!comps.has(c)) error('T01', file, `${s.id} references unknown component ${c}`);
@@ -291,15 +286,6 @@ export function validateModel(model, { now = new Date() } = {}) {
     mark.set(id, 2);
   };
   for (const id of graph.keys()) visit(id, []);
-
-  // T15: the story a slice delivers is a heading of the spec file it points at
-  for (const { file, data: s } of slices) {
-    if (!s.spec) continue;
-    const text = model.specs?.[s.spec.file];
-    const escaped = s.spec.story.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    if (text == null) error('T15', file, `${s.id} points at spec file ${s.spec.file}, which cannot be read`);
-    else if (!new RegExp(`^#{1,6}\\s+${escaped}\\b`, 'im').test(text)) error('T15', file, `${s.id} points at "${s.spec.story}", which is not a heading in ${s.spec.file}`);
-  }
 
   // W07: a capability opens end to end. The slices that open it are its feature slices that follow no other feature slice of
   // it, directly or through other slices; they reach every component the design justifies with it. A spike may prove a

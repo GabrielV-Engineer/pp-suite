@@ -1,10 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { loadProject } from '../src/load.mjs';
 import { validateModel, designFindings, RULES } from '../src/validate.mjs';
-import { repo } from './helpers.mjs';
 
 const EXAMPLE = fileURLToPath(new URL('../../../examples/todo-app/', import.meta.url));
 
@@ -378,16 +376,6 @@ test('D03: the same size is fine for a standard project, and counts capabilities
   assert.ok(run(attrs).some((f) => f.rule === 'D03' && /quality attributes/.test(f.message)));
 });
 
-test('D04: when every capability is a must, nothing was prioritized', () => {
-  const m = base();
-  for (const c of m.blueprint.data.capabilities) c.priority = 'must';
-  assert.ok(has(run(m), 'D04', 'warning'));
-  assert.ok(!has(run(base()), 'D04'));
-  const few = base();
-  few.blueprint.data.capabilities = few.blueprint.data.capabilities.slice(0, 2).map((c) => ({ ...c, priority: 'must' }));
-  assert.ok(!has(run(few), 'D04')); // with so few capabilities, all of them being a must is plausible
-});
-
 test('designFindings: a design with no plan yet is judged only by the rules that concern the design', () => {
   const m = base();
   m.slices = []; // nothing planned: T06 fires for every capability
@@ -432,55 +420,16 @@ test('W05: a quality attribute that no live slice references is a warning, and a
   assert.ok(has(run(dropped), 'W05'));
 });
 
-// ── the link from a slice to its story in the spec ───────────────
-const SPEC = '# Feature\n\n### User Story 1 - Add a task (Priority: P1)\n\nGiven...\n\n### User Story 2 - See the list\n';
-const withSpec = (spec, specs) => {
-  const m = base();
-  slice(m, 'SL-002').data.spec = spec;
-  m.specs = specs;
-  return m;
-};
-
-test('T15: a slice may point at its story in a spec file, and the story must exist', () => {
-  const ok = withSpec({ file: 'specs/001/spec.md', story: 'User Story 1' }, { 'specs/001/spec.md': SPEC });
-  assert.ok(!has(run(ok), 'T15'));
-  assert.ok(!has(run(ok), 'SCHEMA'));
-  const noStory = withSpec({ file: 'specs/001/spec.md', story: 'User Story 7' }, { 'specs/001/spec.md': SPEC });
-  assert.ok(has(run(noStory), 'T15', 'error'));
-  const noFile = withSpec({ file: 'specs/001/spec.md', story: 'User Story 1' }, { 'specs/001/spec.md': null });
-  assert.ok(has(run(noFile), 'T15', 'error'));
-});
-
-test('T15: a story is a heading, not any mention of its name in the text', () => {
-  const m = withSpec({ file: 'specs/001/spec.md', story: 'User Story 3' }, { 'specs/001/spec.md': SPEC + '\nSee also User Story 3 for later.\n' });
-  assert.ok(has(run(m), 'T15', 'error'));
-});
-
-test('SCHEMA: the spec link must be a relative path to a Markdown file inside the project', () => {
-  for (const file of ['/etc/passwd.md', '../outside/spec.md', 'specs/spec.txt']) {
-    const m = withSpec({ file, story: 'User Story 1' }, {});
-    assert.ok(has(run(m), 'SCHEMA', 'error'), file);
-  }
-});
-
-test('the loader reads the spec files that slices point at', (t) => {
-  const r = repo(t);
-  r.write({ 'specs/001/spec.md': SPEC });
-  const file = '.sddpp/slices/SL-002-create-and-list-tasks.md';
-  const text = readFileSync(`${r.dir}/${file}`, 'utf8');
-  r.write({ [file]: text.replace('status: planned', 'status: planned\nspec: { file: specs/001/spec.md, story: User Story 1 }') });
-  const model = loadProject(r.dir);
-  assert.equal(model.specs['specs/001/spec.md'], SPEC);
-  assert.ok(!has(run(model), 'T15'));
-  r.write({ [file]: text.replace('status: planned', 'status: planned\nspec: { file: specs/nope.md, story: User Story 1 }') });
-  const missing = loadProject(r.dir);
-  assert.equal(missing.specs['specs/nope.md'], null);
-  assert.ok(has(run(missing), 'T15', 'error'));
-});
-
-test('merged rules stay merged: one T01 for references in the plan, one T07 for references in the design', () => {
-  for (const id of ['T02', 'T03', 'T04', 'T08', 'T11']) assert.ok(!(id in RULES), `${id} is gone`);
+// ── rules removed on 2026-11-16: nothing in the first real project made them fire ──
+test('removed rules stay removed: one T01 for references in the plan, one T07 for references in the design, no D04, no T15', () => {
+  for (const id of ['T02', 'T03', 'T04', 'T08', 'T11', 'T15', 'D04']) assert.ok(!(id in RULES), `${id} is gone`);
   assert.ok('T01' in RULES && 'T07' in RULES);
+});
+
+test('a slice no longer carries a link to a spec story', () => {
+  const m = base();
+  slice(m, 'SL-002').data.spec = { file: 'specs/001/spec.md', story: 'User Story 1' };
+  assert.ok(has(run(m), 'SCHEMA', 'error'));
 });
 
 test('W04: a slice with many acceptance criteria probably needs splitting', () => {
