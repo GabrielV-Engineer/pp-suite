@@ -100,23 +100,25 @@ test('a dropped debt entry may carry the reason it was dropped, and has no error
 });
 
 // ── traceability ─────────────────────────────────────────────────
-const traceability = {
-  T01: ['an unknown capability', (m) => (slice(m, 'SL-002').data.capability = 'CAP-099')],
-  T02: ['an unknown component', (m) => (slice(m, 'SL-002').data.components = ['mobile'])],
-  T03: ['an unknown quality attribute', (m) => (slice(m, 'SL-002').data.quality_attributes = ['QA-099'])],
-  T04: ['an unknown dependency', (m) => (slice(m, 'SL-002').data.depends_on = ['SL-099'])],
-  T05: ['a dependency cycle', (m) => (slice(m, 'SL-001').data.depends_on = ['SL-002'])],
-  T06: ['a capability without slices', (m) => (m.slices = m.slices.filter((s) => s.data.capability !== 'CAP-004'))],
-  T07: ['a component justified by an unknown requirement', (m) => (m.blueprint.data.components[0].justified_by = ['CAP-099'])],
-  T08: ['an ADR driven by an unknown requirement', (m) => (m.adrs[0].data.drivers = ['QA-099'])],
-  T09: ['debt with the wrong component prefix', (m) => (debtEntryOf(m, 'frontend').id = 'DEBT-BE-001')],
-  T10: ['a refactor paying debt that does not point back at it', (m) => (slice(m, 'SL-008').data.pays = ['DEBT-BE-001'])],
-  T11: ['a change request raised by an unknown slice', (m) => (m.changeRequests[0].data.raised_by = 'SL-099')],
-  T12: ['a slice file whose name does not match its id', (m) => (slice(m, 'SL-006').file = '.sddpp/slices/wrong-name.md')],
-  T13: ['an audit citing an unknown decision', (m) => finish(m, 'SL-001', { decisions: ['ADR-0099'] })],
-  T14: ['a slice planned for a future blueprint revision', (m) => (slice(m, 'SL-002').data.blueprint_revision = 2)],
-};
-for (const [rule, [name, mutate]] of Object.entries(traceability)) {
+const traceability = [
+  ['T01', 'a slice with an unknown capability', (m) => (slice(m, 'SL-002').data.capability = 'CAP-099')],
+  ['T01', 'a slice with an unknown component', (m) => (slice(m, 'SL-002').data.components = ['mobile'])],
+  ['T01', 'a slice with an unknown quality attribute', (m) => (slice(m, 'SL-002').data.quality_attributes = ['QA-099'])],
+  ['T01', 'a slice with an unknown dependency', (m) => (slice(m, 'SL-002').data.depends_on = ['SL-099'])],
+  ['T01', 'a change request raised by an unknown slice', (m) => (m.changeRequests[0].data.raised_by = 'SL-099')],
+  ['T01', 'a change request affecting an unknown component', (m) => (m.changeRequests[0].data.affects.components = ['mobile'])],
+  ['T05', 'a dependency cycle', (m) => (slice(m, 'SL-001').data.depends_on = ['SL-002'])],
+  ['T06', 'a capability without slices', (m) => (m.slices = m.slices.filter((s) => s.data.capability !== 'CAP-004'))],
+  ['T07', 'a component justified by an unknown requirement', (m) => (m.blueprint.data.components[0].justified_by = ['CAP-099'])],
+  ['T07', 'an ADR driven by an unknown requirement', (m) => (m.adrs[0].data.drivers = ['QA-099'])],
+  ['T07', 'an ADR citing unknown evidence', (m) => (m.adrs[0].data.evidence = ['EV-099'])],
+  ['T09', 'debt with the wrong component prefix', (m) => (debtEntryOf(m, 'frontend').id = 'DEBT-BE-001')],
+  ['T10', 'a refactor paying debt that does not point back at it', (m) => (slice(m, 'SL-008').data.pays = ['DEBT-BE-001'])],
+  ['T12', 'a slice file whose name does not match its id', (m) => (slice(m, 'SL-006').file = '.sddpp/slices/wrong-name.md')],
+  ['T13', 'an audit citing an unknown decision', (m) => finish(m, 'SL-001', { decisions: ['ADR-0099'] })],
+  ['T14', 'a slice planned for a future blueprint revision', (m) => (slice(m, 'SL-002').data.blueprint_revision = 2)],
+];
+for (const [rule, name, mutate] of traceability) {
   test(`${rule}: ${name}`, () => {
     const m = base();
     mutate(m);
@@ -474,6 +476,11 @@ test('the loader reads the spec files that slices point at', (t) => {
   const missing = loadProject(r.dir);
   assert.equal(missing.specs['specs/nope.md'], null);
   assert.ok(has(run(missing), 'T15', 'error'));
+});
+
+test('merged rules stay merged: one T01 for references in the plan, one T07 for references in the design', () => {
+  for (const id of ['T02', 'T03', 'T04', 'T08', 'T11']) assert.ok(!(id in RULES), `${id} is gone`);
+  assert.ok('T01' in RULES && 'T07' in RULES);
 });
 
 test('W04: a slice with many acceptance criteria probably needs splitting', () => {

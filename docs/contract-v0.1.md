@@ -126,17 +126,12 @@ Errors fail validation; warnings fail only with `--strict`. `ppc rules` prints t
 | `D02` | error | A dependency between components points the wrong way for their kind (a frontend reaching the database, or a database depending on the layers above it). |
 | `D03` | warning | The design is larger than the complexity budget of its declared level (lite: 4 components, 8 capabilities, 5 quality attributes; standard: 8, 20, 8). The limits are heuristics I chose, not the result of a study. |
 | `D04` | warning | Every capability is a must (with four or more capabilities), so nothing was prioritized. |
-| `T01` | error | A slice references a capability that does not exist. |
-| `T02` | error | A slice references a component that does not exist. |
-| `T03` | error | A slice references a quality attribute that does not exist. |
-| `T04` | error | A slice depends on a slice that does not exist. |
+| `T01` | error | The plan references something that does not exist: a slice or a change request naming a capability, component, quality attribute, slice or ADR. |
 | `T05` | error | Slice dependencies contain a cycle. |
 | `T06` | error | A capability has no slice (no requirement without a slice). A spike only learns, so it does not count. |
-| `T07` | error | A component references an unknown requirement or component. |
-| `T08` | error | An ADR references an unknown driver, evidence or ADR. |
+| `T07` | error | The design references something that does not exist: a component or an ADR naming a requirement, component or evidence, or an ADR naming another ADR. |
 | `T09` | error | A debt entry is inconsistent with its component, origin or paying slice (a feature, fix or refactor slice that touches its component). |
 | `T10` | error | A slice pays a debt entry that does not point back at it (unless its audit says it did not pay it). |
-| `T11` | error | A change request references an unknown slice, component, ADR or quality attribute. |
 | `T12` | error | An id is duplicated, or a file name does not match its id. |
 | `T13` | error | A slice audit references unknown decisions or debt, or debt with the wrong origin. |
 | `T14` | error | A slice was planned against a blueprint revision that does not exist yet. |

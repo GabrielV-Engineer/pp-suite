@@ -20,21 +20,16 @@ export const RULES = {
   PARSE: 'A file could not be parsed.',
   SCHEMA: 'An artifact does not match its JSON Schema.',
   R00: 'A required file is missing.',
-  T01: 'A slice references a capability that does not exist.',
-  T02: 'A slice references a component that does not exist.',
-  T03: 'A slice references a quality attribute that does not exist.',
-  T04: 'A slice depends on a slice that does not exist.',
+  T01: 'The plan references something that does not exist: a slice or a change request naming a capability, component, quality attribute, slice or ADR.',
   T05: 'Slice dependencies contain a cycle.',
   T06: 'A capability has no slice (no requirement without a slice).',
-  T07: 'A component references an unknown requirement or component.',
+  T07: 'The design references something that does not exist: a component or an ADR naming a requirement, component or evidence, or an ADR naming another ADR.',
   D01: 'Components depend on each other in a circle.',
   D02: 'A dependency between components points the wrong way for their kind (a frontend reaching the database, or a database depending on the layers above it).',
   D03: 'The design is larger than the complexity budget of its declared level.',
   D04: 'Every capability is a must, so nothing was prioritized.',
-  T08: 'An ADR references an unknown driver, evidence or ADR.',
   T09: 'A debt entry is inconsistent with its component, origin or paying slice (a feature, fix or refactor slice that touches its component).',
   T10: 'A slice pays a debt entry that does not point back at it.',
-  T11: 'A change request references an unknown slice, component, ADR or quality attribute.',
   T12: 'An id is duplicated, or a file name does not match its id.',
   T13: 'A slice audit references unknown decisions or debt, or debt with the wrong origin.',
   T14: 'A slice was planned against a blueprint revision that does not exist yet.',
@@ -83,7 +78,7 @@ export const RULES = {
 };
 
 /** The rules that judge a design on its own, before any slice or debt register exists. */
-const DESIGN_RULES = new Set(['PARSE', 'SCHEMA', 'R00', 'T07', 'T08', 'A01', 'W02', 'D01', 'D02', 'D03', 'D04', 'X01', 'X02', 'X03', 'X04', 'X05', 'U01', 'U02', 'U03', 'U04', 'U05']);
+const DESIGN_RULES = new Set(['PARSE', 'SCHEMA', 'R00', 'T07', 'A01', 'W02', 'D01', 'D02', 'D03', 'D04', 'X01', 'X02', 'X03', 'X04', 'X05', 'U01', 'U02', 'U03', 'U04', 'U05']);
 
 /** Keep only the findings about `.architect/`, from the rules that concern the design. */
 export function designFindings(findings) {
@@ -261,9 +256,9 @@ export function validateModel(model, { now = new Date() } = {}) {
   // ── slices: T01-T06, T14, L01, W01, W03, W04 ──────────────────
   for (const { file, data: s, body } of slices) {
     if (s.capability && !caps.has(s.capability)) error('T01', file, `${s.id} references unknown capability ${s.capability}`);
-    for (const c of s.components) if (!comps.has(c)) error('T02', file, `${s.id} references unknown component ${c}`);
-    for (const q of s.quality_attributes ?? []) if (!qas.has(q)) error('T03', file, `${s.id} references unknown quality attribute ${q}`);
-    for (const d of s.depends_on ?? []) if (!sliceById.has(d)) error('T04', file, `${s.id} depends on unknown slice ${d}`);
+    for (const c of s.components) if (!comps.has(c)) error('T01', file, `${s.id} references unknown component ${c}`);
+    for (const q of s.quality_attributes ?? []) if (!qas.has(q)) error('T01', file, `${s.id} references unknown quality attribute ${q}`);
+    for (const d of s.depends_on ?? []) if (!sliceById.has(d)) error('T01', file, `${s.id} depends on unknown slice ${d}`);
     if (s.blueprint_revision > bp.revision) error('T14', file, `${s.id} targets revision ${s.blueprint_revision}, blueprint is at ${bp.revision}`);
     if (s.phase && WORK_TYPES.includes(s.type)) {
       const mode = modeOf(bp, s);
@@ -347,11 +342,11 @@ export function validateModel(model, { now = new Date() } = {}) {
     if (!slices.some(({ data: s }) => s.status !== 'dropped' && (s.quality_attributes ?? []).includes(qa.id))) warn('W05', model.blueprint.file, `quality attribute ${qa.id} is not referenced by any slice`);
   }
 
-  // ── ADRs and evidence: T08, A01, W02 ──────────────────────────
+  // ── ADRs and evidence: T07, A01, W02 ──────────────────────────
   for (const { file, data: a, body } of adrs) {
-    for (const d of a.drivers) if (!requirementIds.has(d)) error('T08', file, `${a.id} has unknown driver ${d}`);
-    for (const e of a.evidence ?? []) if (!evidenceIds.has(e)) error('T08', file, `${a.id} cites unknown evidence ${e}`);
-    for (const s of a.supersedes ?? []) if (!adrIds.has(s)) error('T08', file, `${a.id} supersedes unknown ${s}`);
+    for (const d of a.drivers) if (!requirementIds.has(d)) error('T07', file, `${a.id} has unknown driver ${d}`);
+    for (const e of a.evidence ?? []) if (!evidenceIds.has(e)) error('T07', file, `${a.id} cites unknown evidence ${e}`);
+    for (const s of a.supersedes ?? []) if (!adrIds.has(s)) error('T07', file, `${a.id} supersedes unknown ${s}`);
     const missing = ADR_HEADINGS.filter((h) => !hasHeading(body, h));
     if (missing.length) (a.status === 'accepted' ? error : warn)('A01', file, `${a.id} lacks section(s): ${missing.join(', ')}`);
   }
@@ -397,10 +392,10 @@ export function validateModel(model, { now = new Date() } = {}) {
   // ── change requests: T11 ──────────────────────────────────────
   for (const { file, data: c } of crs) {
     if (c.status === 'applied' && c.blueprint_revision !== undefined && bp.revision <= c.blueprint_revision) error('T17', file, `${c.id} is applied, but the design is still at revision ${bp.revision}, where it was opened`);
-    if (!sliceById.has(c.raised_by)) error('T11', file, `${c.id} raised by unknown slice ${c.raised_by}`);
-    for (const x of c.affects.components ?? []) if (!comps.has(x)) error('T11', file, `${c.id} affects unknown component ${x}`);
-    for (const x of c.affects.adrs ?? []) if (!adrIds.has(x)) error('T11', file, `${c.id} affects unknown ${x}`);
-    for (const x of c.affects.quality_attributes ?? []) if (!qas.has(x)) error('T11', file, `${c.id} affects unknown quality attribute ${x}`);
+    if (!sliceById.has(c.raised_by)) error('T01', file, `${c.id} raised by unknown slice ${c.raised_by}`);
+    for (const x of c.affects.components ?? []) if (!comps.has(x)) error('T01', file, `${c.id} affects unknown component ${x}`);
+    for (const x of c.affects.adrs ?? []) if (!adrIds.has(x)) error('T01', file, `${c.id} affects unknown ${x}`);
+    for (const x of c.affects.quality_attributes ?? []) if (!qas.has(x)) error('T01', file, `${c.id} affects unknown quality attribute ${x}`);
   }
 
   // W09: debt a closed slice did not pay, which no slice is to pay now (the latest account is the one named)
