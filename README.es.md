@@ -152,6 +152,7 @@ Rara vez necesitas más que `/pp`. Los demás corren una fase a propósito.
 |---|---|
 | `/pp` | El siguiente paso, uno tras otro hasta que una decisión es tuya. `/pp SL-022` decide esa |
 | `/pp-design` | Convierte el diseño de The Architect en el diseño verificado; `ui` diseña la interfaz contigo; `cuts` quita lo que cortaste |
+| `/pp-standards` | Decide contigo cómo maneja el proyecto la seguridad, la observabilidad, git y CI: con una recomendación sacada del diseño, y "más adelante" siempre es una respuesta |
 | `/pp-plan` | Rebanadas verticales finas a partir del diseño |
 | `/pp-build` | Construye la rebanada en curso, tests junto al código |
 | `/pp-check` | Revisa: `clarify`, `analyze` o `converge` |

@@ -43,7 +43,7 @@ $ARGUMENTS
 
 ## When the person decides
 
-Approving a slice, its red tests or a screen's mockup, accepting or rejecting a change request, deciding a debt entry, an exception to the
+Approving a slice, its red tests or a screen's mockup, accepting or rejecting a change request, deciding a debt entry or a standard (security, observability, git, CI), an exception to the
 budget or the mutation score, and saying they read what changed in the design are the person's decisions. Never give them
 a command to type in a terminal. Instead:
 
@@ -66,6 +66,9 @@ a command to type in a terminal. Instead:
    cycle (`/pp-red`) instead.
 2. Read the slice, `.architect/blueprint.yaml` and `.architect/architecture.md`. Optionally run
    `ppc prompt --stdout` for the prompts of this task.
+   **Standards.** `ppc show <id>` lists, under "Standards", the ones the person adopted that apply to this slice
+   (`ppc standards` says what each means). Follow them. If `git` is `branch-per-slice` or `branch-per-slice-pr`, work on a
+   branch named `slice/<id>`, created from the main branch before the first commit.
 3. For each acceptance criterion, in small steps: write a test that expresses it, watch it fail for the right
    reason, write the least code that passes it, run all the tests.
 4. Commit in small steps with the message `build(<id>): <what now works>`, keeping a test and the code it checks in

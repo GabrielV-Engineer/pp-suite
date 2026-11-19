@@ -148,11 +148,14 @@ export function renderStandards(list = [], recommended = {}, { bp, facts, only }
   return `${out.join('\n').replace(/\n+$/, '')}\n`;
 }
 
-/** The adopted standards in one line, for the constitution; null when none is adopted. */
+/**
+ * The adopted standards in one line, for the constitution; null when none is adopted. A custom rule is named, not quoted: the
+ * block is loaded into every session and stays under 2,000 characters, and the card and `ppc standards` show the person's words.
+ */
 export function standardsLine(list = []) {
   const adopted = STANDARDS.map((s) => list.find((x) => x.id === s.id)).filter((x) => x?.decision === 'adopt');
   if (!adopted.length) return null;
-  return `- Standards (\`.sddpp/standards.yaml\`, \`ppc standards\` says what each means): ${adopted.map((a) => `${a.id} ${a.choice === CUSTOM ? `custom (${a.details})` : a.choice}`).join(', ')}. Follow them in every slice; the audit says whether each one was met.`;
+  return `- Standards (\`ppc standards\` explains them, \`/pp-standards\` changes them): ${adopted.map((a) => `${a.id} ${a.choice}`).join(', ')}. Follow them in every slice.`;
 }
 
 /** The adopted standards that apply to a slice touching components of these kinds: [{ id, text }]. */

@@ -33,7 +33,7 @@ $ARGUMENTS
 
 ## When the person decides
 
-Approving a slice, its red tests or a screen's mockup, accepting or rejecting a change request, deciding a debt entry, an exception to the
+Approving a slice, its red tests or a screen's mockup, accepting or rejecting a change request, deciding a debt entry or a standard (security, observability, git, CI), an exception to the
 budget or the mutation score, and saying they read what changed in the design are the person's decisions. Never give them
 a command to type in a terminal. Instead:
 
@@ -92,6 +92,8 @@ a command to type in a terminal. Instead:
    If there is none, say so explicitly. Do not invent debt to look thorough.
 5. **Deviations.** List anything that differs from the slice or the blueprint, or that you decided
    without a record. If a decision needs an ADR, say so in the deviations; do not write ADRs.
+   **Standards.** For each standard the slice's card lists under "Standards" (`ppc show <id>`), say in the deviations
+   whether the slice met it. What it did not meet is debt (step 4), with the matching `kind` (`security` for security).
 6. Write the audit input as `.sddpp/audit-input.json`:
 
    ```json
