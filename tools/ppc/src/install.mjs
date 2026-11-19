@@ -27,8 +27,8 @@ const EXTENSIONS = [
 // from the project, not from Spec Kit; the change shows in git.
 export const DROPPED_SKILLS = ['speckit-specify', 'speckit-plan', 'speckit-tasks', 'speckit-implement', 'speckit-clarify', 'speckit-analyze', 'speckit-checklist', 'speckit-constitution', 'speckit-converge', 'speckit-taskstoissues'];
 const OLD_PRESET = 'sddpp-slices';
-const GUARD_SCRIPT = '.specify/extensions/sddpp-guard/scripts/python/guard.py';
-const HOOK_NAME = 'speckit.sddpp-guard.pre-tool';
+export const GUARD_SCRIPT = '.specify/extensions/sddpp-guard/scripts/python/guard.py';
+export const HOOK_NAME = 'speckit.sddpp-guard.pre-tool';
 const SESSION_SCRIPT = '.specify/extensions/sddpp-cycle/scripts/python/session.py';
 const SESSION_HOOK_NAME = 'speckit.sddpp-cycle.session-start';
 // The recorder of the question-panel answers: without it, no answer lets an approval through (the guard then asks or blocks as before).
