@@ -69,7 +69,9 @@ the plan**. It is a format conversion, not a redesign: do not improve, add or re
      ask for the strict cycle). This is the method's default, not something the blueprint states. Leave `test_policy`
      out unless the blueprint or the person says tests are required or not wanted.
 3. Write `.architect/architecture.md` (the structure of the components and their rules, the data model and the API in
-   summary; **no build steps**), starting with one paragraph on the vision and who it is for. Write `.architect/brief.md`
+   summary; **no build steps**), starting with one paragraph on the vision and who it is for, and ending with a `## Risks` section
+   that carries every row of the blueprint's risk register as the blueprint gives it (risk, likelihood, impact, mitigation). Do not
+   merge, shorten or drop one; if the blueprint has no risk register, write the section with one line saying so. Write `.architect/brief.md`
    (vision, users and goals in a page) and `.architect/glossary.md` (the terms of the domain) **only when the blueprint
    has enough for them to be worth reading**; otherwise skip them. They are optional.
 4. Write `.architect/decisions/ADR-NNNN-<slug>.md` only for decisions that are **costly to reverse or that a
@@ -102,6 +104,6 @@ the plan**. It is a format conversion, not a redesign: do not improve, add or re
    conversion, and report it if the cause is in the blueprint's design.
 8. The project rules (a short block in `CLAUDE.md`) are written by `ppc constitution`, never by you. Run it now. It copies
    nothing from the design; it only says where the design is and how to work.
-9. Report: the files written; the sections dropped; the interface sections left for `/pp-design ui`; the additions you flagged; the interview proposals you treated as asked; the quality attributes you did not
+9. Report: the files written; the sections dropped; the interface sections left for `/pp-design ui`; the additions you flagged; the interview proposals you treated as asked; how many risks the blueprint lists and how many you wrote in `## Risks` (they must be equal); the quality attributes you did not
    create because the blueprint gave no measure; every warning left, with its cause. Say plainly what you decided
    on your own.
