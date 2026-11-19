@@ -15,6 +15,11 @@ $ARGUMENTS
   you wrote earlier is wrong, fix it and say so in the audit deviations.
 - Write only what this slice's **acceptance criteria** ask for, and nothing from its **Out of scope**. No
   abstraction for a case that does not exist yet. No behavior that no criterion asks for.
+- **A `fix` slice starts from the bug.** Before any production code, write the test that reproduces it from the slice's
+  `## Reproduction` section and watch it fail for the reason the bug gives; a test that passes proves nothing. Fix it, then
+  watch that same test pass. In the audit's `deviations`, say in one line how you saw it fail (the command, or the old code you
+  put back). If the section says `not reproduced yet` and you cannot reproduce it either, stop and tell the person: do not
+  fix what you cannot see. (In the strict cycle the red phase already does this.)
 - **Tests follow the test policy** (`test_policy` in `.architect/blueprint.yaml`, or in the slice):
   `required` means the slice cannot close without test files; `optional` means they are expected, and if there are none
   `ppc finish` proposes a debt entry for a person to decide; `none` means they are not asked for.

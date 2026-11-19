@@ -151,7 +151,10 @@ and the slice files. See [contract-v0.1.md](contract-v0.1.md) for the layout.
 
 - **Existing project:** `/architect-brownfield` maps the repo first; slices start with characterization
   tests of the current behavior.
-- **A bug:** a `fix` slice that starts from a test reproducing it; no design phase.
+- **A bug:** a `fix` slice that starts from a test reproducing it; no design phase. Its `## Reproduction` section holds the severity
+  (`critical`, `high`, `medium`, `low`), who or what saw it and the steps (or `not reproduced yet`); `/pp-build` writes the test first
+  and watches it fail, and says in the audit how; `/pp-check analyze` reads for the section. All three are instructions to the agent, not rules
+  of `ppc validate`.
 - **Exploring an idea:** a `spike`: time-boxed, no TDD, thrown away; only its `outcome` is kept.
 
 ## What enforces what

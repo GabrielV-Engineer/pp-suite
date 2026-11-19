@@ -53,6 +53,11 @@ first; do not run those, and do not write `spec.md`, `plan.md` or `tasks.md`.
   person one question; do not guess.
 - Every `skeleton`, `feature` and `fix` slice has a `## Out of scope` section: the nearby things this slice does **not**
   do, drawn from the blueprint's non-goals that sit close to it and from the neighbouring slices.
+- **A `fix` slice carries its bug.** Besides `## Behavior` (the symptom, in the words of whoever saw it, with a link to the
+  issue if there is one) and `## Out of scope`, it has a `## Reproduction` section with three lines: `Severity:` (`critical`,
+  `high`, `medium` or `low`, with the reason in a few words: who is hit, how often, whether data is at risk), `Seen by:` (who
+  or what found it) and `How to reproduce:` (the steps, or the test that already fails). If the bug has not been reproduced,
+  write `not reproduced yet` there; do not invent steps. The first criterion is the one the reproducing test checks.
 - New slices are `status: planned`. Never write `approved_by`, `phase`, `red_approved_by`, `mode` or any decision field.
   Do not write debt.
 
