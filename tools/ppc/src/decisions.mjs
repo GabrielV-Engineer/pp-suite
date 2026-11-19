@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import { payProblem, screenApproved } from './policy.mjs';
-import { STANDARDS, BY_ID, CUSTOM, TRIGGERS, recommend, renderStandards, describeAnswer, projectFacts } from './standards.mjs';
+import { STANDARDS, BY_ID, CUSTOM, TRIGGERS, recommend, renderStandards, describeAnswer, projectFacts, standardsFor } from './standards.mjs';
 
 // The card of one thing a person decides, in plain words: what it is and what approving it means. `ppc show <id>` prints it and
 // the `/pp` skill shows it in the chat before asking. Pure over the loaded model, except the red tests, whose files come from
@@ -39,6 +39,10 @@ function sliceCard(model, entry, { redFiles, auditInput } = {}) {
   if (not) out.push(row('Does not', ''), ...bullets(not).map((b) => `      - ${b}`));
   if (s.acceptance?.length) out.push(row('Checked by', ''), ...s.acceptance.map((a) => `      - ${a.id}: ${a.scenario}`));
   if (s.depends_on?.length) out.push(row('Waits for', s.depends_on.join(', ')));
+  // the standards the person adopted that apply to what this slice touches (docs/standards.md)
+  const kindOf = new Map((model.blueprint?.data.components ?? []).map((c) => [c.id, c.kind]));
+  const applying = standardsFor(model.standards?.data?.standards ?? [], new Set((s.components ?? []).map((c) => kindOf.get(c))));
+  if (applying.length) out.push(row('Standards', ''), ...applying.map((a) => `      - ${a.id} ${a.text}`));
   const pays = paidBy(model, s);
   if (pays.length) out.push(row('Pays', ''), ...pays.map((e) => `      - ${e.id} ${e.title}`));
   const open = openHere(model, s);

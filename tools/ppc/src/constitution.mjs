@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { loadProject } from './load.mjs';
 import { designFindings, validateModel } from './validate.mjs';
 import { modeOf, testPolicy } from './policy.mjs';
+import { standardsLine } from './standards.mjs';
 
 // The project's rules, produced from the design by a script and kept in CLAUDE.md, which Claude Code reads at the start
 // of every session. It is one block between markers: what a person wrote in the same file is never touched. It is the
@@ -34,6 +35,8 @@ export function renderConstitution(model) {
     '- Approvals, change requests, debt and exceptions are the person\'s (`ppc approve-*`, `ppc decide-change`, `--budget-reason`). Put each to them in the question panel: `ppc show <id>`, then `ppc ask <id>`, say in a line what each option does, ask it with AskUserQuestion and run only the command they pick. Never send them to a terminal, and never write an approval or decision field (`approved_by`, `decided_by`, ...). Run `ppc decide-addition` only for what the person told you in this conversation to cut or keep; never decide an addition on your own.',
     '- The design is in `.architect/` and is read-only for the build. Do not build what its non-goals exclude. If it is wrong or silent about something you need, stop and open `ppc change-request`; do not decide it yourself.',
     `- Default cycle: ${mode}. Test policy: ${policy}. A slice's hand-written production code stays under ${bp.budgets.max_slice_production_lines} lines.`,
+    // the standards the person adopted (`.sddpp/standards.yaml`), so every session and every build knows them
+    ...[standardsLine(model.standards?.data?.standards ?? [])].filter(Boolean),
     `**Version**: blueprint revision ${bp.revision}`,
     END,
   ].join('\n');
@@ -87,5 +90,5 @@ export function checkConstitution(root) {
   const current = read(root);
   const span = current === null ? null : blockSpan(current);
   if (!span) return [`${CONSTITUTION_FILE} has no pp-suite rules block; run \`ppc constitution\` (missing)`];
-  return current.slice(span[0], span[1]) === renderConstitution(loadValid(root)) ? [] : [`the pp-suite rules in ${CONSTITUTION_FILE} are out of date with the design; run \`ppc constitution\``];
+  return current.slice(span[0], span[1]) === renderConstitution(loadValid(root)) ? [] : [`the pp-suite rules in ${CONSTITUTION_FILE} are out of date with the design or the standards; run \`ppc constitution\``];
 }

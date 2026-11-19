@@ -41,7 +41,8 @@ the command changes that one field of unfinished slices and nothing else, and th
 **The project rules.** `ppc constitution` writes one short block (about 1,300 characters) into `CLAUDE.md`, which Claude Code reads at
 the start of every session, between `<!-- pp-suite:begin -->` and `<!-- pp-suite:end -->` markers. It says how to work here
 (`ppc next`, what only a person decides, the change request), where the design is (`.architect/`, read-only for the build),
-the default cycle, the test policy and the slice budget. It **copies nothing from the design**: decisions, components, quality
+the default cycle, the test policy, the slice budget and, in one line, the standards the person adopted
+(`.sddpp/standards.yaml`; deciding one makes the block out of date until `ppc constitution` runs again). It **copies nothing from the design**: decisions, components, quality
 targets and non-goals stay in `.architect/`, which the skills read when they work. It is the same text every time and its
 version is the blueprint revision. Text a person wrote in the same file is never touched; only the block is replaced.
 `ppc constitution --check` verifies it is current. Spec Kit's own `.specify/memory/constitution.md` is not written: nothing in
