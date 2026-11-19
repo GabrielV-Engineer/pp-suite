@@ -62,9 +62,9 @@ owns the plan. Done: the design linter rules `D01` to `D03` (tests, each broken 
 |---|---|
 | Click through the whole flow once as a person (`/pp`, the panel, the approval running with no second prompt), and press No on Claude Code's own confirmation | Everything else on that path is tested; this is the part only a person can do |
 | Try the guard's `ask` in `bypassPermissions` (refused by the safety classifier of the session that ran the spike), and see the permission prompt once in the CLI and in the VS Code extension ([spike](docs/ask-spike.md)) | The guard asks only in the two modes that were tried; the dialog itself was not seen by a person |
-| The guard blocks `--help` of a human-only command and a command that only mentions an approval (F-H3, F-E1) | Found twice in the first real project |
-| `check-git`: detect commits of a slice that its audit leaves out, for anything other than tests | `C06` closes this for test files only; an omitted production commit still goes unnoticed |
-| Session-start check that the guard script is present | The dispatcher fails open when the script is missing |
+| The guard blocks `--help` of a human-only command and a command that only mentions an approval (F-H3, F-E1) | Found twice in the first real project; issue [#1](https://github.com/GabrielV-Engineer/pp-suite/issues/1) |
+| `check-git`: detect commits of a slice that its audit leaves out, for anything other than tests | `C06` closes this for test files only; an omitted production commit still goes unnoticed; issue [#7](https://github.com/GabrielV-Engineer/pp-suite/issues/7) |
+| Session-start check that the guard script is present | The dispatcher fails open when the script is missing; issue [#8](https://github.com/GabrielV-Engineer/pp-suite/issues/8) |
 | Approval gates as a Spec Kit workflow, and the agent prompts (`sddpp-cycle`, drafted; exercised in M1) | The `ppc` side of the loop exists and is tested; the agent side is new |
 | Mutation gate in a real slice cycle: set `min_mutation_score` in a project and close a slice through it | The gate and `ppc mutation` exist and are tested (M1 finding 4); first measurement on the demo is in [mutation testing](docs/mutation-testing.md) |
 | **M2, remaining:** a workflow with approval gates. SL-002, a slice with a dependency, is closed, and a person approved its red tests. The refactor phase and a harder test of the lock are done (see Foundation) | Planning, red, green, audit and close of a second slice, a refactor slice and an adversarial pass over the lock are done |
