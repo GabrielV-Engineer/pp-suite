@@ -47,7 +47,9 @@ first; do not run those, and do not write `spec.md`, `plan.md` or `tasks.md`.
   whose dependencies are unfinished. `ppc validate` warns on a dependency between slices that share no component (`W08`).
 - **Size.** A slice's hand-written production code must fit `budgets.max_slice_production_lines` in the blueprint. If you
   expect more, split by behavior. At most 5 acceptance criteria per slice.
-- **Every capability gets a slice, and every quality attribute is referenced by one** that delivers or checks it.
+- **Every capability gets a slice, and every quality attribute is referenced by one** that delivers or checks it. Plan every
+  capability, also the ones a later phase will build: a slice stays `planned` until a person approves it, so it costs nothing
+  to wait, and `T06` asks only that a live slice exists. Approve and start only the ones to build now.
 - **A standard that needs setup gets a slice.** `ppc standards` lists what the person decided. If `ci` is adopted on GitHub
   or GitLab, or `observability` is adopted, and nothing in the project does it yet, plan that work as a slice like any other,
   on the component that owns it, after the skeleton. If no component of the design can own it, that is a change request.

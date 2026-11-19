@@ -37,6 +37,8 @@ the plan**. It is a format conversion, not a redesign: do not improve, add or re
   they never named, a stronger version of one they did, such as a recoverable delete when they said "maybe delete
   them", a heavy tool for a small system, a quality target nobody requested), keep it in the design as the blueprint
   says and write it in `.architect/additions.yaml` (step 6). Do not remove it: removing is the person's decision.
+  A proposal the person accepted in the interview counts as asked, so it is not an addition and is not flagged; name each one
+  in the report ("treated as asked"), because the interview did not show their cost and the person may ask to review one.
 - **One owner per file.** Write only under `.architect/`. Do not create `.sddpp/`.
 - **English.** The files of the contract are in English whatever the language of the blueprint.
 
@@ -100,6 +102,6 @@ the plan**. It is a format conversion, not a redesign: do not improve, add or re
    conversion, and report it if the cause is in the blueprint's design.
 8. The project rules (a short block in `CLAUDE.md`) are written by `ppc constitution`, never by you. Run it now. It copies
    nothing from the design; it only says where the design is and how to work.
-9. Report: the files written; the sections dropped; the interface sections left for `/pp-design ui`; the additions you flagged; the quality attributes you did not
+9. Report: the files written; the sections dropped; the interface sections left for `/pp-design ui`; the additions you flagged; the interview proposals you treated as asked; the quality attributes you did not
    create because the blueprint gave no measure; every warning left, with its cause. Say plainly what you decided
    on your own.
