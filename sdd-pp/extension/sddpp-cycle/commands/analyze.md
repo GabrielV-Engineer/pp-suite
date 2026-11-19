@@ -42,6 +42,9 @@ This step reads the design, the slices and the project rules **for meaning** and
      does not do it, or a slice that does what another says it leaves out.
    - **Drift in names.** The same thing under two names across the design and the slices.
    - **Size risk.** A slice whose behavior, criteria and components suggest it will not fit the production-code budget.
+   - **Fix slice without a reproduction.** A slice of type `fix` with no `## Reproduction` section, no severity, or steps that do
+     not match its `## Behavior`; a first criterion that no test could fail on. Say `not reproduced yet` is acceptable and
+     report it as such, not as missing.
    - **Kept additions.** An addition a person kept that now conflicts with a target or a non-goal.
 3. Assign each finding a severity: **CRITICAL** (contradicts a non-goal or a decision in force), **HIGH** (a criterion that
    cannot be tested, a capability part nobody verifies), **MEDIUM** (drift, an out-of-scope line that does not hold),

@@ -72,3 +72,28 @@ test('/pp acts on panel answers that were not carried out, and every skill runs 
   assert.match(text, /ask that decision again/i);
   assert.match(DECIDES, /right away/i);
 });
+
+// Found by reading the 9 `fix` slices of the first real project (2026-11-19): a fix slice carried its symptom in free prose, and
+// whether its test failed before the fix was checked by hand in only some audits (SL-024). The contract does not change; the text
+// the agent follows asks for the same three things every time, and `/pp-check analyze` reads for them.
+const text = (file) => readFileSync(file, 'utf8');
+
+test('/pp-plan asks a fix slice for its symptom, a severity and how it was reproduced', () => {
+  const slices = text(CYCLE('slices'));
+  assert.match(slices, /fix.{0,40}slice/i);
+  assert.match(slices, /## Reproduction/);
+  for (const level of ['critical', 'high', 'medium', 'low']) assert.match(slices, new RegExp(level));
+  assert.match(slices, /not reproduced yet/i, 'an unreproduced bug says so instead of inventing steps');
+});
+
+test('/pp-build makes a fix slice start from a test seen failing, and says how it was seen in the audit', () => {
+  const build = text(CYCLE('build'));
+  assert.match(build, /\*\*A `fix` slice starts from the bug\.\*\*/);
+  assert.match(build, /watch it fail/i);
+  assert.match(build, /deviations/);
+  assert.match(build, /not reproduced yet/i, 'it stops and asks when the bug cannot be reproduced');
+});
+
+test('/pp-check analyze reads fix slices for the same block', () => {
+  assert.match(text(CYCLE('analyze')), /\*\*Fix slice without a reproduction\.\*\*/);
+});
