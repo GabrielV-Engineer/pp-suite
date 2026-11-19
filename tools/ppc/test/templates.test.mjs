@@ -97,3 +97,22 @@ test('/pp-build makes a fix slice start from a test seen failing, and says how i
 test('/pp-check analyze reads fix slices for the same block', () => {
   assert.match(text(CYCLE('analyze')), /\*\*Fix slice without a reproduction\.\*\*/);
 });
+
+// Decided 2026-11-19 (issues #3 and #4, delegated by the owner).
+// #3 (F-H2): a proposal the person accepted in the interview is asked, not an addition, so it is not flagged; but the hand-off names them
+// in its report, because the interview showed no cost and the person can still ask to review one.
+test('the hand-off treats an accepted interview proposal as asked, and names those in its report', () => {
+  const handoff = text(ARCHITECT('handoff'));
+  assert.match(handoff, /accepted in the interview/i);
+  assert.match(handoff, /counts? as asked/i);
+  assert.match(handoff, /treated as asked/i, 'the report lists them');
+});
+
+// #4 (F-S1): T06 stays. A capability a later phase builds is planned too: a slice stays `planned` until a person approves it, and T06 asks only
+// that a live slice exists. No field to defer a capability: it would weaken "no requirement without a slice" for one project's complaint.
+test('/pp-plan says to plan every capability and approve only the ones to build now', () => {
+  const slices = text(CYCLE('slices'));
+  assert.match(slices, /plan every\s+capability/i);
+  assert.match(slices, /stays `planned`/);
+  assert.match(slices, /`T06`/);
+});
