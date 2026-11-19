@@ -3,9 +3,10 @@ import addFormats from 'ajv-formats';
 import { readFileSync } from 'node:fs';
 import { basename } from 'node:path';
 import { modeOf, testPolicy, PAYERS, touchesDebt, testsOpen } from './policy.mjs';
+import { STANDARDS, TRIGGERS, triggerFired } from './standards.mjs';
 
 const SCHEMA_DIR = new URL('../../../contract/v0.1/schemas/', import.meta.url);
-const SCHEMA_NAMES = ['blueprint', 'slice', 'debt', 'adr', 'evidence', 'change-request', 'active', 'additions', 'ui'];
+const SCHEMA_NAMES = ['blueprint', 'slice', 'debt', 'adr', 'evidence', 'change-request', 'active', 'additions', 'ui', 'standards'];
 const WORK_TYPES = ['skeleton', 'feature', 'fix'];
 /** Heuristic budgets by declared level, a guard against over-engineering. They are defaults, not findings of any study. */
 const LEVEL_LIMITS = {
@@ -72,6 +73,9 @@ export const RULES = {
   U05: 'A screen\'s mockup is not approved, or changed after a person approved it.',
   U06: 'An unfinished work slice on a frontend component names no screen, or names a screen that does not exist.',
   U07: 'Slices build to screens and the interface document names no command that opens the real app (app.check).',
+  S01: 'A standard (security, observability, git, CI) is undecided, or there is no standards file (always a warning).',
+  S02: 'A standard decided "later" has a trigger that has now happened, so it should be decided again.',
+  S03: 'Security or observability is adopted and the design has no quality attribute of that kind (security, operability).',
   X05: 'An addition points at something that does not exist (a design id, or another addition it overlaps), or its id is duplicated.',
 };
 
@@ -447,6 +451,30 @@ export function validateModel(model, { now = new Date() } = {}) {
         } else {
           for (const id of a.affects ?? []) if (!standing.has(id)) error('X05', file, `${a.id} points at ${id}, which does not exist`);
         }
+      }
+    }
+  }
+
+  // ── standards: S01 to S03 (all warnings: deciding them never holds the work up) ──
+  const standardsFile = '.sddpp/standards.yaml';
+  if (!model.standards) warn('S01', standardsFile, 'no standards are decided (security, observability, git, CI); see them with `ppc standards` and decide them with `ppc ask standards`');
+  else {
+    const found = schemaFindings('standards', model.standards.data, standardsFile);
+    out.push(...found);
+    if (!found.length) {
+      const list = model.standards.data.standards;
+      const seen = new Set();
+      for (const s of list) {
+        if (seen.has(s.id)) error('T12', standardsFile, `standard ${s.id} is listed twice`);
+        seen.add(s.id);
+      }
+      const undecided = STANDARDS.filter((s) => !list.some((x) => x.id === s.id && x.decision !== 'pending')).map((s) => s.id);
+      if (undecided.length) warn('S01', standardsFile, `undecided: ${undecided.join(', ')}; decide with \`ppc ask standards\` (later is a valid answer)`);
+      const attributes = new Set(bp.quality_attributes.map((q) => q.attribute));
+      for (const s of list) {
+        if (s.decision === 'later' && triggerFired(s.trigger, bp, model.facts ?? {})) warn('S02', standardsFile, `${s.id} waited until ${TRIGGERS[s.trigger]}, and that has happened; decide it again with \`ppc ask ${s.id}\``);
+        const spec = STANDARDS.find((x) => x.id === s.id);
+        if (s.decision === 'adopt' && spec.product && !attributes.has(spec.attribute)) warn('S03', standardsFile, `${s.id} is adopted but the design has no ${spec.attribute} quality attribute; open a change request so the design carries it (\`ppc change-request\`)`);
       }
     }
   }

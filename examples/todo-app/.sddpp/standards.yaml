@@ -1,0 +1,21 @@
+standards:
+  - id: security
+    decision: adopt
+    choice: basic
+    decided_by: example-owner
+    decided_on: 2026-10-24
+  - id: observability
+    decision: not_needed
+    reason: One person runs it on their own machine and sees every failure in the window
+    decided_by: example-owner
+    decided_on: 2026-10-24
+  - id: git
+    decision: adopt
+    choice: trunk
+    decided_by: example-owner
+    decided_on: 2026-10-24
+  - id: ci
+    decision: adopt
+    choice: local
+    decided_by: example-owner
+    decided_on: 2026-10-24
