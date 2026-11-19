@@ -48,6 +48,9 @@ first; do not run those, and do not write `spec.md`, `plan.md` or `tasks.md`.
 - **Size.** A slice's hand-written production code must fit `budgets.max_slice_production_lines` in the blueprint. If you
   expect more, split by behavior. At most 5 acceptance criteria per slice.
 - **Every capability gets a slice, and every quality attribute is referenced by one** that delivers or checks it.
+- **A standard that needs setup gets a slice.** `ppc standards` lists what the person decided. If `ci` is adopted on GitHub
+  or GitLab, or `observability` is adopted, and nothing in the project does it yet, plan that work as a slice like any other,
+  on the component that owns it, after the skeleton. If no component of the design can own it, that is a change request.
 - Acceptance criteria come from the capability's description and the quality attributes. Write them as "Given ..., when
   ..., then ...". Do not invent features. If a capability is too vague to write a testable criterion, stop and ask the
   person one question; do not guess.
@@ -63,7 +66,7 @@ first; do not run those, and do not write `spec.md`, `plan.md` or `tasks.md`.
 
 ## When the person decides
 
-Approving a slice, its red tests or a screen's mockup, accepting or rejecting a change request, deciding a debt entry, an exception to the
+Approving a slice, its red tests or a screen's mockup, accepting or rejecting a change request, deciding a debt entry or a standard (security, observability, git, CI), an exception to the
 budget or the mutation score, and saying they read what changed in the design are the person's decisions. Never give them
 a command to type in a terminal. Instead:
 

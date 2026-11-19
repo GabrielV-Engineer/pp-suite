@@ -21,6 +21,7 @@ export const SHORT_SKILLS = [
       part(ARCHITECT, 'ui', 'architect-pp', 'ui', 'the design has a `frontend` component and no `.architect/ui.md` or screens without an approved mockup, or the person asks to design or change the interface: interview them and draw the mockups'),
     ],
   },
+  { name: 'pp-standards', parts: [part(CYCLE, 'standards', 'sddpp-cycle', 'standards')] },
   { name: 'pp-plan', parts: [part(CYCLE, 'slices', 'sddpp-cycle', 'slices')] },
   {
     name: 'pp-build',

@@ -22,7 +22,7 @@ decides the id named, even when `ppc next` names another. Every other skill that
 building, the debt of an audit, the approval of the slices just planned) asks it the same way, from the same text
 (`sdd-pp/shared/when-the-person-decides.md`); none sends the person to a terminal.
 
-The commands a person can type are short, in the style of Spec Kit's: `/pp-design`, `/pp-plan`, `/pp-build`, `/pp-check`,
+The commands a person can type are short, in the style of Spec Kit's: `/pp-design`, `/pp-standards`, `/pp-plan`, `/pp-build`, `/pp-check`,
 `/pp-audit`, `/pp-change`, and `/pp-red`, `/pp-green`, `/pp-refactor` for the strict cycle. `ppc init` writes them from the extension
 command files and removes the long names Spec Kit gives them (`/speckit-sddpp-cycle-build` and the like). The names follow Spec
 Kit's, so that someone who knows Spec Kit or OpenSpec finds their way:
@@ -31,6 +31,7 @@ Kit's, so that someone who knows Spec Kit or OpenSpec finds their way:
 |---|---|---|
 | `/pp` | — | — |
 | `/pp-design` | `/speckit-specify` | `/openspec-explore` |
+| `/pp-standards` | — | — |
 | `/pp-plan` | `/speckit-plan`, `/speckit-tasks` | `/openspec-propose` |
 | `/pp-build` | `/speckit-implement` | `/openspec-apply-change` |
 | `/pp-check` | `/speckit-converge` | `/openspec-verify-change` |
@@ -116,6 +117,8 @@ The engine behind `/pp`; a person rarely types these. Each command either change
 | `ppc refactor` | anyone | Strict only. green → refactor (tests stay locked) |
 | `ppc finish <slice> --audit <file>` | anyone; **a human** to add `--budget-reason` or `--mutation-reason` | Closes the slice. The sizes (production and test lines) are **measured from git**, then the result is validated and checked against git; if anything is off, nothing changes. A refactor or fix slice also marks the debt it pays as `paid`. A slice that pays debt says in its audit input what it paid (`debt_paid`) and what not and why (`debt_unpaid`); a feature slice must account for every entry. Unpaid debt is open again, and `ppc next` and `W09` ask which slice pays it now |
 | `ppc mutation (--files a,b \| --slice <id>)` | anyone | Mutation-tests those files (or a finished slice's files) and prints the score and the mutants the tests missed. Changes nothing |
+| `ppc standards` | anyone | Security, observability, git and CI: what was decided, or what is recommended from the design and the repository, and why. See [standards](standards.md) |
+| `ppc decide-standard <standard> (--adopt <choice> [--details <text>] \| --later --trigger <what> \| --not-needed --reason <why>)`, or `--accept-recommended` | **a person**, through the panel (`ppc ask standards`, `ppc ask <standard>`) | Records how the project handles that standard in `.sddpp/standards.yaml`; a change keeps the earlier answer in its history |
 | `ppc additions` | anyone | The additions in plain words: what needs you first, then what a recommendation settles, with cost, what is lost and how hard it is to add later |
 | `ppc decide-addition --accept-recommended [--but-cut <ids>] [--but-keep <ids> --reason <why>]`, or `<ADD-ID>... (--keep --reason <why> \| --cut)`; `--by` defaults to the git `user.name` | **a person**; an assistant may run it for what the person told it in the conversation | Keeps or cuts something the design contains that the person did not ask for (`.architect/additions.yaml`). The first form settles every group whose members were recommended the same way and decides the ones you name, in one command. Cutting records the decision; carrying it out in the design is a separate step. See [scope review](scope-review.md) |
 | `ppc validate --design` | anyone | Judges only the design (`.architect/`) with the rules that concern it, before any slice or debt register exists. Used to check the hand-off |

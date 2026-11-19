@@ -36,10 +36,14 @@ test('constitution: one line names the adopted standards, and the block stays sh
   assert.ok(out.split('\n').length < 20);
 });
 
-test('constitution: no line without adopted standards; a custom one shows its details', () => {
+test('constitution: no line without adopted standards; a custom one is named, and the longest choices still fit', () => {
   assert.ok(!renderConstitution(set(base(), null)).includes('- Standards'));
   const custom = replace(base(), 'ci', { decision: 'adopt', choice: 'custom', details: 'Jenkins runs ppc on every merge' });
-  assert.match(renderConstitution(custom), /ci custom \(Jenkins runs ppc on every merge\)/);
+  assert.match(renderConstitution(custom), /ci custom\b/);
+  assert.ok(!renderConstitution(custom).includes('Jenkins'), 'the person\'s words stay in the file, the card and ppc standards');
+  const longest = { security: 'strict', observability: 'logs-metrics', git: 'branch-per-slice-pr', ci: 'custom' };
+  const all = set(base(), Object.entries(longest).map(([id, choice]) => answer(id, { decision: 'adopt', choice, ...(choice === 'custom' ? { details: 'x'.repeat(500) } : {}) })));
+  assert.ok(renderConstitution(all).length < 2000, `the longest choices still fit: ${renderConstitution(all).length}`);
 });
 
 test('constitution: deciding a standard makes the block out of date until ppc constitution runs again', (t) => {
