@@ -116,3 +116,19 @@ test('/pp-plan says to plan every capability and approve only the ones to build 
   assert.match(slices, /stays `planned`/);
   assert.match(slices, /`T06`/);
 });
+
+// Issue #2 (F-H1): the hand-off was told to "carry over the risks" without being told where. Both real runs wrote a `## Risks` section in
+// architecture.md on their own. The prompt now names it and asks for a count in the report, so a dropped risk is visible. No rule: nothing
+// in the contract has a field for risks, and 50 of 63 rules never fired in the first real project.
+test('the hand-off puts every risk in architecture.md under "## Risks" and counts them in its report', () => {
+  const handoff = text(ARCHITECT('handoff'));
+  assert.match(handoff, /## Risks/);
+  assert.match(handoff, /every (row|risk)/i);
+  assert.match(handoff, /how many risks.{0,80}(blueprint|lists)/is);
+});
+
+test('both real hand-off runs kept their risks in architecture.md under "## Risks", which is what the prompt now asks', () => {
+  for (const run of ['handoff-output', 'handoff-output-run3']) {
+    assert.match(text(`${SUITE}architect-pp/fixtures/${run}/.architect/architecture.md`), /^## Risks$/m, run);
+  }
+});
