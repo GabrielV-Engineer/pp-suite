@@ -162,6 +162,7 @@ Errors fail validation; warnings fail only with `--strict`. `ppc rules` prints t
 | `C07` | error | The test script in `package.json` changed between the approved red commit and the end of the slice. (`ppc check-git`) |
 | `C08` | error | A commit of a slice changes the design (`.architect/`), which is read-only for a build. Open a change request. |
 | `C09` | error | A commit of a slice changes files that belong to a component the slice does not list. Needs `paths` on the components of the blueprint; tests, documentation and files no component claims are free. |
+| `C10` | error | A commit whose subject names the slice and a kind that can change code (`build(SL-001): ...`, also `red`, `green`, `refactor`, `structural`) changes hand-written files and is not in the slice's audit. Commits that change only bookkeeping or generated files, and others such as `chore(SL-001)`, do not count. C06 catches the same omission for test files, between the red commit and the end. |
 | `A01` | error / warning | An ADR lacks a required section (error when accepted, warning otherwise). |
 | `W01` | warning | A work slice does not state what it leaves out of scope. |
 | `W02` | warning | Evidence has expired and must be re-checked. |

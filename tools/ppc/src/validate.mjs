@@ -52,6 +52,7 @@ export const RULES = {
   C07: 'The test script in package.json changed between the approved red commit and the end of the slice.',
   C08: 'A commit of a slice changes the design (.architect/), which is read-only for a build.',
   C09: 'A commit of a slice changes files that belong to a component the slice does not list.',
+  C10: 'A commit named for a slice (build, red, green, refactor or structural) changes hand-written code and is not in its audit.',
   A01: 'An ADR lacks a required section.',
   W01: 'A work slice does not state what it leaves out of scope.',
   W02: 'Evidence has expired and must be re-checked.',
