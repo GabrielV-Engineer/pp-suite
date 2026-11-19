@@ -475,3 +475,22 @@ changed in the project; SL-026 was being built at the time.
   On this project, read-only: `U07` fires; `ppc touches SL-026` with two of its files finds nothing missing.
 - **Left for later:** a change request the person opens without a slice, and `ppc next` putting an urgent fix first (SL-031); debt paid in
   part (SL-019); the sizes in `## Sizes` covered by some criterion (SL-032, SL-034).
+
+---
+
+# Review, 2026-11-19: the nine `fix` slices (bug handling)
+
+Source: the slice files, the build log and `git log` of the project, read by me; commit timestamps are the only clock. n=1 project, one person.
+
+| What | Result |
+|---|---|
+| Share of the work | 9 of 40 slices are type `fix` (30 `feature`, 1 `skeleton`); 5 done, 4 planned |
+| Size of the 5 done | production lines 14 to 242, median 37 (the 28 done `feature` slices: median 275); test lines median 87 (features: 193); one build commit each |
+| Time from the planning commit to the closing commit | SL-024 about 9 minutes, SL-031 about 10, SL-034 about 6 (SL-032 about 23, planned together with another slice). SL-022 is not a bug (it pays two debt entries of a design gap) and is left out |
+| Regressions | None of the five is described as a regression of behavior that had worked, in its own text. SL-024, SL-031 and SL-034 describe behavior that failed in the real app while the tests passed; SL-032 is the quality of a model's output |
+| The test seen failing before the fix | One audit in five says so (SL-024: the original logic put back, the test failed). In the other four I found no such line; that is not proof nobody checked |
+| Where a defect was found | SL-031 from the owner running the app (the order plan, change request, apply, approve was awkward); SL-034 from a failing test that SL-032's audit noticed, fixed only because the owner chose to plan it |
+
+What this changes in my earlier view: the ceremony of a `fix` slice is not what costs; 6 to 10 minutes from plan to close is small. What is missing is a place for the bug before it is a slice, and a link from a failing test noticed in an audit to the slice that repairs it. Two instructions were added for the first (the `## Reproduction` section and the test seen failing; [roadmap](../ROADMAP.md)). The second is not built.
+
+Open findings from this part, to be tracked as GitHub issues: a failing test noticed in an audit is not linked to the slice that repairs it; a bug reported from the running app with no slice open needs plan, change request, apply, approve in that order, and `ppc next` offered SL-020 first (the log's F-entry for SL-031, not reproduced by me).
