@@ -256,3 +256,42 @@ test('C06: a reopened red phase may change tests; only what follows the last red
   };
   assert.ok(!rules(checkGit(model, r.dir)).includes('C06'));
 });
+
+// Issue #7: C06 closes an omitted commit for test files only. A commit named for the slice that changes hand-written code and that the
+// audit leaves out made the audit understate what the slice changed, and nothing noticed (C04 compares only the commits it lists).
+test('C10: a build commit of the slice that changes code and is not in the audit is caught', (t) => {
+  const r = finished(t);
+  r.commit('build(SL-001): a second pass the audit forgot', { 'src/extra.js': lines(7) });
+  const found = checkGit(r.model, r.dir).filter((f) => f.rule === 'C10');
+  assert.equal(found.length, 1);
+  assert.match(found[0].message, /SL-001/);
+  assert.match(found[0].message, /src\/extra\.js/);
+  assert.match(found[0].message, /not in the audit/);
+});
+
+test('C10: every kind of commit that can change code counts, and a listed one does not', (t) => {
+  for (const kind of ['red', 'green', 'refactor', 'structural', 'build']) {
+    const r = finished(t);
+    r.commit(`${kind}(SL-001): left out`, { [`src/${kind}.js`]: lines(2) });
+    assert.equal(checkGit(r.model, r.dir).filter((f) => f.rule === 'C10').length, 1, kind);
+  }
+  const r = finished(t);
+  const sha = r.commit('build(SL-001): listed this time', { 'src/listed.js': lines(2) });
+  r.audit.commits.push({ sha, kind: 'build' });
+  r.audit.production_lines += 2;
+  assert.deepEqual(checkGit(r.model, r.dir).filter((f) => f.rule === 'C10'), []);
+});
+
+test('C10: another slice, a bookkeeping-only commit, a close commit and generated files are not omissions', (t) => {
+  const r = finished(t);
+  r.commit('build(SL-002): belongs to another slice', { 'src/other.js': lines(2) });
+  r.commit('build(SL-001): only bookkeeping', { '.sddpp/notes.md': 'x\n' });
+  r.commit('chore(SL-001): close slice', { 'src/closing.js': lines(2) });
+  r.commit('docs(slices): plan SL-001 again', { 'docs/x.md': 'x\n' });
+  assert.deepEqual(checkGit(r.model, r.dir).filter((f) => f.rule === 'C10'), []);
+});
+
+test('C10: a history that matches its audit still has no findings at all', (t) => {
+  const { model, dir } = finished(t);
+  assert.deepEqual(checkGit(model, dir), []);
+});

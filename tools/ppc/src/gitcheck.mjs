@@ -121,11 +121,30 @@ function latestOf(root, fulls) {
  * `tips` maps a slice id to the revision its work ends at when that is not its last listed commit
  * (`ppc finish` passes HEAD, so a commit made after the last listed one cannot slip through).
  */
+/** The commits whose subject names a slice and a kind of commit that can change code (`build(SL-001): ...`), by slice id, oldest first. */
+const CODE_COMMIT = /^(build|red|green|refactor|structural)\((SL-\d+)\)/;
+function commitsBySlice(root) {
+  const bySlice = new Map();
+  let log;
+  try {
+    log = git(root, ['log', '--reverse', '--format=%H%x01%s', 'HEAD']);
+  } catch {
+    return bySlice; // no repository, or no commit yet
+  }
+  for (const line of log.split('\n')) {
+    const [sha, subject] = line.split('\x01');
+    const m = CODE_COMMIT.exec(subject ?? '');
+    if (m) bySlice.set(m[2], [...(bySlice.get(m[2]) ?? []), sha]);
+  }
+  return bySlice;
+}
+
 export function checkGit(model, root, { tips = new Map() } = {}) {
   const out = [];
   const add = (rule, file, message) => out.push({ rule, severity: 'error', file, message });
 
   const generated = generatedGlobs(model.blueprint?.data);
+  const named = commitsBySlice(root);
   for (const { file, data: s } of model.slices) {
     if (!s.audit) continue;
     let production = 0;
@@ -171,6 +190,12 @@ export function checkGit(model, root, { tips = new Map() } = {}) {
       if (kind === 'red' && productionFiles.length) add('C03', file, `${s.id}: ${sha} (red) touches production code: ${productionFiles.join(', ')}`);
     }
 
+    // C10: a commit named for this slice that changes hand-written code and is not in the audit (C06 does the same for test files only).
+    for (const sha of named.get(s.id) ?? []) {
+      if (found.includes(sha)) continue;
+      const m = measure(root, sha, generated);
+      if (m?.files.length) add('C10', file, `${s.id}: ${sha.slice(0, 7)} is named for the slice and changes ${m.files.map((f) => f.path).join(', ')}, but it is not in the audit; list it, or the audit understates the slice`);
+    }
     if (allFound && production !== s.audit.production_lines) add('C04', file, `${s.id}: audit says ${s.audit.production_lines} production lines, git shows ${production}`);
     if (allFound && tested !== s.audit.test_lines) add('C04', file, `${s.id}: audit says ${s.audit.test_lines} test lines, git shows ${tested}`);
     // From the approved red commit to the end of the slice, no test (and not what `npm test` runs) may change,
