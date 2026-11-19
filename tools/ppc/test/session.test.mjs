@@ -109,3 +109,44 @@ test('CLI: session exits 0 in all three states', (t) => {
     assert.equal(run('session', dir).status, 0);
   }
 });
+
+// Issue #8: the dispatcher does not enforce a guard whose script is missing, and nothing said so. `ppc init` checks it when it runs; the
+// session start says it every time, because that is where a person (and the agent) look.
+const GUARD_HOOK = '.claude/settings.json';
+const GUARD_SCRIPT = '.specify/extensions/sddpp-guard/scripts/python/guard.py';
+const registerGuard = (dir) => {
+  mkdirSync(join(dir, '.claude'), { recursive: true });
+  writeFileSync(join(dir, GUARD_HOOK), JSON.stringify({ hooks: { PreToolUse: [{ hooks: [{ type: 'command', command: 'x speckit.sddpp-guard.pre-tool' }] }] } }));
+};
+
+test('session: a registered guard whose script is missing is said first, with the fix', (t) => {
+  const { dir } = repo(t);
+  registerGuard(dir);
+  const out = sessionContext(dir);
+  assert.match(out.split('\n')[0], /guard/i);
+  assert.match(out, /not enforced|fails open/i);
+  assert.match(out, /ppc init --apply --update/);
+  assert.match(out, /pp-suite: Todo App/, 'the state follows');
+});
+
+test('session: the warning is also given before the design exists', (t) => {
+  const dir = mkdtempSync(join(tmpdir(), 'ppc-guard-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  registerGuard(dir);
+  assert.match(sessionContext(dir), /guard/i);
+});
+
+test('session: no warning when the script is there, or when no guard is registered', (t) => {
+  const { dir } = repo(t);
+  assert.doesNotMatch(sessionContext(dir), /guard/i, 'not registered: ppc init reports it, the session start stays quiet');
+  registerGuard(dir);
+  mkdirSync(join(dir, GUARD_SCRIPT, '..'), { recursive: true });
+  writeFileSync(join(dir, GUARD_SCRIPT), '# guard');
+  assert.doesNotMatch(sessionContext(dir), /guard/i);
+});
+
+test('session: a guard warning does not push the state past the cap', (t) => {
+  const { dir } = repo(t);
+  registerGuard(dir);
+  assert.ok(sessionContext(dir).length <= CAP + 400);
+});

@@ -5,6 +5,7 @@ import { loadProject } from './load.mjs';
 import { validateModel } from './validate.mjs';
 import { designState, nextSteps, noDesignNext, renderNext } from './next.mjs';
 import { isTestPath } from './testpaths.mjs';
+import { GUARD_SCRIPT, HOOK_NAME } from './install.mjs';
 
 // What a session is told when it starts: whose turn it is. A hook runs `ppc session` and Claude Code adds the output to the
 // conversation, so an agent starts oriented without anyone typing a command. It is silent outside a pp-suite project, never
@@ -75,7 +76,25 @@ export function gitUserName(root) {
   }
 }
 
+/**
+ * A guard that Claude Code is told to run but whose script is gone: the dispatcher fails open, so the test lock and the human-only
+ * approvals stop being enforced and nothing says so (issue #8). Empty when no guard is registered (`ppc init` reports that) or the script is there.
+ */
+export function guardWarning(root) {
+  try {
+    if (!readFileSync(join(root, '.claude/settings.json'), 'utf8').includes(HOOK_NAME)) return '';
+  } catch {
+    return '';
+  }
+  if (existsSync(join(root, GUARD_SCRIPT))) return '';
+  return `pp-suite WARNING: the guard is registered but its script is missing (${GUARD_SCRIPT}). Until it is restored the test lock and the human-only approvals are not enforced (the hook fails open). Run \`ppc init --apply --update\`.\n\n`;
+}
+
 export function sessionContext(root) {
+  return guardWarning(root) + stateContext(root);
+}
+
+function stateContext(root) {
   if (!existsSync(join(root, '.architect/blueprint.yaml'))) {
     // set up but not designed yet: the first step, not silence; anywhere else the hook stays silent
     return designState(root) === 'no-design' ? `pp-suite: set up, no design yet. State from \`ppc next\`:\n\n${renderNext(noDesignNext())}` : '';
