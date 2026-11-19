@@ -20,6 +20,7 @@ Status: **v0.1, unstable.** Expect breaking changes until v1.0.
   slices/SL-001-*.md             one file per slice: the leaves of the WBS
   debt.yaml                      one register of technical debt for the project; each entry names its component
   change-requests/CR-0001-*.md   how SDD.PP asks for a blueprint change
+  standards.yaml                 how the project handles security, observability, git and CI, decided by a person
   active.json                    {slice, phase}: machine state read by the test-lock guard
 ```
 
@@ -102,6 +103,15 @@ that component's code), and `also_affects` links the others. Status flow: `propo
   request; a feature slice pays it as part of its own work, and its audit says whether it did). `dropped` may carry `dropped_reason` (optional, at least 10 characters), the person's reason for discarding it.
 - `origin` says where it came from: a `slice`, a `decision` (ADR), the `blueprint`, or an `audit`.
 
+## Standards (`.sddpp/standards.yaml`)
+
+How the project handles four things the design may say nothing about: `security`, `observability`, `git` and `ci`
+(`standards.schema.json`; see [standards](standards.md)). Each is `adopt`ed with a choice (or `custom` with `details`),
+deferred (`later`) until a `trigger` happens, or `not_needed` with a `reason` (only security and observability). Only
+`ppc decide-standard` writes the file, and the guard keeps it from an agent: a person decides in the panel. A standard decided
+again keeps the earlier decision in `history`. Undecided standards are only warnings (`S01`): deciding them never holds the
+work up, and "later" is always an answer.
+
 ## Interface (`.architect/ui.md`)
 
 Optional, and expected when the design has a `frontend` component (`U01`). Its frontmatter (`ui.schema.json`) lists the screens:
@@ -166,6 +176,9 @@ Errors fail validation; warnings fail only with `--strict`. `ppc rules` prints t
 | `X03` | error | A cut addition was applied but the non-goal it becomes is not among the non-goals. |
 | `X04` | warning / error | An addition was decided to be cut but the cut was not applied (a warning while drafting, an error once slices exist). |
 | `X05` | error | An addition points at something that does not exist (a design id, or another addition it overlaps), or its id is duplicated. |
+| `S01` | warning | A standard (security, observability, git, CI) is undecided, or there is no standards file. Always a warning: `later` is a valid answer. |
+| `S02` | warning | A standard decided `later` has a trigger that has now happened (a remote, a CI configuration, a component of a kind), so it should be decided again. |
+| `S03` | warning | Security or observability is adopted and the design has no quality attribute of that kind (`security`, `operability`); a change request puts it in the design. |
 | `U01` | warning | The design has a frontend component and no interface document (`.architect/ui.md`); `/pp-design ui` writes it. |
 | `U02` | error | A capability the design puts in a frontend component (`justified_by`) has no screen in the interface document. |
 | `U03` | error | The interface document lacks a section a builder reads: Navigation, Flows, States, Visual system, Accessibility, Sizes. |

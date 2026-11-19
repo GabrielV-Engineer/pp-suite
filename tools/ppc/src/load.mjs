@@ -2,6 +2,7 @@ import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { createHash } from 'node:crypto';
 import { parse as parseYaml } from 'yaml';
+import { projectFacts } from './standards.mjs';
 
 export const REQUIRED_FILES = [
   '.architect/blueprint.yaml',
@@ -33,6 +34,7 @@ export function loadProject(root) {
     debt: [],
     active: null,
     additions: null,
+    standards: null,
     ui: null,
     uiFiles: {},
   };
@@ -80,6 +82,17 @@ export function loadProject(root) {
     } catch (e) {
       fail('.architect/additions.yaml', `invalid YAML: ${e.message}`);
     }
+  }
+
+  // How the project handles security, observability, git and CI. The facts of the repository (its remote, a CI configuration)
+  // are read only with the file, since only its triggers need them.
+  if (existsSync(join(root, '.sddpp/standards.yaml'))) {
+    try {
+      model.standards = { file: '.sddpp/standards.yaml', data: parseYaml(read('.sddpp/standards.yaml')) };
+    } catch (e) {
+      fail('.sddpp/standards.yaml', `invalid YAML: ${e.message}`);
+    }
+    model.facts = projectFacts(root);
   }
 
   // The interface document, and a hash of every file its screens name, so the validator stays free of file access. null = missing.

@@ -10,6 +10,7 @@ import { generatedGlobs } from './testpaths.mjs';
 import { overlapGroup, triage } from './additions.mjs';
 import { nextSteps } from './next.mjs';
 import { gitSubjects } from './session.mjs';
+import { STANDARDS, BY_ID, CUSTOM, TRIGGERS, recommend, projectFacts, validChoice, mayBeNotNeeded, describeAnswer } from './standards.mjs';
 
 // The slices that pay debt: a refactor slice changes structure, a fix slice behavior (often through a change request).
 export { PAYERS } from './policy.mjs';
@@ -763,4 +764,77 @@ export function status(root) {
     return { text: `no slice is in progress${ready.length ? `; ready to start: ${ready.join(', ')}` : ''}` };
   }
   return { text: `${open.data.id} "${open.data.title}" is in progress, phase ${open.data.phase}` };
+}
+
+// ── standards: security, observability, git, CI ──────────────────────────────────
+
+const ANSWER_FIELDS = ['decision', 'choice', 'details', 'trigger', 'reason', 'decided_by', 'decided_on'];
+const answerOf = (item) => Object.fromEntries(ANSWER_FIELDS.filter((k) => item[k] !== undefined).map((k) => [k, item[k]]));
+
+/** The answer one call asks for, checked against what the contract allows; a refusal says why. */
+function standardAnswer(id, { adopt, details, later, trigger, notNeeded, reason }) {
+  const spec = BY_ID.get(id) ?? fail(`unknown standard ${id}; the standards are ${STANDARDS.map((s) => s.id).join(', ')}`);
+  const asked = [adopt !== undefined, Boolean(later), Boolean(notNeeded)].filter(Boolean).length;
+  if (asked !== 1) fail(`say one answer for ${id}: --adopt <choice>, --later --trigger <what>, or --not-needed --reason <why>`);
+  if (adopt !== undefined) {
+    if (!validChoice(id, adopt)) fail(`${adopt} is not a choice for ${id}; the choices are ${[...Object.keys(spec.choices), CUSTOM].join(', ')}`);
+    if (adopt === CUSTOM && !(details?.trim().length >= 5)) fail(`a custom ${id} needs --details "<the rule or tool, in your words>" of at least 5 characters`);
+    return { decision: 'adopt', choice: adopt, ...(details?.trim() ? { details: details.trim() } : {}) };
+  }
+  if (later) {
+    if (!Object.hasOwn(TRIGGERS, trigger ?? '')) fail(`--later needs --trigger, one of ${Object.keys(TRIGGERS).join(', ')}: what asks again`);
+    return { decision: 'later', trigger, ...(reason?.trim() ? { reason: reason.trim() } : {}) };
+  }
+  if (!mayBeNotNeeded(id)) fail(`${id} cannot be not needed: every project uses git and runs its checks somewhere; choose ${Object.keys(spec.choices).join(', ')}, or later`);
+  if (!(reason?.trim().length >= 5)) fail(`--not-needed needs a --reason of at least 5 characters: why ${id} does not apply here`);
+  return { decision: 'not_needed', reason: reason.trim() };
+}
+
+/**
+ * HUMAN ONLY (the guard asks the person): decide one standard, or with `acceptRecommended` every undecided one as recommended from
+ * the design and the repository. A standard decided again keeps its earlier decision in `history`. Writes `.sddpp/standards.yaml`
+ * and nothing else.
+ */
+export function decideStandard(root, id, { acceptRecommended = false, by, today = new Date().toISOString().slice(0, 10), ...answer } = {}) {
+  if (!by || !by.trim()) fail('--by <name> is required (or set git config user.name): a person decides the standards');
+  return transact(root, () => {
+    const model = loadProject(root);
+    if (!model.blueprint) fail('there is no design yet (.architect/blueprint.yaml); the standards are decided after it');
+    const file = '.sddpp/standards.yaml';
+    const abs = join(root, file);
+    let list = [];
+    if (existsSync(abs)) {
+      const data = parseDocument(readFileSync(abs, 'utf8')).toJSON();
+      list = Array.isArray(data?.standards) ? data.standards : fail(`${file} has no list of standards; fix it by hand first`);
+    }
+    const decided = (one) => list.find((s) => s.id === one && s.decision !== 'pending');
+    const answers = {};
+    if (acceptRecommended) {
+      if (id) fail('name a standard, or use --accept-recommended, not both');
+      const recommended = recommend(model.blueprint.data, model.facts ?? projectFacts(root));
+      for (const s of STANDARDS) {
+        if (decided(s.id)) continue;
+        const { why, ...plain } = recommended[s.id];
+        answers[s.id] = plain;
+      }
+      if (!Object.keys(answers).length) fail('every standard is decided already; to change one, name it: ppc decide-standard <standard> ...');
+    } else {
+      if (!id) fail('name the standard to decide (ppc decide-standard <standard> ...), or use --accept-recommended');
+      answers[id] = standardAnswer(id, answer);
+    }
+    for (const [one, plain] of Object.entries(answers)) {
+      const before = list.find((s) => s.id === one);
+      const history = [...(before?.history ?? []), ...(before && before.decision !== 'pending' ? [answerOf(before)] : [])];
+      const next = { id: one, ...plain, decided_by: by.trim(), decided_on: today, ...(history.length ? { history } : {}) };
+      list = before ? list.map((s) => (s === before ? next : s)) : [...list, next];
+    }
+    const order = (s) => STANDARDS.findIndex((x) => x.id === s.id);
+    list.sort((a, b) => order(a) - order(b));
+    mkdirSync(dirname(abs), { recursive: true });
+    writeFileSync(abs, stringify({ standards: list }, { lineWidth: 0 }));
+    const problems = validateModel(loadProject(root)).filter((f) => f.file === file && f.severity === 'error');
+    if (problems.length) fail(`the decision would leave ${file} invalid:\n${describe(problems)}`);
+    const words = Object.entries(answers).map(([one]) => `${one}: ${describeAnswer(list.find((s) => s.id === one))}`);
+    return { decided: Object.fromEntries(Object.entries(answers).map(([one]) => [one, describeAnswer(list.find((s) => s.id === one))])), text: `${words.join('\n')}\nRecorded in ${file}. Next: run \`ppc constitution\` so CLAUDE.md lists the adopted standards.` };
+  });
 }
