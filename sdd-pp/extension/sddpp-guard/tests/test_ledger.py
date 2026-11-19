@@ -144,6 +144,13 @@ class LedgerTest(unittest.TestCase):
         self.assertEqual(self.decide(root, "ppc approve SL-001")[0], 0)
         self.assertIn(self.decide(root, "ppc approve SL-001")[0], (2, guard.ASK), "the answer is used up")
 
+    def test_a_standard_picked_in_the_panel_goes_through_once_and_no_other_choice_does(self):
+        root = self.project()
+        self.record(root, {"Security?": 'Not needed — ppc decide-standard security --not-needed --reason "not needed, decided in the panel"'})
+        self.assertIn(self.decide(root, "ppc decide-standard security --adopt strict")[0], (2, guard.ASK))
+        self.assertEqual(self.decide(root, 'ppc decide-standard security --not-needed --reason "not needed, decided in the panel"')[0], 0)
+        self.assertIn(self.decide(root, 'ppc decide-standard security --not-needed --reason "not needed, decided in the panel"')[0], (2, guard.ASK))
+
     def test_without_an_answer_the_old_behavior_holds_and_the_message_points_at_pp(self):
         root = self.project()
         code, message = self.decide(root, "ppc approve SL-001", mode="default")

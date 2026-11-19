@@ -136,7 +136,8 @@ class GuardTest(unittest.TestCase):
             for cmd in ("ppc approve-red --by me", "node tools/ppc/bin/ppc.mjs approve-red --by me",
                         "cd proj && ppc  approve-red", "npx ppc approve-slice SL-003", "ppc approve-debt DEBT-BE-004 --by me",
                         "ppc decide-change CR-0002 --accept --by me", "node tools/ppc/bin/ppc.mjs decide-change CR-0002 --reject --reason x --by me",
-                        "ppc reread --all", "ppc reread SL-003"):
+                        "ppc reread --all", "ppc reread SL-003",
+                        "ppc decide-standard security --adopt basic --by me", "node tools/ppc/bin/ppc.mjs decide-standard --accept-recommended"):
                 with self.subTest(state=state, cmd=cmd):
                     code, message = guard.decide(payload("Bash", command=cmd), root)
                     self.assertEqual(code, 2)

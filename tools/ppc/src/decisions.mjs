@@ -1,5 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import { payProblem, screenApproved } from './policy.mjs';
+import { STANDARDS, BY_ID, CUSTOM, TRIGGERS, recommend, renderStandards, describeAnswer, projectFacts } from './standards.mjs';
 
 // The card of one thing a person decides, in plain words: what it is and what approving it means. `ppc show <id>` prints it and
 // the `/pp` skill shows it in the chat before asking. Pure over the loaded model, except the red tests, whose files come from
@@ -109,7 +110,16 @@ function rereadCard(model) {
 }
 
 /** The card for a slice, debt entry or change request id, or null when there is none. The word `reread` is the slices behind the design. */
+const standardsOf = (model) => model.standards?.data?.standards ?? [];
+const factsOf = (model) => model.facts ?? (model.root ? projectFacts(model.root) : {});
+const recommendedOf = (model) => recommend(model.blueprint.data, factsOf(model));
+const undecidedStandards = (model) => STANDARDS.filter((s) => !standardsOf(model).some((x) => x.id === s.id && x.decision !== 'pending'));
+
 export function renderDecision(model, id, extra = {}) {
+  if (id === 'standards' || BY_ID.has(id)) {
+    if (!model.blueprint) return null;
+    return renderStandards(standardsOf(model), recommendedOf(model), { bp: model.blueprint.data, facts: factsOf(model), only: id === 'standards' ? undefined : id });
+  }
   if (id === 'reread') {
     const card = rereadCard(model);
     return card ? `${card}\n` : null;
@@ -145,6 +155,7 @@ export function redCommitFiles(root, id) {
 export const ACCEPT_REASON = 'accepted in the panel';
 export const REJECT_REASON = 'rejected in the panel';
 export const DROP_REASON = 'dropped in the panel';
+export const NOT_NEEDED_REASON = 'not needed, decided in the panel';
 const SAY_NO = [
   { label: 'I want to change something', description: 'Nothing is decided yet; say what to change and it is redone' },
   { label: 'Not yet', description: 'Nothing is decided; it waits for you' },
@@ -163,7 +174,55 @@ function carried(flag, reason) {
 }
 
 /** The panel question (the input of the AskUserQuestion tool) for a decision, or null when there is nothing to decide on that id. */
-export function askFor(model, id, { redFiles, budgetReason, mutationReason, payIn, addComponent } = {}) {
+/** The command that records one answer for a standard. */
+function standardCommand(id, answer) {
+  if (answer.decision === 'adopt') return `ppc decide-standard ${id} --adopt ${answer.choice}`;
+  if (answer.decision === 'later') return `ppc decide-standard ${id} --later --trigger ${answer.trigger}`;
+  return `ppc decide-standard ${id} --not-needed --reason "${answer.reason}"`;
+}
+
+/** The panel question for every undecided standard at once, or for one; the recommendation always first. */
+function askStandards(model, id, details) {
+  if (!model.blueprint) return null;
+  const recommended = recommendedOf(model);
+  if (id === 'standards') {
+    const left = undecidedStandards(model);
+    if (!left.length) return null;
+    const list = left.map((s) => `${s.id} ${describeAnswer(recommended[s.id])}`).join('; ');
+    return { questions: [{ question: `How should this project handle ${left.map((s) => s.id).join(', ')}? Recommended from the design and the repository: ${list}.`, header: 'Standards', multiSelect: false, options: [
+      choose('Take the recommendations', 'ppc decide-standard --accept-recommended', 'Each undecided standard is recorded as recommended; any of them can be changed later'),
+      { label: 'One by one', description: 'Nothing is decided yet; each standard is asked on its own, with its choices' },
+      { label: 'Not yet', description: 'Nothing is decided; it waits for you' },
+    ] }] };
+  }
+  const spec = BY_ID.get(id);
+  if (details !== undefined) {
+    const carriedDetails = carried('--details', details).replace(/^ --details /, '');
+    return { questions: [{ question: `Record ${id} as your own rule: ${details.trim()}?`, header: spec.title.slice(0, 12), multiSelect: false, options: [
+      choose('Yes, record it', `ppc decide-standard ${id} --adopt ${CUSTOM} --details ${carriedDetails}`, 'It becomes the project\'s standard for this, in your words'),
+      { label: 'No', description: 'Nothing is decided; it waits for you' },
+    ] }] };
+  }
+  const rec = recommended[id];
+  const answers = [
+    ...Object.keys(spec.choices).map((choice) => ({ decision: 'adopt', choice })),
+    ...(spec.product ? [{ decision: 'not_needed', reason: rec.decision === 'not_needed' ? rec.reason : NOT_NEEDED_REASON }] : []),
+    ...(rec.decision === 'later' ? [rec] : []),
+  ];
+  const same = (a) => a.decision === rec.decision && a.choice === rec.choice && a.trigger === rec.trigger;
+  const ordered = [...answers.filter(same), ...answers.filter((a) => !same(a))];
+  const words = (a) => (a.decision === 'adopt' ? a.choice : a.decision === 'later' ? `Later, when ${TRIGGERS[a.trigger]}` : 'Not needed');
+  const meaning = (a) => (a.decision === 'adopt' ? spec.choices[a.choice] : a.decision === 'later' ? 'Nothing is adopted now; ppc next asks again when that happens' : `Recorded with the reason "${a.reason}"`);
+  const options = ordered.map((a, i) => choose(`${words(a)}${i === 0 ? ' (recommended)' : ''}`, standardCommand(id, a), i === 0 ? `${meaning(a)}. ${rec.why}` : meaning(a)));
+  const kept = options.slice(0, 3);
+  // four at most: the person's own rule goes through "Other" (then `ppc ask <standard> --details "..."`)
+  const now = standardsOf(model).find((x) => x.id === id && x.decision !== 'pending');
+  const current = now ? ` Now: ${describeAnswer(now)} (changing it keeps this in its history).` : '';
+  return { questions: [{ question: `${spec.title}: how should this project handle it?${current} Choose Other to describe your own rule or tool.`, header: spec.title.slice(0, 12), multiSelect: false, options: [...kept, options[3] ?? { label: 'Not yet', description: 'Nothing is decided; it waits for you' }] }] };
+}
+
+export function askFor(model, id, { redFiles, budgetReason, mutationReason, payIn, addComponent, details } = {}) {
+  if (id === 'standards' || BY_ID.has(id)) return askStandards(model, id, details);
   if (id === 'reread') {
     const behind = model.slices.map((s) => s.data).filter((s) => !['done', 'dropped'].includes(s.status) && s.blueprint_revision < model.blueprint.data.revision);
     if (!behind.length) return null;
