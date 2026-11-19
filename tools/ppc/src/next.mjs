@@ -8,6 +8,7 @@ import { existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { modeOf, testPolicy, screenApproved } from './policy.mjs';
 import { askFor } from './decisions.mjs';
+import { STANDARDS, TRIGGERS, triggerFired } from './standards.mjs';
 
 const RED = '/pp-red';
 const GREEN = '/pp-green';
@@ -139,6 +140,16 @@ function stepsOf(model, subjects, errors, facts) {
     if (hasFrontend && !model.ui) waiting.push({ ...designUi, what: `${designUi.what} (rule U01; the slices go on meanwhile)` });
     waiting.push(...unapprovedScreens.map(screenDecision));
   }
+  // Standards (docs/standards.md): undecided ones, and deferred ones whose trigger happened. Never a blocker: before planning they
+  // are a step, and once slices exist they wait beside the work.
+  const chosen = model.standards?.data?.standards ?? [];
+  const undecidedStandards = STANDARDS.filter((s) => !chosen.some((x) => x.id === s.id && x.decision !== 'pending'));
+  const decideStandards = { who: 'human', what: `Decide how this project handles ${undecidedStandards.map((s) => s.id).join(', ')} (\`ppc standards\` shows them and what is recommended); one answer can take every recommendation, and later is always an answer`, command: 'ppc decide-standard --accept-recommended', decision: { type: 'standards', id: 'standards' } };
+  const dueAgain = chosen
+    .filter((x) => x.decision === 'later' && triggerFired(x.trigger, model.blueprint?.data, model.facts ?? {}))
+    .map((x) => ({ who: 'human', what: `The ${x.id} standard waited until ${TRIGGERS[x.trigger]}, and that has happened: decide it again`, command: `ppc decide-standard ${x.id} ...`, decision: { type: 'standard', id: x.id } }));
+  if (slices.length) waiting.push(...(undecidedStandards.length ? [decideStandards] : []), ...dueAgain);
+
   const blocked = live
     .filter((s) => ['planned', 'ready'].includes(s.status) && unfinished(s, byId).length)
     .map((s) => ({ slice: s.id, waits_for: unfinished(s, byId) }));
@@ -177,6 +188,8 @@ function stepsOf(model, subjects, errors, facts) {
         { who: 'agent', what: `Remove ${unapplied.map((a) => a.id).join(', ')} from the design and record them as non-goals`, command: '/pp-design cuts' },
       ]);
     }
+    if (undecidedStandards.length) return result('Before planning: decide how this project handles security, observability, git and CI, so the slices are planned knowing it.', [decideStandards, ...dueAgain]);
+    if (dueAgain.length) return result('A standard that waited has its trigger now; decide it again before planning.', dueAgain);
     if (hasFrontend && !model.ui) return result('The design has a frontend and no interface yet; design it before planning, so every slice on a screen is built to an approved mockup.', [designUi]);
     if (unapprovedScreens.length) return result(`${unapprovedScreens.length} screen mockup${unapprovedScreens.length === 1 ? ' waits' : 's wait'} for the person's approval before slices are planned.`, unapprovedScreens.map(screenDecision));
     return result('The design is ready and no slices are planned yet.', [{ who: 'agent', what: 'Plan the thin vertical slices from the design; the person approves the list before it is written', command: SLICES }]);
