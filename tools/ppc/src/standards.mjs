@@ -125,12 +125,12 @@ export function describeAnswer(a) {
 const row = (label, text) => `    ${`${label}:`.padEnd(13)}${text}`;
 
 /** The four standards in plain words: what was decided, or what is recommended and why, and how to decide. */
-export function renderStandards(list = [], recommended = {}, { bp, facts } = {}) {
+export function renderStandards(list = [], recommended = {}, { bp, facts, only } = {}) {
   const byId = new Map(list.map((s) => [s.id, s]));
   const out = [];
   const undecided = STANDARDS.filter((s) => !byId.get(s.id) || byId.get(s.id).decision === 'pending');
-  out.push(undecided.length ? `${STANDARDS.length - undecided.length} of ${STANDARDS.length} standards decided.` : 'Every standard is decided.', '');
-  for (const s of STANDARDS) {
+  if (!only) out.push(undecided.length ? `${STANDARDS.length - undecided.length} of ${STANDARDS.length} standards decided.` : 'Every standard is decided.', '');
+  for (const s of STANDARDS.filter((x) => !only || x.id === only)) {
     const own = byId.get(s.id);
     const decided = own && own.decision !== 'pending';
     out.push(`  ${s.id}  ${s.title}`);
@@ -144,7 +144,7 @@ export function renderStandards(list = [], recommended = {}, { bp, facts } = {})
     out.push(row('Choices', [...Object.keys(s.choices), CUSTOM].join(', ') + `; or later${s.product ? ', or not needed' : ''}`));
     out.push(`    To decide it in the panel:  ppc ask ${s.id}`, '');
   }
-  if (undecided.length) out.push('To take every recommendation for what is undecided:  ppc ask standards');
+  if (!only && undecided.length) out.push('To take every recommendation for what is undecided:  ppc ask standards');
   return `${out.join('\n').replace(/\n+$/, '')}\n`;
 }
 

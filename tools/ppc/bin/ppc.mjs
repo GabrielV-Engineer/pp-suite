@@ -13,9 +13,10 @@ import { homedir } from 'node:os';
 import { applyChange, decideChange, openChange } from '../src/changes.mjs';
 import { sessionContext, gitSubjects, gitUserName, buildFacts, panelAnswers } from '../src/session.mjs';
 import { renderAdditions } from '../src/additions.mjs';
+import { BY_ID as STANDARD_IDS, recommend, renderStandards, projectFacts } from '../src/standards.mjs';
 import { renderDecision, askFor, redCommitFiles, DecisionError, AUDIT_INPUT } from '../src/decisions.mjs';
 import { buildPrompts, resolveTarget, writePrompts } from '../src/prompts.mjs';
-import { start, stop, widen, approve, reread, approveSlice, approveRed, approveDebt, scheduleDebt, decideAddition, toRefactor, finish, mutate, status, LifecycleError } from '../src/lifecycle.mjs';
+import { start, stop, widen, approve, reread, approveSlice, approveRed, approveDebt, scheduleDebt, decideAddition, decideStandard, toRefactor, finish, mutate, status, LifecycleError } from '../src/lifecycle.mjs';
 
 const USAGE = `ppc — pp-suite contract tool
 
@@ -48,7 +49,8 @@ const USAGE = `ppc — pp-suite contract tool
                                          HUMAN ONLY: approve a slice to start, its red tests, a screen's mockup (SCR-…), or decide a debt entry; with no id,
                                          the one decision that is waiting; --pay-in approves debt into the slice that pays it.
                                          --by defaults to the git user.name
-    ppc show <id> | reread [dir]         the card of what is being decided, in plain words
+    ppc show <id> | reread | standards [dir]
+                                         the card of what is being decided, in plain words (a standard by its name: security, ...)
     ppc approve-slice <slice> --by <name> [dir]
                                          HUMAN ONLY: planned -> ready
     ppc start <slice> [dir]              ready -> in progress, red phase
@@ -70,11 +72,20 @@ const USAGE = `ppc — pp-suite contract tool
                                          decides; an assistant may run it for what the person told it in the conversation
     ppc reread (--all | SL-001 ...) [dir]
                                          HUMAN ONLY: say you read what changed in the design since the slices were planned (clears W03)
-    ppc ask <id> [--budget-reason <why>] [--mutation-reason <why>] [--pay-in <slice>] [dir]
+    ppc ask <id> [--budget-reason <why>] [--mutation-reason <why>] [--pay-in <slice>] [--details <text>] [dir]
                                          the question for the panel that decides it: the option that approves ends with the exact
                                          command; with a reason, the exception that lets a slice in progress close; with
-                                         --pay-in, a debt entry is approved or scheduled into the slice that pays it
+                                         --pay-in, a debt entry is approved or scheduled into the slice that pays it; for a
+                                         standard, --details asks to record the person's own rule (ppc ask security --details "...")
     ppc additions [dir]                  the additions in plain words: what needs you, what a recommendation settles
+
+  Standards (security, observability, git, CI: decided per project, see docs/standards.md)
+    ppc standards [dir]                  each standard: what was decided, or what is recommended from the design and the repository, and why
+    ppc decide-standard <standard> (--adopt <choice> [--details <text>] | --later --trigger <what> | --not-needed --reason <why>) [--by <name>] [dir]
+                                         HUMAN ONLY: decide one (security, observability, git or ci); deciding it again keeps the
+                                         earlier answer in its history. --adopt custom --details "<text>" records your own rule or tool
+    ppc decide-standard --accept-recommended [--by <name>] [dir]
+                                         HUMAN ONLY: take the recommendation for every standard still undecided
     ppc refactor [dir]                   green -> refactor
     ppc finish <slice> --audit <file.json> [--budget-reason <text>] [--mutation-reason <text>] [dir]
                                          close the slice; the diff size is measured from git.
@@ -90,13 +101,14 @@ const USAGE = `ppc — pp-suite contract tool
     ppc help [<command>]                 this text, or only the lines of one command; \`ppc <command> --help\` does the same and nothing else
 `;
 
-const VALUE_OPTIONS = new Set(['--by', '--audit', '--files', '--slice', '--accept', '--budget-reason', '--mutation-reason', '--reason', '--task', '--specify', '--title', '--problem', '--proposal', '--component', '--adr', '--qa', '--but-cut', '--but-keep', '--pay-in', '--add-component', '--mockup']);
+const VALUE_OPTIONS = new Set(['--by', '--audit', '--files', '--slice', '--accept', '--budget-reason', '--mutation-reason', '--reason', '--task', '--specify', '--title', '--problem', '--proposal', '--component', '--adr', '--qa', '--but-cut', '--but-keep', '--pay-in', '--add-component', '--mockup', '--adopt', '--details', '--trigger']);
 // What each command accepts. Anything else is refused: an option that is silently ignored can turn a request for help, or a typo,
 // into an approval (`ppc approve --help` once approved the one slice that could be approved).
 const OPTIONS = {
   rules: [], validate: ['--strict', '--design'], 'check-git': [], start: [], stop: [], 'approve-slice': ['--by'], approve: ['--by', '--accept', '--drop', '--reason', '--pay-in', '--mockup'],
-  show: [], ask: ['--budget-reason', '--mutation-reason', '--pay-in', '--add-component'], touches: [], widen: ['--component'], reread: ['--all'], 'approve-debt': ['--by', '--accept', '--drop', '--reason'], 'schedule-debt': ['--slice'],
+  show: [], ask: ['--budget-reason', '--mutation-reason', '--pay-in', '--add-component', '--details'], touches: [], widen: ['--component'], reread: ['--all'], 'approve-debt': ['--by', '--accept', '--drop', '--reason'], 'schedule-debt': ['--slice'],
   'decide-addition': ['--keep', '--cut', '--alone', '--by', '--reason', '--accept-recommended', '--but-cut', '--but-keep'], additions: [],
+  standards: [], 'decide-standard': ['--adopt', '--details', '--later', '--trigger', '--not-needed', '--reason', '--accept-recommended', '--by'],
   'change-request': ['--slice', '--title', '--problem', '--proposal', '--component', '--adr', '--qa', '--budgets'],
   'decide-change': ['--accept', '--reject', '--by', '--reason'], 'apply-change': [], 'approve-red': ['--by'], refactor: [],
   finish: ['--audit', '--budget-reason', '--mutation-reason'], mutation: ['--files', '--slice'], next: ['--json'], overview: [],
@@ -224,7 +236,7 @@ switch (command) {
     break;
   }
   case 'show': {
-    const id = positionals.find((p) => /^([A-Z]+-|reread$)/.test(p) && !p.includes('/'));
+    const id = positionals.find((p) => (/^([A-Z]+-|reread$|standards$)/.test(p) || STANDARD_IDS.has(p)) && !p.includes('/'));
     const root = resolve(positionals.find((p) => p !== id) ?? '.');
     const model = loadProject(root);
     const card = id ? renderDecision(model, id, { redFiles: redCommitFiles(root, id), auditInput: existsSync(join(root, AUDIT_INPUT)) }) : null;
@@ -236,11 +248,11 @@ switch (command) {
     break;
   }
   case 'ask': {
-    const id = positionals.find((p) => /^([A-Z]+-|reread$)/.test(p) && !p.includes('/'));
+    const id = positionals.find((p) => (/^([A-Z]+-|reread$|standards$)/.test(p) || STANDARD_IDS.has(p)) && !p.includes('/'));
     const root = resolve(positionals.find((p) => p !== id) ?? '.');
     let question;
     try {
-      question = id ? askFor(loadProject(root), id, { redFiles: redCommitFiles(root, id), budgetReason: options.get('budget-reason'), mutationReason: options.get('mutation-reason'), payIn: options.get('pay-in'), addComponent: options.get('add-component') }) : null;
+      question = id ? askFor(loadProject(root), id, { redFiles: redCommitFiles(root, id), budgetReason: options.get('budget-reason'), mutationReason: options.get('mutation-reason'), payIn: options.get('pay-in'), addComponent: options.get('add-component'), details: options.get('details') }) : null;
     } catch (error) {
       if (!(error instanceof DecisionError)) throw error;
       console.error(error.message);
@@ -290,6 +302,26 @@ switch (command) {
     process.stdout.write(list?.length ? renderAdditions(list) : 'There are no additions to review (no .architect/additions.yaml, or it is empty).\n');
     break;
   }
+  case 'standards': {
+    const root = dirAt(0);
+    const model = loadProject(root);
+    if (!model.blueprint) {
+      console.error('there is no design yet (.architect/blueprint.yaml); the standards are decided after it');
+      process.exit(1);
+    }
+    const facts = model.facts ?? projectFacts(root);
+    process.stdout.write(renderStandards(model.standards?.data?.standards ?? [], recommend(model.blueprint.data, facts), { bp: model.blueprint.data, facts }));
+    break;
+  }
+  case 'decide-standard':
+    transition(() => {
+      const id = positionals.find((p) => STANDARD_IDS.has(p));
+      const other = positionals.find((p) => p !== id);
+      if (other && !existsSync(resolve(other))) throw new LifecycleError(`unknown standard ${other}; the standards are ${[...STANDARD_IDS.keys()].join(', ')}`);
+      const root = resolve(other ?? '.');
+      return decideStandard(root, id, { acceptRecommended: flags.has('--accept-recommended'), by: options.get('by') ?? gitUserName(root), adopt: options.get('adopt'), details: options.get('details'), later: flags.has('--later'), trigger: options.get('trigger'), notNeeded: flags.has('--not-needed'), reason: options.get('reason') });
+    });
+    break;
   case 'change-request': {
     const list = (v) => (v ? v.split(',').map((x) => x.trim()).filter(Boolean) : []);
     transition(() => openChange(dirAt(0), { slice: options.get('slice'), title: options.get('title'), problem: options.get('problem'), proposal: options.get('proposal'), components: list(options.get('component')), adrs: list(options.get('adr')), qas: list(options.get('qa')), budgets: flags.has('--budgets') }));
