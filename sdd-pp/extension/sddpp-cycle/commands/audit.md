@@ -124,5 +124,7 @@ a command to type in a terminal. Instead:
    it again. It either closes the slice or changes nothing.
 8. Delete `.sddpp/audit-input.json` and commit the bookkeeping with `chore(<id>): close slice`.
 9. Report to the person: what shipped, the measured size, the deviations, the debt paid and not paid, and the debt proposed.
+   If `ppc finish` printed `Map updated: <path>`, give them the link to it as `[map](<path>)`: the slice's files are lit up
+   there as recent work. If it printed a warning that the map was not redrawn, say so; the slice is closed all the same.
    Then put each proposed debt entry to them, one question each (`ppc ask DEBT-…`, with `--pay-in <slice>` when a planned
    slice should pay it; see **When the person decides**), and each entry left unpaid (`ppc ask DEBT-… --pay-in <slice>`).
