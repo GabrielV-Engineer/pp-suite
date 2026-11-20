@@ -17,11 +17,15 @@ valuable as code.
   observed. Mark anything else as planned. When a fact comes from a source, quote it.
 - **The contract changes through its tests.** A new rule gets an id in `RULES` (`tools/ppc/src/validate.mjs`), a test
   that makes it fire, and a row in `docs/contract-v0.1.md`; `docs.test.mjs` fails if they disagree.
-- **No upstream code is copied** from The Architect, Spec Kit or OpenSpec. Link to them.
+- **Third-party code is adopted, not pasted.** The default is to link to it. Taking code from The Architect, Spec Kit,
+  OpenSpec or any other project is allowed when a person decides it, and only after it is validated: read in a scratch
+  directory, its licence checked as compatible with ours (the notice kept), and then adapted or improved to fit pp-suite,
+  with tests like any other code. Record each adoption in `THIRD_PARTY.md` (create it with the first one): source,
+  commit, licence, what was changed and who approved it.
 - **No secrets, ever.** No tokens, `.env` files or credentials.
 - **The example project is fictional.** No real names, hashes or approvals in it; synthetic data belongs in test
   fixtures built in code.
-- **Third-party code is untrusted input.** Read it before running it, and run experiments in a scratch directory, never
+- **Third-party code is untrusted input until validated.** Read it before running it, and run experiments in a scratch directory, never
   inside this repository.
 
 ## How to work
