@@ -6,6 +6,7 @@ import { validateModel, designFindings, RULES } from '../src/validate.mjs';
 import { checkGit, touches } from '../src/gitcheck.mjs';
 import { mapModel, renderMermaid, writeMap } from '../src/map.mjs';
 import { buildFloorplan } from '../src/floorplan.mjs';
+import { mapLine, mapStatus, openPage, redrawAfterClose, writeMapSettings } from '../src/mapflow.mjs';
 import { designState, nextSteps, nextJson, noDesignNext, overview, renderNext } from '../src/next.mjs';
 import { execFileSync } from 'node:child_process';
 import { checkConstitution, writeConstitution, ConstitutionError } from '../src/constitution.mjs';
@@ -100,10 +101,13 @@ const USAGE = `ppc — pp-suite contract tool
     ppc status [dir]                     what is in progress
     ppc next [dir] [--json]              whose turn it is and the exact command to run (--json: the same, for the /pp skill)
     ppc overview [dir]                   where the project stands: slices, capabilities, debt, contract
-    ppc map [dir] [--stdout | --html]    the project as a picture: components, capabilities and screens, read from the design and the slices.
+    ppc map [dir] [--stdout | --html [--open]]
+                                         the project as a picture: components, capabilities and screens, read from the design and the slices.
                                          Writes .sddpp/map/map.md (mermaid diagrams, shown by GitHub); --stdout prints it and writes nothing;
                                          --html also draws the interactive map with Floorplan (adopted, see THIRD_PARTY.md), reading the code,
-                                         into .sddpp/map/floorplan/index.html (a folder git ignores)
+                                         into .sddpp/map/floorplan/index.html (a folder git ignores); --open shows it in the browser
+    ppc map --on [--open] | --off [dir]  put the map in the flow (off by default): each slice that closes redraws it, and ppc next and the
+                                         session start give its link; with --open the browser opens it when a slice closes
     ppc help [<command>]                 this text, or only the lines of one command; \`ppc <command> --help\` does the same and nothing else
 `;
 
@@ -117,7 +121,7 @@ const OPTIONS = {
   standards: [], 'decide-standard': ['--adopt', '--details', '--later', '--trigger', '--not-needed', '--reason', '--accept-recommended', '--by'],
   'change-request': ['--slice', '--title', '--problem', '--proposal', '--component', '--adr', '--qa', '--budgets'],
   'decide-change': ['--accept', '--reject', '--by', '--reason'], 'apply-change': [], 'approve-red': ['--by'], refactor: [],
-  finish: ['--audit', '--budget-reason', '--mutation-reason'], mutation: ['--files', '--slice'], next: ['--json'], overview: [], map: ['--stdout', '--html'],
+  finish: ['--audit', '--budget-reason', '--mutation-reason'], mutation: ['--files', '--slice'], next: ['--json'], overview: [], map: ['--stdout', '--html', '--open', '--on', '--off'],
   constitution: ['--check'], session: [], contract: [], init: ['--apply', '--shim', '--update', '--allow-untested', '--specify'],
   prompt: ['--task', '--stdout', '--force'], status: [],
 };
@@ -360,6 +364,14 @@ switch (command) {
       if (options.get('mutation-reason')) input.mutation_override_reason = options.get('mutation-reason');
       return finish(dirAt(1), positionals[0], input);
     });
+    {
+      // the slice is closed; with the map on, redraw it. A map that fails is a warning: it never reopens the slice.
+      const root = dirAt(1);
+      const model = loadProject(root);
+      const drawn = redrawAfterClose(root, model, validateModel(model));
+      if (drawn.drawn) console.log(`Map updated: ${drawn.page}${drawn.opened ? ' (opened in the browser)' : ''}`);
+      else if (drawn.error) console.error(`warning: the slice is closed, but the map was not redrawn:\n${drawn.error}`);
+    }
     break;
   case 'mutation':
     transition(() => mutate(dirAt(0), { files: options.get('files')?.split(',').filter(Boolean), slice: options.get('slice') }));
@@ -385,11 +397,22 @@ switch (command) {
     // not a git repository: the phase alone decides, as if no commit had been made yet
     const subjects = gitSubjects(root);
     const next = nextSteps(model, subjects, findings.filter((f) => f.severity === 'error'), { ...buildFacts(root), answers: panelAnswers(root) });
-    process.stdout.write(flags.has('--json') ? `${JSON.stringify(nextJson(next), null, 2)}\n` : renderNext(next));
+    process.stdout.write(flags.has('--json') ? `${JSON.stringify({ ...nextJson(next), map: mapStatus(root) }, null, 2)}\n` : renderNext(next) + (mapLine(root) ? `\n${mapLine(root)}` : ''));
     break;
   }
   case 'map': {
     const root = dirAt(0);
+    if (flags.has('--on') && flags.has('--off')) {
+      console.error('ppc map: --on and --off together; pick one. Nothing was done.');
+      process.exit(2);
+    }
+    if (flags.has('--on') || flags.has('--off')) {
+      const s = writeMapSettings(root, { html: flags.has('--on'), open: flags.has('--open') });
+      console.log(s.html
+        ? `The map is on: each slice that closes redraws it, and \`ppc next\` gives its link${s.open ? '; the browser opens it when a slice closes' : ''}.\nDraw it now: ppc map --html`
+        : 'The map is off: nothing in the flow draws it. `ppc map` still draws it when asked.');
+      break;
+    }
     const model = loadProject(root);
     const findings = validateModel(model);
     if (!model.blueprint) {
@@ -405,7 +428,8 @@ switch (command) {
     if (flags.has('--html')) {
       try {
         const { page } = buildFloorplan(root, model);
-        console.log(`Interactive map written: ${page}\n  ${join(root, page)}`);
+        const opened = flags.has('--open') && openPage(join(root, page));
+        console.log(`Interactive map written: ${page}\n  ${join(root, page)}${opened ? '\n  (opened in the browser)' : ''}`);
       } catch (error) {
         console.error(error.message);
         process.exit(1);

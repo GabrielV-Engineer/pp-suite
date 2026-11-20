@@ -6,6 +6,7 @@ import { validateModel } from './validate.mjs';
 import { designState, nextSteps, noDesignNext, renderNext } from './next.mjs';
 import { isTestPath } from './testpaths.mjs';
 import { GUARD_SCRIPT, HOOK_NAME } from './install.mjs';
+import { mapLine } from './mapflow.mjs';
 
 // What a session is told when it starts: whose turn it is. A hook runs `ppc session` and Claude Code adds the output to the
 // conversation, so an agent starts oriented without anyone typing a command. It is silent outside a pp-suite project, never
@@ -104,7 +105,7 @@ function stateContext(root) {
     if (!model.blueprint) return 'pp-suite: this project has a design file that could not be read. `ppc validate` says why.\n';
     const findings = validateModel(model);
     const body = renderNext(nextSteps(model, gitSubjects(root), findings.filter((f) => f.severity === 'error'), { ...buildFacts(root), answers: panelAnswers(root) }));
-    const text = `pp-suite: ${model.blueprint.data.project.name} (blueprint revision ${model.blueprint.data.revision}). State from \`ppc next\`:\n\n${body}`;
+    const text = `pp-suite: ${model.blueprint.data.project.name} (blueprint revision ${model.blueprint.data.revision}). State from \`ppc next\`:\n\n${body}${mapLine(root) ? `\n${mapLine(root)}` : ''}`;
     return text.length > CAP ? `${text.slice(0, CAP).replace(/\n[^\n]*$/, '')}\n... (shortened; run \`ppc next\` for the rest)\n` : text;
   } catch {
     return 'pp-suite: the state of this project could not be read. Run `ppc validate`.\n';
