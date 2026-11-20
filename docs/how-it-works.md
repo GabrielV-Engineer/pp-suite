@@ -137,6 +137,14 @@ The engine behind `/pp`; a person rarely types these. Each command either change
 | `ppc map --describe` | the agent | Draws the map, then lists the files with no name or description and the worksheets to write them from (what each file defines and who uses it); the agent fills `floorplan/descriptions/*.json` following Floorplan's guide, and `ppc map --html` draws them. Descriptions live in that folder, so each clone has its own |
 | `ppc map --on [--open]` / `--off` | anyone | Puts the map in the flow; it is off by default, and the setting is `.sddpp/map/settings.json`, shared by the team. While it is on, `ppc finish` redraws both maps when a slice closes (a map that fails is a warning, never a reopened slice), `ppc next`, `ppc next --json` (`map`) and the session start give the page's link, and `/pp` and `/pp-audit` pass it to the person. With `--open` the browser opens it when a slice closes, never in CI or without a display |
 
+**What `ppc map` writes, and where.** It changes nothing git tracks except its own record, and never writes over the
+project's files. The markdown map and the setting go in `.sddpp/map/` (`map.md`, `settings.json`), committed with the
+rest of the bookkeeping. The interactive map goes in `floorplan/` at the root, because Floorplan's own tools expect it
+there (its Ask server takes the folder above it as the codebase, and its describe step writes only there); that folder
+ignores itself in git, so `git status` never shows it. If the project already has a `floorplan/` of its own (files git
+tracks, or files that are not a map), `ppc` refuses and writes nothing in it. To hide the folder in VS Code, add
+`"files.exclude": { "floorplan": true }` to your settings.
+
 Approvals are human-only. The guard stops the agent from running `ppc approve-*` unless the person chose that command in the panel, and blocks it from writing any
 field that records a human decision into `.sddpp/`; in the default, accept-edits and auto permission modes
 Claude Code shows the person the exact command and asks, and if nobody answers the command does not run ([spike](ask-spike.md) and [probe](ask-panel-probe.md): a person saw the dialog in the VS Code extension, in auto mode, and pressed Yes; pressing No was not tried). In any other mode the guard blocks and the person runs the command in a terminal (the CLI
