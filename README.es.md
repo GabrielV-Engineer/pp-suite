@@ -206,7 +206,8 @@ cambio queda registrado.
 La meta es una forma ágil de trabajar con agentes de IA en la que el trabajo avanza en rebanadas que ves funcionar, los
 tests sostienen lo hecho, la deuda se sigue y las decisiones no se pierden en un proyecto largo. El diseño busca dejarle
 al agente menos espacio para adivinar, desviarse o quitarte el control. Cada pieza de abajo aporta una parte de eso. No
-copiamos código de ninguna, y cada una se puede actualizar por separado.
+copiamos código de ninguna, salvo el mapa de Floorplan, adoptado sin cambios y registrado en
+[THIRD_PARTY.md](THIRD_PARTY.md); cada una se puede actualizar por separado.
 
 | Construido sobre | Qué aporta al flujo | Por qué esta |
 |---|---|---|

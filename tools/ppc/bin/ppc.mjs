@@ -4,6 +4,8 @@ import { join, resolve } from 'node:path';
 import { loadProject } from '../src/load.mjs';
 import { validateModel, designFindings, RULES } from '../src/validate.mjs';
 import { checkGit, touches } from '../src/gitcheck.mjs';
+import { mapModel, renderMermaid, writeMap } from '../src/map.mjs';
+import { buildFloorplan } from '../src/floorplan.mjs';
 import { designState, nextSteps, nextJson, noDesignNext, overview, renderNext } from '../src/next.mjs';
 import { execFileSync } from 'node:child_process';
 import { checkConstitution, writeConstitution, ConstitutionError } from '../src/constitution.mjs';
@@ -98,6 +100,10 @@ const USAGE = `ppc — pp-suite contract tool
     ppc status [dir]                     what is in progress
     ppc next [dir] [--json]              whose turn it is and the exact command to run (--json: the same, for the /pp skill)
     ppc overview [dir]                   where the project stands: slices, capabilities, debt, contract
+    ppc map [dir] [--stdout | --html]    the project as a picture: components, capabilities and screens, read from the design and the slices.
+                                         Writes .sddpp/map/map.md (mermaid diagrams, shown by GitHub); --stdout prints it and writes nothing;
+                                         --html also draws the interactive map with Floorplan (adopted, see THIRD_PARTY.md), reading the code,
+                                         into .sddpp/map/floorplan/index.html (a folder git ignores)
     ppc help [<command>]                 this text, or only the lines of one command; \`ppc <command> --help\` does the same and nothing else
 `;
 
@@ -111,7 +117,7 @@ const OPTIONS = {
   standards: [], 'decide-standard': ['--adopt', '--details', '--later', '--trigger', '--not-needed', '--reason', '--accept-recommended', '--by'],
   'change-request': ['--slice', '--title', '--problem', '--proposal', '--component', '--adr', '--qa', '--budgets'],
   'decide-change': ['--accept', '--reject', '--by', '--reason'], 'apply-change': [], 'approve-red': ['--by'], refactor: [],
-  finish: ['--audit', '--budget-reason', '--mutation-reason'], mutation: ['--files', '--slice'], next: ['--json'], overview: [],
+  finish: ['--audit', '--budget-reason', '--mutation-reason'], mutation: ['--files', '--slice'], next: ['--json'], overview: [], map: ['--stdout', '--html'],
   constitution: ['--check'], session: [], contract: [], init: ['--apply', '--shim', '--update', '--allow-untested', '--specify'],
   prompt: ['--task', '--stdout', '--force'], status: [],
 };
@@ -380,6 +386,31 @@ switch (command) {
     const subjects = gitSubjects(root);
     const next = nextSteps(model, subjects, findings.filter((f) => f.severity === 'error'), { ...buildFacts(root), answers: panelAnswers(root) });
     process.stdout.write(flags.has('--json') ? `${JSON.stringify(nextJson(next), null, 2)}\n` : renderNext(next));
+    break;
+  }
+  case 'map': {
+    const root = dirAt(0);
+    const model = loadProject(root);
+    const findings = validateModel(model);
+    if (!model.blueprint) {
+      report(findings);
+      process.exit(1);
+    }
+    const map = mapModel(model, findings);
+    if (flags.has('--stdout')) {
+      process.stdout.write(renderMermaid(map));
+      break;
+    }
+    for (const file of writeMap(root, map)) console.log(`Map written: ${file}\n  ${join(root, file)}`);
+    if (flags.has('--html')) {
+      try {
+        const { page } = buildFloorplan(root, model);
+        console.log(`Interactive map written: ${page}\n  ${join(root, page)}`);
+      } catch (error) {
+        console.error(error.message);
+        process.exit(1);
+      }
+    }
     break;
   }
   case 'constitution': {
