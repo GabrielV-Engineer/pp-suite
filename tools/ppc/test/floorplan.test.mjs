@@ -5,7 +5,7 @@ import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { loadProject } from '../src/load.mjs';
-import { FLOORPLAN, toArchitecture, toRecentWork } from '../src/floorplan.mjs';
+import { descriptionCount, FLOORPLAN, toArchitecture, toRecentWork } from '../src/floorplan.mjs';
 import { CLI, EXAMPLE, repo } from './helpers.mjs';
 
 const run = (dir, ...args) => spawnSync('node', [CLI, ...args], { cwd: dir, encoding: 'utf8' });
@@ -171,4 +171,44 @@ test('ppc map --html: an empty floorplan/ folder, or one a map left, is used', (
   mkdirSync(join(r.dir, 'floorplan'));
   assert.equal(run(r.dir, 'map', '--html').status, 0);
   assert.equal(run(r.dir, 'map', '--html').status, 0, 'drawn again over its own map');
+});
+
+/** A repo with src/tasks.ts drawn and described as "Task list". */
+function described(t) {
+  const r = repo(t);
+  r.commit('build: the task list', { 'src/tasks.ts': 'export const tasks = [];\n' });
+  assert.equal(run(r.dir, 'map', '--describe').status, 0);
+  const file = join(r.dir, 'floorplan/descriptions/backend.json');
+  const d = JSON.parse(readFileSync(file, 'utf8'));
+  d.files['src/tasks.ts'] = { name: 'Task list', description: 'Holds the tasks in memory, empty for now.' };
+  writeFileSync(file, JSON.stringify(d));
+  assert.equal(run(r.dir, 'map', '--html').status, 0);
+  return r;
+}
+const fileOn = (r, p) => JSON.parse(readFileSync(join(r.dir, 'floorplan/graph.json'), 'utf8')).files.find((f) => f.p === p);
+
+// Floorplan's refresh.mjs reconciles descriptions with the code; ppc uses it once a map exists.
+test('redrawing: a described file whose exports changed keeps its description, flagged for review, and the count says so', (t) => {
+  const r = described(t);
+  r.commit('build: add a task', { 'src/tasks.ts': 'export const tasks = [];\nexport function add(title) { tasks.push(title); }\n' });
+  const out = run(r.dir, 'map', '--html');
+  assert.equal(out.status, 0, out.stdout + out.stderr);
+  const f = fileOn(r, 'src/tasks.ts');
+  assert.equal(f.name, 'Task list');
+  assert.ok(f.review, 'flagged for review');
+  assert.match(out.stdout, /Descriptions: 1 of 1 files; 1 to review because the code changed\. To write them: ppc map --describe/);
+});
+
+test('redrawing: a renamed file keeps its description', (t) => {
+  const r = described(t);
+  r.git('mv', 'src/tasks.ts', 'src/task-list.ts');
+  r.git('commit', '-q', '-m', 'rename the task list');
+  assert.equal(run(r.dir, 'map', '--html').status, 0);
+  assert.equal(fileOn(r, 'src/task-list.ts')?.name, 'Task list');
+});
+
+test('descriptionCount: reads the described files and those to review from the build report', () => {
+  assert.deepEqual(descriptionCount('DESCRIPTIONS  files 3/5 · routes 0/0 · modules 3/3 · 2 need review (code changed)'), { described: 3, total: 5, review: 2 });
+  assert.deepEqual(descriptionCount('DESCRIPTIONS  files 1/1 · routes 0/0 · modules 3/3'), { described: 1, total: 1, review: 0 });
+  assert.equal(descriptionCount('nothing'), null);
 });

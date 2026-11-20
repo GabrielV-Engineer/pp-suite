@@ -128,6 +128,8 @@ a command to type in a terminal. Instead:
    there as recent work. If it printed a warning that the map was not redrawn, say so; the slice is closed all the same.
    With the map on, also give names and descriptions to the files this slice added or changed: run `ppc map --describe`,
    fill only those files' entries in the descriptions files it lists (all of them only if the person asked for the whole
-   map), following the guide it names, without changing any key, then `ppc map --html`. Describe what the code does today.
+   map), and every entry with a `review` field (its code changed: rewrite it, then delete the field), following the guide
+   it names, without changing any key, then `ppc map --html`. Describe what the code does today. Write in the files it
+   lists: with shared descriptions they are in `.sddpp/map/descriptions/`, committed with the rest of the bookkeeping.
    Then put each proposed debt entry to them, one question each (`ppc ask DEBT-…`, with `--pay-in <slice>` when a planned
    slice should pay it; see **When the person decides**), and each entry left unpaid (`ppc ask DEBT-… --pay-in <slice>`).

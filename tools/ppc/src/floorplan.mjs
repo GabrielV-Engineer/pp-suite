@@ -1,5 +1,6 @@
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { mapModel } from './map.mjs';
@@ -19,6 +20,12 @@ export const FLOORPLAN = {
 // Floorplan's own tools expect the map in floorplan/ at the root: its Ask server takes the folder above it as the codebase, its
 // hint says `node floorplan/serve.mjs`, and describe.mjs writes there. The folder ignores itself in git (its own .gitignore).
 export const FLOORPLAN_DIR = 'floorplan';
+// What the last drawing was made from (the commit, the design, the slice closed last), to tell when the map is behind; and the
+// mark a drawing started in the background leaves while it runs.
+export const MAP_STAMP = `${FLOORPLAN_DIR}/.cache/ppc-map.json`;
+export const REDRAW_MARK = `${FLOORPLAN_DIR}/.cache/ppc-redraw.lock`;
+// With descriptions shared, this folder (in git) is where they live; floorplan/descriptions/ is a copy made for each drawing.
+export const SHARED_DESCRIPTIONS = '.sddpp/map/descriptions';
 export const DESCRIPTIONS_GUIDE = join(FLOORPLAN.dir, 'references', 'writing-descriptions.md');
 export const FLOORPLAN_PAGE = `${FLOORPLAN_DIR}/index.html`;
 
@@ -142,34 +149,104 @@ export function checkMapFolder(root) {
       return '';
     }
   };
-  const marked = read('.gitignore').includes('Floorplan keeps its map out of git') || read('architecture.json').includes('"floorplan/architecture@1"');
+  // ppc's own marks count too: it writes them only in a folder this check accepted (startRedraw checks before writing one)
+  const marked = read('.gitignore').includes('Floorplan keeps its map out of git') || read('architecture.json').includes('"floorplan/architecture@1"')
+    || existsSync(join(root, MAP_STAMP)) || existsSync(join(root, REDRAW_MARK));
   if (!marked) refuse('it is not a map Floorplan drew');
 }
 
 /** How many files have a description, read from the build's report (`DESCRIPTIONS  files 1/95 · ...`). */
 export function descriptionCount(report) {
-  const m = /DESCRIPTIONS\s+files (\d+)\/(\d+)/.exec(report ?? '');
-  return m ? { described: Number(m[1]), total: Number(m[2]) } : null;
+  const m = /DESCRIPTIONS\s+files (\d+)\/(\d+)[^\n]*?(?:· (\d+) need review)?\s*(?:\(code changed\))?$/m.exec(report ?? '');
+  return m ? { described: Number(m[1]), total: Number(m[2]), review: Number(m[3] ?? 0) } : null;
 }
 
 const script = (name) => join(FLOORPLAN.dir, 'scripts', name);
-const node = (root, args) => execFileSync(process.execPath, args, { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+const node = (root, args, env = {}) => execFileSync(process.execPath, args, { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, ...env } });
 
 /**
  * Write Floorplan's input in `floorplan/` and run its scan and build there. Nothing outside that folder is written (no
  * `CLAUDE.local.md`). The names and descriptions in `floorplan/descriptions/` are the agent's and are kept.
  */
-export function buildFloorplan(root, model) {
-  checkMapFolder(root);
+/** Floorplan's input as pp-suite writes it now, and a hash of it: the same design and slices give the same hash. */
+function inputs(root, model) {
+  const architecture = `${JSON.stringify(toArchitecture(model), null, 2)}\n`;
+  const { slice, files } = lastClosedSlice(root, model);
+  const recent = `${JSON.stringify(toRecentWork(slice, files), null, 2)}\n`;
+  return { architecture, recent, hash: createHash('sha256').update(architecture).update(recent).digest('hex') };
+}
+
+/**
+ * Whether the map is behind: not drawn, or drawn from another commit, another design or another closed slice. Uncommitted
+ * code does not count; slices commit their work. `descriptions` are the counts of the last drawing.
+ */
+export function mapFreshness(root, model) {
+  if (!existsSync(join(root, FLOORPLAN_PAGE))) return { drawn: false, stale: true, descriptions: null };
+  let stamp = null;
+  try {
+    stamp = JSON.parse(readFileSync(join(root, MAP_STAMP), 'utf8'));
+  } catch {
+    // no stamp: drawn by something else, so treated as behind
+  }
+  const stale = !stamp || stamp.head !== git(root, ['rev-parse', 'HEAD']) || stamp.input !== inputs(root, model).hash;
+  return { drawn: true, stale, descriptions: stamp?.descriptions ?? null };
+}
+
+/** Make `to` hold the same .json files as `from`, and nothing else. */
+function mirror(from, to) {
+  mkdirSync(to, { recursive: true });
+  const files = existsSync(from) ? readdirSync(from).filter((f) => f.endsWith('.json')) : [];
+  for (const f of readdirSync(to)) if (f.endsWith('.json') && !files.includes(f)) rmSync(join(to, f));
+  for (const f of files) copyFileSync(join(from, f), join(to, f));
+}
+
+/** Copy the descriptions Floorplan holds into the shared folder (switching to shared keeps what was written per clone). */
+export function shareDescriptions(root) {
+  const local = join(root, FLOORPLAN_DIR, 'descriptions');
+  if (existsSync(local)) mirror(local, join(root, SHARED_DESCRIPTIONS));
+}
+
+/**
+ * Draw the map. With `shared`, the descriptions in `.sddpp/map/descriptions/` are copied in first, and copied back after, so
+ * what Floorplan reconciles (moves, deletions, review flags) and the skeletons it adds reach the shared copy.
+ */
+export function buildFloorplan(root, model, { shared = false } = {}) {
+  try {
+    checkMapFolder(root);
+    if (shared) mirror(join(root, SHARED_DESCRIPTIONS), join(root, FLOORPLAN_DIR, 'descriptions'));
+    const result = draw(root, model);
+    if (shared) shareDescriptions(root);
+    return result;
+  } finally {
+    rmSync(join(root, REDRAW_MARK), { force: true });
+  }
+}
+
+function draw(root, model) {
   const out = join(root, FLOORPLAN_DIR);
   mkdirSync(out, { recursive: true });
-  writeFileSync(join(out, 'architecture.json'), `${JSON.stringify(toArchitecture(model), null, 2)}\n`);
-  const { slice, files } = lastClosedSlice(root, model);
-  writeFileSync(join(out, 'recent-work.json'), `${JSON.stringify(toRecentWork(slice, files), null, 2)}\n`);
+  const input = inputs(root, model);
+  writeFileSync(join(out, 'architecture.json'), input.architecture);
+  writeFileSync(join(out, 'recent-work.json'), input.recent);
+  const done = (report) => {
+    const descriptions = descriptionCount(report);
+    mkdirSync(join(out, '.cache'), { recursive: true });
+    writeFileSync(join(root, MAP_STAMP), `${JSON.stringify({ head: git(root, ['rev-parse', 'HEAD']), input: input.hash, descriptions })}\n`);
+    return { page: FLOORPLAN_PAGE, report, descriptions };
+  };
+  // Once a map exists, Floorplan's refresh.mjs redraws it: it carries descriptions over to moved files, drops those of deleted
+  // ones, and flags for review those whose exports or routes changed. Unattended, it writes only inside floorplan/. It refuses
+  // where there is no map yet or no code at all; then the scan and the build draw it from scratch.
+  if (existsSync(join(out, 'graph.json'))) {
+    try {
+      return done(node(root, [script('refresh.mjs'), root], { FLOORPLAN_UNATTENDED: '1' }));
+    } catch {
+      // drawn from scratch below
+    }
+  }
   try {
     node(root, [script('scan.mjs'), root, '--out', join(out, '.cache', 'scan.json')]);
-    const report = node(root, [script('build.mjs'), root, '--out', out, '--no-claude-md']);
-    return { page: FLOORPLAN_PAGE, report, descriptions: descriptionCount(report) };
+    return done(node(root, [script('build.mjs'), root, '--out', out, '--no-claude-md']));
   } catch (error) {
     throw new Error(`Floorplan could not draw the map:\n${error.stdout ?? ''}${error.stderr ?? ''}`.trim());
   }
@@ -179,10 +256,15 @@ export function buildFloorplan(root, model) {
  * Floorplan's describe step, after drawing the map: one worksheet per component with what each undescribed file defines and
  * who uses it, and a skeleton in `floorplan/descriptions/` for the agent to fill (Floorplan's `references/writing-descriptions.md`).
  */
-export function describeFloorplan(root, model) {
-  buildFloorplan(root, model);
+export function describeFloorplan(root, model, { shared = false } = {}) {
+  buildFloorplan(root, model, { shared });
   try {
-    return JSON.parse(node(root, [script('describe.mjs'), root, '--json']));
+    const result = JSON.parse(node(root, [script('describe.mjs'), root, '--json']));
+    if (!shared) return result;
+    // the skeletons go where the agent writes: the shared folder
+    shareDescriptions(root);
+    for (const w of result.worksheets ?? []) w.descriptions = String(w.descriptions).replace(`${FLOORPLAN_DIR}/descriptions`, SHARED_DESCRIPTIONS);
+    return result;
   } catch (error) {
     throw new Error(`Floorplan could not write the worksheets:\n${error.stdout ?? ''}${error.stderr ?? ''}`.trim());
   }

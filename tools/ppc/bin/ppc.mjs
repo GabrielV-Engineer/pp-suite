@@ -5,8 +5,8 @@ import { loadProject } from '../src/load.mjs';
 import { validateModel, designFindings, RULES } from '../src/validate.mjs';
 import { checkGit, touches } from '../src/gitcheck.mjs';
 import { mapModel, renderMermaid, writeMap } from '../src/map.mjs';
-import { buildFloorplan, describeFloorplan, DESCRIPTIONS_GUIDE } from '../src/floorplan.mjs';
-import { mapLine, mapStatus, openPage, redrawAfterClose, writeMapSettings } from '../src/mapflow.mjs';
+import { describeFloorplan, DESCRIPTIONS_GUIDE, shareDescriptions, SHARED_DESCRIPTIONS } from '../src/floorplan.mjs';
+import { DESCRIPTION_PLACES, drawMap, mapLine, mapStatus, openPage, readMapSettings, recommendedDescriptions, redrawAfterClose, writeMapSettings } from '../src/mapflow.mjs';
 import { designState, nextSteps, nextJson, noDesignNext, overview, renderNext } from '../src/next.mjs';
 import { execFileSync } from 'node:child_process';
 import { checkConstitution, writeConstitution, ConstitutionError } from '../src/constitution.mjs';
@@ -107,12 +107,17 @@ const USAGE = `ppc — pp-suite contract tool
                                          --html also draws the interactive map with Floorplan (adopted, see THIRD_PARTY.md), reading the code,
                                          into floorplan/index.html (a folder git ignores); --open shows it in the browser
     ppc map --describe [dir]             draw the map, then list the files with no description and the worksheets to write them from
-    ppc map --on [--open] | --off [dir]  put the map in the flow (off by default): each slice that closes redraws it, and ppc next and the
-                                         session start give its link; with --open the browser opens it when a slice closes
+    ppc map --on --descriptions <shared|clone> [--open] | --off [dir]
+                                         put the map in the flow (off by default): each slice that closes redraws it, the session start
+                                         redraws it in the background when it is behind, and ppc next gives its link; with --open the browser
+                                         opens it when a slice closes. The descriptions of the files are shared (in .sddpp/, in git) or kept
+                                         per clone (out of git): a person decides, and --on without it explains both and recommends one
+    ppc map --descriptions <shared|clone> [dir]
+                                         change where the descriptions live; switching to shared keeps what was written
     ppc help [<command>]                 this text, or only the lines of one command; \`ppc <command> --help\` does the same and nothing else
 `;
 
-const VALUE_OPTIONS = new Set(['--by', '--audit', '--files', '--slice', '--accept', '--budget-reason', '--mutation-reason', '--reason', '--task', '--specify', '--title', '--problem', '--proposal', '--component', '--adr', '--qa', '--but-cut', '--but-keep', '--pay-in', '--add-component', '--mockup', '--adopt', '--details', '--trigger']);
+const VALUE_OPTIONS = new Set(['--descriptions', '--by', '--audit', '--files', '--slice', '--accept', '--budget-reason', '--mutation-reason', '--reason', '--task', '--specify', '--title', '--problem', '--proposal', '--component', '--adr', '--qa', '--but-cut', '--but-keep', '--pay-in', '--add-component', '--mockup', '--adopt', '--details', '--trigger']);
 // What each command accepts. Anything else is refused: an option that is silently ignored can turn a request for help, or a typo,
 // into an approval (`ppc approve --help` once approved the one slice that could be approved).
 const OPTIONS = {
@@ -122,7 +127,7 @@ const OPTIONS = {
   standards: [], 'decide-standard': ['--adopt', '--details', '--later', '--trigger', '--not-needed', '--reason', '--accept-recommended', '--by'],
   'change-request': ['--slice', '--title', '--problem', '--proposal', '--component', '--adr', '--qa', '--budgets'],
   'decide-change': ['--accept', '--reject', '--by', '--reason'], 'apply-change': [], 'approve-red': ['--by'], refactor: [],
-  finish: ['--audit', '--budget-reason', '--mutation-reason'], mutation: ['--files', '--slice'], next: ['--json'], overview: [], map: ['--stdout', '--html', '--open', '--on', '--off', '--describe'],
+  finish: ['--audit', '--budget-reason', '--mutation-reason'], mutation: ['--files', '--slice'], next: ['--json'], overview: [], map: ['--stdout', '--html', '--open', '--on', '--off', '--describe', '--descriptions'],
   constitution: ['--check'], session: [], contract: [], init: ['--apply', '--shim', '--update', '--allow-untested', '--specify'],
   prompt: ['--task', '--stdout', '--force'], status: [],
 };
@@ -398,7 +403,7 @@ switch (command) {
     // not a git repository: the phase alone decides, as if no commit had been made yet
     const subjects = gitSubjects(root);
     const next = nextSteps(model, subjects, findings.filter((f) => f.severity === 'error'), { ...buildFacts(root), answers: panelAnswers(root) });
-    process.stdout.write(flags.has('--json') ? `${JSON.stringify({ ...nextJson(next), map: mapStatus(root) }, null, 2)}\n` : renderNext(next) + (mapLine(root) ? `\n${mapLine(root)}` : ''));
+    process.stdout.write(flags.has('--json') ? `${JSON.stringify({ ...nextJson(next), map: mapStatus(root, model) }, null, 2)}\n` : renderNext(next) + (mapLine(root, model) ? `\n${mapLine(root, model)}` : ''));
     break;
   }
   case 'map': {
@@ -407,11 +412,34 @@ switch (command) {
       console.error('ppc map: --on and --off together; pick one. Nothing was done.');
       process.exit(2);
     }
-    if (flags.has('--on') || flags.has('--off')) {
-      const s = writeMapSettings(root, { html: flags.has('--on'), open: flags.has('--open') });
+    const place = options.get('descriptions');
+    if (place !== undefined && !DESCRIPTION_PLACES.includes(place)) {
+      console.error(`ppc map: --descriptions takes shared or clone, not "${place}". Nothing was done.`);
+      process.exit(2);
+    }
+    if (flags.has('--on') && place === undefined) {
+      // a person decides where the descriptions live: ask once, here, before anything is turned on
+      const recommended = recommendedDescriptions(root);
+      console.error([
+        'ppc map --on: say where the descriptions of the files live. Nothing was turned on. Ask the person:',
+        '  --descriptions shared   in .sddpp/map/descriptions, in git: written once for the whole team, reviewed in pull requests',
+        '  --descriptions clone    in floorplan/, out of git: nothing enters the repository, and each clone writes its own (tokens each time)',
+        `Recommended: ${recommended} (${recommended === 'shared' ? 'the project has a remote, so others may work on it' : 'no remote: one person, one clone'}).`,
+      ].join('\n'));
+      process.exit(2);
+    }
+    if (flags.has('--on') || flags.has('--off') || place !== undefined) {
+      const before = readMapSettings(root);
+      if (!flags.has('--on') && !flags.has('--off') && !before.html) {
+        console.error('ppc map: the map is off; turn it on with ppc map --on --descriptions <shared|clone>. Nothing was done.');
+        process.exit(2);
+      }
+      const html = flags.has('--off') ? false : true;
+      const s = writeMapSettings(root, { html, open: flags.has('--on') ? flags.has('--open') : before.open, descriptions: place ?? before.descriptions });
+      if (s.descriptions === 'shared' && before.descriptions !== 'shared') shareDescriptions(root);
       console.log(s.html
-        ? `The map is on: each slice that closes redraws it, and \`ppc next\` gives its link${s.open ? '; the browser opens it when a slice closes' : ''}.\nDraw it now: ppc map --html`
-        : 'The map is off: nothing in the flow draws it. `ppc map` still draws it when asked.');
+        ? `The map is on: each slice that closes redraws it, the session start redraws it when it is behind, and \`ppc next\` gives its link${s.open ? '; the browser opens it when a slice closes' : ''}.\nDescriptions: ${s.descriptions === 'shared' ? `shared, in ${SHARED_DESCRIPTIONS} (commit them with the rest of .sddpp/)` : 'per clone, in floorplan/descriptions (out of git)'}.\nDraw it now: ppc map --html`
+        : `The map is off: nothing in the flow draws it. \`ppc map\` still draws it when asked.${existsSync(join(root, SHARED_DESCRIPTIONS)) ? ` The shared descriptions stay in ${SHARED_DESCRIPTIONS}; delete them if they should leave git.` : ''}`);
       break;
     }
     const model = loadProject(root);
@@ -428,7 +456,7 @@ switch (command) {
     for (const file of writeMap(root, map)) console.log(`Map written: ${file}\n  ${join(root, file)}`);
     if (flags.has('--describe')) {
       try {
-        const result = describeFloorplan(root, model);
+        const result = describeFloorplan(root, model, { shared: readMapSettings(root).descriptions === 'shared' });
         if (result.nothingToDo || !result.worksheets?.length) {
           console.log('Every file and route has a description.');
           break;
@@ -444,10 +472,14 @@ switch (command) {
     }
     if (flags.has('--html')) {
       try {
-        const { page, descriptions } = buildFloorplan(root, model);
+        const { page, descriptions } = drawMap(root, model);
         const opened = flags.has('--open') && openPage(join(root, page));
         console.log(`Interactive map written: ${page}\n  ${join(root, page)}${opened ? '\n  (opened in the browser)' : ''}`);
-        if (descriptions?.total) console.log(`Descriptions: ${descriptions.described} of ${descriptions.total} files.${descriptions.described < descriptions.total ? ' To write them: ppc map --describe' : ''}`);
+        if (descriptions?.total) {
+          const review = descriptions.review ? `; ${descriptions.review} to review because the code changed` : '';
+          const todo = descriptions.described < descriptions.total || descriptions.review ? ' To write them: ppc map --describe' : '';
+          console.log(`Descriptions: ${descriptions.described} of ${descriptions.total} files${review}.${todo}`);
+        }
         console.log('To ask questions about the code from the map: node floorplan/serve.mjs (Claude Code CLI, read-only tools)');
       } catch (error) {
         console.error(error.message);

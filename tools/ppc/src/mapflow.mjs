@@ -1,20 +1,23 @@
-import { spawn } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { execFileSync, spawn } from 'node:child_process';
+import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { mapModel, writeMap, MAP_DIR } from './map.mjs';
-import { buildFloorplan, FLOORPLAN_PAGE } from './floorplan.mjs';
+import { buildFloorplan, checkMapFolder, FLOORPLAN_PAGE, mapFreshness, REDRAW_MARK } from './floorplan.mjs';
 
 // The map in the flow. Off unless someone turns it on (`ppc map --on`): then every slice that closes redraws it, `ppc next`
 // and the session start carry its link, and, only with `--open`, the browser opens it when a slice closes. The setting is a
 // file in the project (`.sddpp/map/settings.json`), so the whole team shares it; a missing or broken file means off.
 
 export const MAP_SETTINGS = `${MAP_DIR}/settings.json`;
-const OFF = { html: false, open: false };
+const OFF = { html: false, open: false, descriptions: 'clone' };
+export const DESCRIPTION_PLACES = ['shared', 'clone'];
 
 export function readMapSettings(root) {
   try {
     const data = JSON.parse(readFileSync(join(root, MAP_SETTINGS), 'utf8'));
-    return { html: data?.html === true, open: data?.html === true && data?.open === true };
+    const html = data?.html === true;
+    return { html, open: html && data?.open === true, descriptions: data?.descriptions === 'shared' ? 'shared' : 'clone' };
   } catch {
     return { ...OFF };
   }
@@ -23,23 +26,87 @@ export function readMapSettings(root) {
 export function writeMapSettings(root, settings) {
   const file = join(root, MAP_SETTINGS);
   mkdirSync(dirname(file), { recursive: true });
-  const value = { html: settings.html === true, open: settings.html === true && settings.open === true };
+  const html = settings.html === true;
+  const value = { html, open: html && settings.open === true, descriptions: settings.descriptions === 'shared' ? 'shared' : 'clone' };
   writeFileSync(file, `${JSON.stringify(value, null, 2)}\n`);
   return value;
 }
 
-/** Where the map is, for `ppc next --json` and the session: null while it is off. */
-export function mapStatus(root) {
-  if (!readMapSettings(root).html) return null;
-  const page = join(root, FLOORPLAN_PAGE);
-  return { page, drawn: existsSync(page) };
+/** Where the descriptions should live, for the question asked when the map is turned on: shared once there is a remote. */
+export function recommendedDescriptions(root) {
+  try {
+    return execFileSync('git', ['-C', root, 'remote'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim() ? 'shared' : 'clone';
+  } catch {
+    return 'clone';
+  }
 }
 
-/** One line for `ppc next` and the session start, or '' while the map is off. */
-export function mapLine(root) {
-  const status = mapStatus(root);
+/** Draw the HTML map with the descriptions where the setting puts them. */
+export function drawMap(root, model) {
+  return buildFloorplan(root, model, { shared: readMapSettings(root).descriptions === 'shared' });
+}
+
+/** Where the map is and whether it is behind, for `ppc next --json` and the session: null while it is off. */
+export function mapStatus(root, model) {
+  if (!readMapSettings(root).html) return null;
+  return { page: join(root, FLOORPLAN_PAGE), ...mapFreshness(root, model) };
+}
+
+const describeHint = (d) => {
+  if (!d?.total || (d.described >= d.total && !d.review)) return '';
+  const review = d.review ? `, ${d.review} to review because the code changed` : '';
+  return ` (descriptions: ${d.described} of ${d.total} files${review}. Write them: ppc map --describe)`;
+};
+
+/** One line for `ppc next`, or '' while the map is off. With `redrawing`, a drawing was just started in the background. */
+export function mapLine(root, model, { redrawing = false } = {}) {
+  const status = mapStatus(root, model);
   if (!status) return '';
-  return status.drawn ? `Map: ${status.page} (redraw: ppc map --html)\n` : 'Map: not drawn yet. Draw it: ppc map --html\n';
+  if (redrawing) return `Map: being drawn in the background, because the code or the design changed since it was drawn. It will be at ${status.page}\n`;
+  if (!status.drawn) return 'Map: not drawn yet. Draw it: ppc map --html\n';
+  if (status.stale) return `Map: ${status.page} is behind the code. Redraw it: ppc map --html${describeHint(status.descriptions)}\n`;
+  return `Map: ${status.page}${describeHint(status.descriptions)}\n`;
+}
+
+const CLI = fileURLToPath(new URL('../bin/ppc.mjs', import.meta.url));
+const MARK_LIFETIME_MS = 10 * 60 * 1000;
+
+/**
+ * Start `ppc map --html` in the background, unless a run started in the last ten minutes has not finished (a drawing removes the
+ * mark when it ends, whether it worked or not). Returns whether it started one. `spawnFn` is for the tests.
+ */
+export function startRedraw(root, { spawnFn = spawnDetached } = {}) {
+  const mark = join(root, REDRAW_MARK);
+  try {
+    checkMapFolder(root);
+  } catch {
+    return false; // a floorplan/ of the project's own: nothing is written in it, here or anywhere
+  }
+  try {
+    if (Date.now() - statSync(mark).mtimeMs < MARK_LIFETIME_MS) return false;
+  } catch {
+    // no mark: nothing running
+  }
+  mkdirSync(dirname(mark), { recursive: true });
+  writeFileSync(mark, `${process.pid}\n`);
+  spawnFn(process.execPath, [CLI, 'map', '--html', root]);
+  return true;
+}
+
+function spawnDetached(cmd, args) {
+  try {
+    spawn(cmd, args, { detached: true, stdio: 'ignore', env: { ...process.env, CI: '1' } }).on('error', () => {}).unref();
+  } catch {
+    // not started: the next session tries again
+  }
+}
+
+/** The map's line for the session start: a map that is behind (or never drawn) is redrawn in the background first. */
+export function sessionMapLine(root, model, { redraw = startRedraw } = {}) {
+  const status = mapStatus(root, model);
+  if (!status) return '';
+  if (status.stale && redraw(root)) return mapLine(root, model, { redrawing: true });
+  return mapLine(root, model);
 }
 
 /** Redraw both maps after a slice closed, when the map is on. Never throws: a slice that closed stays closed. */
@@ -48,7 +115,7 @@ export function redrawAfterClose(root, model, findings) {
   if (!settings.html) return { drawn: false };
   try {
     writeMap(root, mapModel(model, findings));
-    buildFloorplan(root, model);
+    drawMap(root, model);
     const page = join(root, FLOORPLAN_PAGE);
     return { drawn: true, page, opened: settings.open ? openPage(page) : false };
   } catch (error) {
