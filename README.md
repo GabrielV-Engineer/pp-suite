@@ -198,7 +198,8 @@ record.
 The goal is an agile way of working with AI agents in which the work moves in slices you can see running, tests hold
 what is done, the debt is tracked, and decisions are not lost over a long project. The design aims to leave the agent
 less room to guess, to drift or to take control away from you. Each piece below brings one part of that. We copy none
-of their code, and each can be upgraded on its own.
+of their code, except Floorplan's map, adopted unmodified and recorded in [THIRD_PARTY.md](THIRD_PARTY.md); each can be
+upgraded on its own.
 
 | Built on | What it brings to the workflow | Why this one |
 |---|---|---|
