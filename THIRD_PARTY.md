@@ -24,6 +24,9 @@ it was read before it ran, its licence is compatible with ours and its notice is
 - They write only inside their own folder, `floorplan/` at the project root, which ignores itself in git. `ppc` passes
   `--no-claude-md`, so nothing else in the project is touched. The folder is where Floorplan's tools expect it: its Ask
   server takes the folder above it as the codebase, and `describe.mjs` writes its worksheets there.
+  Floorplan refuses a `floorplan/` folder that belongs to the project only when it picks the folder itself, and `ppc`
+  passes one, so `ppc` checks first: it refuses a folder with files git tracks, or one that is not empty and carries none
+  of Floorplan's marks, and writes nothing in it.
 - The viewer talks only to Floorplan's own local server (`/api/...`). `ppc` does not start it: the map works without it,
   and the **Ask** bar shows as unavailable. A person who wants Ask runs `node floorplan/serve.mjs`: it listens on
   127.0.0.1 only and answers through `claude -p` with read-only tools (Read, Grep, Glob, and Bash limited to

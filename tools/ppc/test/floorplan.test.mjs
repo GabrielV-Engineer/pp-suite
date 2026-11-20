@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { loadProject } from '../src/load.mjs';
 import { FLOORPLAN, toArchitecture, toRecentWork } from '../src/floorplan.mjs';
@@ -142,4 +142,33 @@ test('ppc map --html: the slice closed last lights up its files as recent work',
   assert.equal(graph.recent?.tasks?.[0]?.title, 'SL-001 Deployable end-to-end skeleton');
   // Floorplan keeps the items of every task in one list beside the tasks
   assert.ok(JSON.stringify(graph.recent.items).includes('src/health.ts'), JSON.stringify(graph.recent.items));
+});
+
+// Floorplan refuses a floorplan/ folder that belongs to the project, but only when no --out is given, and ppc gives one.
+// So ppc checks first: a folder of the project's own would get a .gitignore that hides its new files from git.
+test('ppc map --html: refuses a floorplan/ folder that belongs to the project, and writes nothing in it', (t) => {
+  const r = repo(t);
+  r.commit('the project has its own floorplan folder', { 'floorplan/rooms.md': '# Rooms\n' });
+  const out = run(r.dir, 'map', '--html');
+  assert.notEqual(out.status, 0);
+  assert.match(out.stderr, /floorplan\/ belongs to the project/);
+  assert.ok(!existsSync(join(r.dir, 'floorplan/.gitignore')), 'no .gitignore that would hide its files');
+  assert.ok(!existsSync(join(r.dir, 'floorplan/architecture.json')));
+  assert.deepEqual(r.git('status', '--porcelain').split('\n').filter(Boolean), ['?? .sddpp/map/'], 'the folder is as it was');
+});
+
+test('ppc map --html: refuses an untracked floorplan/ folder that is not a map, too', (t) => {
+  const r = repo(t);
+  r.write({ 'floorplan/sketch.txt': 'draft\n' });
+  const out = run(r.dir, 'map', '--describe');
+  assert.notEqual(out.status, 0);
+  assert.match(out.stderr, /floorplan\/ belongs to the project/);
+  assert.ok(!existsSync(join(r.dir, 'floorplan/.gitignore')));
+});
+
+test('ppc map --html: an empty floorplan/ folder, or one a map left, is used', (t) => {
+  const r = repo(t);
+  mkdirSync(join(r.dir, 'floorplan'));
+  assert.equal(run(r.dir, 'map', '--html').status, 0);
+  assert.equal(run(r.dir, 'map', '--html').status, 0, 'drawn again over its own map');
 });
