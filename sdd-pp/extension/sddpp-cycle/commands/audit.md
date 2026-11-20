@@ -126,5 +126,8 @@ a command to type in a terminal. Instead:
 9. Report to the person: what shipped, the measured size, the deviations, the debt paid and not paid, and the debt proposed.
    If `ppc finish` printed `Map updated: <path>`, give them the link to it as `[map](<path>)`: the slice's files are lit up
    there as recent work. If it printed a warning that the map was not redrawn, say so; the slice is closed all the same.
+   With the map on, also give names and descriptions to the files this slice added or changed: run `ppc map --describe`,
+   fill only those files' entries in the descriptions files it lists (all of them only if the person asked for the whole
+   map), following the guide it names, without changing any key, then `ppc map --html`. Describe what the code does today.
    Then put each proposed debt entry to them, one question each (`ppc ask DEBT-…`, with `--pay-in <slice>` when a planned
    slice should pay it; see **When the person decides**), and each entry left unpaid (`ppc ask DEBT-… --pay-in <slice>`).

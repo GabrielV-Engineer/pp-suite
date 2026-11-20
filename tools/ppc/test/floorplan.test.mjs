@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { loadProject } from '../src/load.mjs';
 import { FLOORPLAN, toArchitecture, toRecentWork } from '../src/floorplan.mjs';
@@ -77,19 +77,56 @@ test('the adopted Floorplan is unmodified: every file matches the checksums it w
   assert.match(readFileSync(join(dir, 'LICENSE'), 'utf8'), /^MIT License/);
 });
 
-test('ppc map --html: draws the Floorplan map under .sddpp/map/floorplan, and nothing else in the project changes', (t) => {
+// Floorplan's own tools (its Ask server, its describe step) expect the map in floorplan/ at the root, so it goes there.
+test('ppc map --html: draws the Floorplan map in floorplan/ at the root, a folder git ignores, and nothing else changes', (t) => {
   const r = repo(t);
   const out = run(r.dir, 'map', '--html');
   assert.equal(out.status, 0, out.stdout + out.stderr);
-  const page = join(r.dir, '.sddpp/map/floorplan/index.html');
-  assert.ok(existsSync(page));
-  assert.match(out.stdout, /\.sddpp\/map\/floorplan\/index\.html/);
-  const graph = JSON.parse(readFileSync(join(r.dir, '.sddpp/map/floorplan/graph.json'), 'utf8'));
+  assert.ok(existsSync(join(r.dir, 'floorplan/index.html')));
+  assert.match(out.stdout, /floorplan\/index\.html/);
+  const graph = JSON.parse(readFileSync(join(r.dir, 'floorplan/graph.json'), 'utf8'));
   assert.deepEqual(graph.nodes.filter((n) => n.parent === null && n.id !== 'unassigned').map((n) => n.id), ['frontend', 'backend', 'database']);
+  assert.ok(existsSync(join(r.dir, 'floorplan/serve.mjs')), 'the server its Ask bar names, where it names it');
   assert.ok(existsSync(join(r.dir, '.sddpp/map/map.md')), 'the markdown map is written too');
-  assert.ok(!existsSync(join(r.dir, 'floorplan')), 'no floorplan/ folder at the root');
   assert.ok(!existsSync(join(r.dir, 'CLAUDE.local.md')));
-  assert.deepEqual(r.git('status', '--porcelain').split('\n').filter(Boolean), ['?? .sddpp/map/'], 'only the map, and Floorplan\'s folder ignores itself');
+  assert.deepEqual(r.git('status', '--porcelain').split('\n').filter(Boolean), ['?? .sddpp/map/'], 'only the markdown map: floorplan/ ignores itself');
+});
+
+test('ppc map --html: says how many files have a description', (t) => {
+  const r = repo(t);
+  r.commit('build: two files', { 'src/tasks.ts': 'export const tasks = [];\n', 'public/app.js': 'console.log(1);\n' });
+  const out = run(r.dir, 'map', '--html');
+  assert.equal(out.status, 0, out.stdout + out.stderr);
+  assert.match(out.stdout, /Descriptions: 0 of 2 files\. To write them: ppc map --describe/);
+});
+
+test('ppc map --describe: draws the map, then names the worksheets and the files to fill, and the guide to follow', (t) => {
+  const r = repo(t);
+  r.commit('build: two files', { 'src/tasks.ts': 'export const tasks = [];\n', 'public/app.js': 'console.log(1);\n' });
+  const out = run(r.dir, 'map', '--describe');
+  assert.equal(out.status, 0, out.stdout + out.stderr);
+  assert.match(out.stdout, /2 files and 0 routes have no description yet/);
+  assert.match(out.stdout, /floorplan\/\.cache\/worksheets\/backend\.md -> floorplan\/descriptions\/backend\.json/);
+  assert.ok(out.stdout.includes(join(FLOORPLAN.dir, 'references/writing-descriptions.md')), 'the guide, by its full path');
+  const skeleton = JSON.parse(readFileSync(join(r.dir, 'floorplan/descriptions/backend.json'), 'utf8'));
+  assert.ok('src/tasks.ts' in skeleton.files);
+
+  // the agent fills it; the next drawing keeps it, and the count goes up
+  skeleton.files['src/tasks.ts'] = { name: 'Task list', description: 'Holds the tasks in memory, empty for now.' };
+  writeFileSync(join(r.dir, 'floorplan/descriptions/backend.json'), JSON.stringify(skeleton));
+  const again = run(r.dir, 'map', '--html');
+  assert.match(again.stdout, /Descriptions: 1 of 2 files/);
+  const graph = JSON.parse(readFileSync(join(r.dir, 'floorplan/graph.json'), 'utf8'));
+  const file = graph.files.find((f) => f.p === 'src/tasks.ts');
+  assert.equal(file.name, 'Task list');
+  assert.equal(file.d, 'Holds the tasks in memory, empty for now.');
+});
+
+test('ppc map --describe: says so when every file has its description', (t) => {
+  const r = repo(t);
+  const out = run(r.dir, 'map', '--describe');
+  assert.equal(out.status, 0, out.stdout + out.stderr);
+  assert.match(out.stdout, /Every file and route has a description/);
 });
 
 test('ppc map --html: the slice closed last lights up its files as recent work', (t) => {
@@ -101,7 +138,7 @@ test('ppc map --html: the slice closed last lights up its files as recent work',
   r.git('commit', '-q', '-am', 'audit(SL-001)');
   const out = run(r.dir, 'map', '--html');
   assert.equal(out.status, 0, out.stdout + out.stderr);
-  const graph = JSON.parse(readFileSync(join(r.dir, '.sddpp/map/floorplan/graph.json'), 'utf8'));
+  const graph = JSON.parse(readFileSync(join(r.dir, 'floorplan/graph.json'), 'utf8'));
   assert.equal(graph.recent?.tasks?.[0]?.title, 'SL-001 Deployable end-to-end skeleton');
   // Floorplan keeps the items of every task in one list beside the tasks
   assert.ok(JSON.stringify(graph.recent.items).includes('src/health.ts'), JSON.stringify(graph.recent.items));
