@@ -168,6 +168,13 @@ if (OPTIONS[command] && unknown.length) {
 }
 const dirAt = (index) => resolve(positionals[index] ?? '.');
 
+/** Shared description files a merge left broken: left out of the map and never deleted, so a person settles them. */
+function warnConflicts(conflicts) {
+  for (const file of conflicts ?? []) {
+    console.error(`Warning: ${file} is not valid JSON (a merge conflict?), so that description is left out of the map. Keep one side, or delete the file and write it again: ppc map --describe`);
+  }
+}
+
 function report(findings) {
   for (const f of findings) console.log(`${f.severity === 'error' ? 'error  ' : 'warning'} ${f.rule.padEnd(6)} ${f.file}: ${f.message}`);
   const errors = findings.filter((f) => f.severity === 'error').length;
@@ -457,6 +464,7 @@ switch (command) {
     if (flags.has('--describe')) {
       try {
         const result = describeFloorplan(root, model, { shared: readMapSettings(root).descriptions === 'shared' });
+        warnConflicts(result.conflicts);
         if (result.nothingToDo || !result.worksheets?.length) {
           console.log('Every file and route has a description.');
           break;
@@ -472,7 +480,8 @@ switch (command) {
     }
     if (flags.has('--html')) {
       try {
-        const { page, descriptions } = drawMap(root, model);
+        const { page, descriptions, conflicts } = drawMap(root, model);
+        warnConflicts(conflicts);
         const opened = flags.has('--open') && openPage(join(root, page));
         console.log(`Interactive map written: ${page}\n  ${join(root, page)}${opened ? '\n  (opened in the browser)' : ''}`);
         if (descriptions?.total) {

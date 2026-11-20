@@ -130,6 +130,8 @@ a command to type in a terminal. Instead:
    fill only those files' entries in the descriptions files it lists (all of them only if the person asked for the whole
    map), and every entry with a `review` field (its code changed: rewrite it, then delete the field), following the guide
    it names, without changing any key, then `ppc map --html`. Describe what the code does today. Write in the files it
-   lists: with shared descriptions they are in `.sddpp/map/descriptions/`, committed with the rest of the bookkeeping.
+   lists (in `floorplan/descriptions/`): with shared descriptions, `ppc map --html` copies each one to its own file in
+   `.sddpp/map/descriptions/`, committed with the rest of the bookkeeping. If it warns that a shared description is not
+   valid JSON (a merge left it broken), delete that file and write that description again.
    Then put each proposed debt entry to them, one question each (`ppc ask DEBT-…`, with `--pay-in <slice>` when a planned
    slice should pay it; see **When the person decides**), and each entry left unpaid (`ppc ask DEBT-… --pay-in <slice>`).
