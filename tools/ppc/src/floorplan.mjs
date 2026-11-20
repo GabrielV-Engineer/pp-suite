@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { mapModel } from './map.mjs';
@@ -122,6 +122,30 @@ export function lastClosedSlice(root, model) {
   return { slice: best.slice, files: [...files].sort() };
 }
 
+/**
+ * Refuse a `floorplan/` folder that belongs to the project. Floorplan checks this itself only when it picks the folder, and ppc
+ * passes it one; drawing into a folder of the project's own would put a `.gitignore` there that hides its new files from git.
+ * Ours is never in git, and is empty or carries Floorplan's marks (its `.gitignore`, or an architecture.json of its schema).
+ */
+export function checkMapFolder(root) {
+  const dir = join(root, FLOORPLAN_DIR);
+  if (!existsSync(dir)) return;
+  const refuse = (why) => {
+    throw new Error(`floorplan/ belongs to the project (${why}), so the map is not drawn there; nothing was written. Rename that folder to draw the map.`);
+  };
+  if (git(root, ['ls-files', '--', FLOORPLAN_DIR])) refuse('git tracks files in it');
+  if (!readdirSync(dir).length) return;
+  const read = (name) => {
+    try {
+      return readFileSync(join(dir, name), 'utf8');
+    } catch {
+      return '';
+    }
+  };
+  const marked = read('.gitignore').includes('Floorplan keeps its map out of git') || read('architecture.json').includes('"floorplan/architecture@1"');
+  if (!marked) refuse('it is not a map Floorplan drew');
+}
+
 /** How many files have a description, read from the build's report (`DESCRIPTIONS  files 1/95 · ...`). */
 export function descriptionCount(report) {
   const m = /DESCRIPTIONS\s+files (\d+)\/(\d+)/.exec(report ?? '');
@@ -136,6 +160,7 @@ const node = (root, args) => execFileSync(process.execPath, args, { cwd: root, e
  * `CLAUDE.local.md`). The names and descriptions in `floorplan/descriptions/` are the agent's and are kept.
  */
 export function buildFloorplan(root, model) {
+  checkMapFolder(root);
   const out = join(root, FLOORPLAN_DIR);
   mkdirSync(out, { recursive: true });
   writeFileSync(join(out, 'architecture.json'), `${JSON.stringify(toArchitecture(model), null, 2)}\n`);
