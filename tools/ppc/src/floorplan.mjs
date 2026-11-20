@@ -1,9 +1,12 @@
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { mapModel } from './map.mjs';
+import { pullShared, pushShared, shareLocal, SHARED_DESCRIPTIONS } from './descriptions.mjs';
+
+export { SHARED_DESCRIPTIONS };
 
 // `ppc map --html`: the interactive map, drawn by Floorplan (https://github.com/haydenschmitty/floorplan, MIT), adopted unmodified
 // under vendor/floorplan at the commit below (THIRD_PARTY.md). Floorplan normally asks an AI to decide what the parts of an app are;
@@ -24,8 +27,6 @@ export const FLOORPLAN_DIR = 'floorplan';
 // mark a drawing started in the background leaves while it runs.
 export const MAP_STAMP = `${FLOORPLAN_DIR}/.cache/ppc-map.json`;
 export const REDRAW_MARK = `${FLOORPLAN_DIR}/.cache/ppc-redraw.lock`;
-// With descriptions shared, this folder (in git) is where they live; floorplan/descriptions/ is a copy made for each drawing.
-export const SHARED_DESCRIPTIONS = '.sddpp/map/descriptions';
 export const DESCRIPTIONS_GUIDE = join(FLOORPLAN.dir, 'references', 'writing-descriptions.md');
 export const FLOORPLAN_PAGE = `${FLOORPLAN_DIR}/index.html`;
 
@@ -192,31 +193,23 @@ export function mapFreshness(root, model) {
   return { drawn: true, stale, descriptions: stamp?.descriptions ?? null };
 }
 
-/** Make `to` hold the same .json files as `from`, and nothing else. */
-function mirror(from, to) {
-  mkdirSync(to, { recursive: true });
-  const files = existsSync(from) ? readdirSync(from).filter((f) => f.endsWith('.json')) : [];
-  for (const f of readdirSync(to)) if (f.endsWith('.json') && !files.includes(f)) rmSync(join(to, f));
-  for (const f of files) copyFileSync(join(from, f), join(to, f));
-}
-
-/** Copy the descriptions Floorplan holds into the shared folder (switching to shared keeps what was written per clone). */
+/** Switching to shared keeps what this clone already wrote. */
 export function shareDescriptions(root) {
-  const local = join(root, FLOORPLAN_DIR, 'descriptions');
-  if (existsSync(local)) mirror(local, join(root, SHARED_DESCRIPTIONS));
+  shareLocal(root);
 }
 
 /**
- * Draw the map. With `shared`, the descriptions in `.sddpp/map/descriptions/` are copied in first, and copied back after, so
- * what Floorplan reconciles (moves, deletions, review flags) and the skeletons it adds reach the shared copy.
+ * Draw the map. With `shared`, the descriptions in `.sddpp/map/descriptions/` (one file each, so branches merge) are put in
+ * Floorplan's shape first, with what the agent wrote since the last drawing, and split back after it, so what Floorplan
+ * reconciles (moves, deletions, review flags) reaches the shared copy. `conflicts` names shared files a merge left broken.
  */
 export function buildFloorplan(root, model, { shared = false } = {}) {
   try {
     checkMapFolder(root);
-    if (shared) mirror(join(root, SHARED_DESCRIPTIONS), join(root, FLOORPLAN_DIR, 'descriptions'));
+    const pulled = shared ? pullShared(root) : null;
     const result = draw(root, model);
-    if (shared) shareDescriptions(root);
-    return result;
+    const pushed = shared ? pushShared(root) : null;
+    return { ...result, conflicts: [...new Set([...(pulled?.conflicts ?? []), ...(pushed?.conflicts ?? [])])] };
   } finally {
     rmSync(join(root, REDRAW_MARK), { force: true });
   }
@@ -257,14 +250,10 @@ function draw(root, model) {
  * who uses it, and a skeleton in `floorplan/descriptions/` for the agent to fill (Floorplan's `references/writing-descriptions.md`).
  */
 export function describeFloorplan(root, model, { shared = false } = {}) {
-  buildFloorplan(root, model, { shared });
+  const { conflicts } = buildFloorplan(root, model, { shared });
   try {
-    const result = JSON.parse(node(root, [script('describe.mjs'), root, '--json']));
-    if (!shared) return result;
-    // the skeletons go where the agent writes: the shared folder
-    shareDescriptions(root);
-    for (const w of result.worksheets ?? []) w.descriptions = String(w.descriptions).replace(`${FLOORPLAN_DIR}/descriptions`, SHARED_DESCRIPTIONS);
-    return result;
+    // the agent writes in floorplan/descriptions/ even when they are shared: the next drawing copies what it wrote to git
+    return { ...JSON.parse(node(root, [script('describe.mjs'), root, '--json'])), conflicts };
   } catch (error) {
     throw new Error(`Floorplan could not write the worksheets:\n${error.stdout ?? ''}${error.stderr ?? ''}`.trim());
   }
