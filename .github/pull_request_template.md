@@ -5,4 +5,4 @@
 - [ ] One concern in this pull request; structural and behavior changes are in separate commits
 - [ ] A new or changed rule has its id in `RULES`, a test that fires it, and its row in `docs/contract-v0.1.md`
 - [ ] Docs claim only what was tested or observed
-- [ ] No secrets, real names or upstream code
+- [ ] No secrets or real names; any third-party code is validated and recorded in `THIRD_PARTY.md`

@@ -10,7 +10,11 @@ Two frameworks (Architect.PP, SDD.PP) joined by a versioned contract. Read `READ
   tests or was observed. Mark anything else as planned. When a fact comes from a source, keep the quote.
 - **The contract changes through its tests.** A new rule gets an id in `RULES` (`tools/ppc/src/validate.mjs`),
   a test that makes it fire, and a row in `docs/contract-v0.1.md`; `docs.test.mjs` fails if they disagree.
-- **No upstream code is copied** from The Architect, Spec Kit or OpenSpec. Link to them.
+- **Third-party code is adopted, not pasted.** The default is to link to it. Taking code from The Architect, Spec Kit,
+  OpenSpec or any other project is allowed when a person decides it, and only after it is validated: read in a scratch
+  directory, its licence checked as compatible with ours (the notice kept), and then adapted or improved to fit pp-suite,
+  with tests like any other code. Each adoption is recorded in `THIRD_PARTY.md` (create it with the first one): source,
+  commit, licence, what was changed and who approved it. Unreviewed or unrecorded third-party code does not go in.
 - **No secrets, ever.** No tokens, `.env` files or credentials in this repository.
 - The example project is fictional; do not put real names, hashes or approvals in it. Synthetic data
   belongs in test fixtures built in code.
@@ -35,5 +39,5 @@ node --test "tools/eval/test/*.test.mjs"              # the experiment's measuri
 
 - Test first: write the failing test, watch it fail, then write the code.
 - Keep diffs small and one concern per commit; separate structural changes from behavior changes.
-- Third-party code (Spec Kit, The Architect) is untrusted input: read it before running it, and run
-  experiments in a scratch directory, never inside this repository.
+- Third-party code (Spec Kit, The Architect, anything fetched) is untrusted input until validated: read it before
+  running it, and run experiments in a scratch directory, never inside this repository.
