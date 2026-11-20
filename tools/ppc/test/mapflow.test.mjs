@@ -10,7 +10,7 @@ import { CLI, lines, repo } from './helpers.mjs';
 
 // CI=1 keeps any browser from opening while the tests run, whatever a test turns on.
 const run = (dir, ...args) => spawnSync('node', [CLI, ...args], { cwd: dir, encoding: 'utf8', env: { ...process.env, CI: '1' } });
-const PAGE = '.sddpp/map/floorplan/index.html';
+const PAGE = 'floorplan/index.html';
 
 test('the map is off until someone turns it on: no setting means no html and no opening', (t) => {
   const r = repo(t);
@@ -76,7 +76,7 @@ test('ppc finish: with the map on, closing a slice redraws it, lights up what th
   const out = closeSl001(r);
   assert.equal(out.status, 0, out.stdout + out.stderr);
   assert.ok(out.stdout.includes(`Map updated: ${join(r.dir, PAGE)}`), out.stdout);
-  const graph = JSON.parse(readFileSync(join(r.dir, '.sddpp/map/floorplan/graph.json'), 'utf8'));
+  const graph = JSON.parse(readFileSync(join(r.dir, 'floorplan/graph.json'), 'utf8'));
   assert.equal(graph.recent.tasks[0].title, 'SL-001 Deployable end-to-end skeleton');
   assert.ok(JSON.stringify(graph.recent.items).includes('src/health.js'));
   assert.match(readFileSync(join(r.dir, '.sddpp/map/map.md'), 'utf8'), /1 done/);
@@ -91,7 +91,7 @@ test('ppc finish: with the map off, closing a slice draws nothing (the flow is a
 });
 
 test('openCommand: opens a browser only where there is a screen, and never in CI', () => {
-  const file = '/p/.sddpp/map/floorplan/index.html';
+  const file = '/p/floorplan/index.html';
   assert.equal(openCommand(file, 'linux', { CI: '1', DISPLAY: ':0' }), null);
   assert.equal(openCommand(file, 'linux', {}), null, 'no display');
   assert.deepEqual(openCommand(file, 'linux', { DISPLAY: ':0' }), ['xdg-open', [file]]);

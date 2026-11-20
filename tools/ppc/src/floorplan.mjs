@@ -2,7 +2,7 @@ import { execFileSync } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { mapModel, MAP_DIR } from './map.mjs';
+import { mapModel } from './map.mjs';
 
 // `ppc map --html`: the interactive map, drawn by Floorplan (https://github.com/haydenschmitty/floorplan, MIT), adopted unmodified
 // under vendor/floorplan at the commit below (THIRD_PARTY.md). Floorplan normally asks an AI to decide what the parts of an app are;
@@ -16,7 +16,10 @@ export const FLOORPLAN = {
   commit: '94f81b463b7617e06d873ac71323ce71644c8399',
   dir: fileURLToPath(new URL('../vendor/floorplan/', import.meta.url)),
 };
-export const FLOORPLAN_DIR = `${MAP_DIR}/floorplan`;
+// Floorplan's own tools expect the map in floorplan/ at the root: its Ask server takes the folder above it as the codebase, its
+// hint says `node floorplan/serve.mjs`, and describe.mjs writes there. The folder ignores itself in git (its own .gitignore).
+export const FLOORPLAN_DIR = 'floorplan';
+export const DESCRIPTIONS_GUIDE = join(FLOORPLAN.dir, 'references', 'writing-descriptions.md');
 export const FLOORPLAN_PAGE = `${FLOORPLAN_DIR}/index.html`;
 
 /** pp-suite's kinds of component, as Floorplan's kinds of node. */
@@ -119,9 +122,18 @@ export function lastClosedSlice(root, model) {
   return { slice: best.slice, files: [...files].sort() };
 }
 
+/** How many files have a description, read from the build's report (`DESCRIPTIONS  files 1/95 · ...`). */
+export function descriptionCount(report) {
+  const m = /DESCRIPTIONS\s+files (\d+)\/(\d+)/.exec(report ?? '');
+  return m ? { described: Number(m[1]), total: Number(m[2]) } : null;
+}
+
+const script = (name) => join(FLOORPLAN.dir, 'scripts', name);
+const node = (root, args) => execFileSync(process.execPath, args, { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+
 /**
- * Write Floorplan's input under `.sddpp/map/floorplan/` and run its scan and build there. The folder ignores itself in git
- * (Floorplan's own `.gitignore`), and nothing outside it is written: no root `floorplan/`, no `CLAUDE.local.md`.
+ * Write Floorplan's input in `floorplan/` and run its scan and build there. Nothing outside that folder is written (no
+ * `CLAUDE.local.md`). The names and descriptions in `floorplan/descriptions/` are the agent's and are kept.
  */
 export function buildFloorplan(root, model) {
   const out = join(root, FLOORPLAN_DIR);
@@ -129,13 +141,24 @@ export function buildFloorplan(root, model) {
   writeFileSync(join(out, 'architecture.json'), `${JSON.stringify(toArchitecture(model), null, 2)}\n`);
   const { slice, files } = lastClosedSlice(root, model);
   writeFileSync(join(out, 'recent-work.json'), `${JSON.stringify(toRecentWork(slice, files), null, 2)}\n`);
-  const script = (name) => join(FLOORPLAN.dir, 'scripts', name);
-  const node = (args) => execFileSync(process.execPath, args, { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
   try {
-    node([script('scan.mjs'), root, '--out', join(out, '.cache', 'scan.json')]);
-    const report = node([script('build.mjs'), root, '--out', out, '--no-claude-md']);
-    return { page: FLOORPLAN_PAGE, report };
+    node(root, [script('scan.mjs'), root, '--out', join(out, '.cache', 'scan.json')]);
+    const report = node(root, [script('build.mjs'), root, '--out', out, '--no-claude-md']);
+    return { page: FLOORPLAN_PAGE, report, descriptions: descriptionCount(report) };
   } catch (error) {
     throw new Error(`Floorplan could not draw the map:\n${error.stdout ?? ''}${error.stderr ?? ''}`.trim());
+  }
+}
+
+/**
+ * Floorplan's describe step, after drawing the map: one worksheet per component with what each undescribed file defines and
+ * who uses it, and a skeleton in `floorplan/descriptions/` for the agent to fill (Floorplan's `references/writing-descriptions.md`).
+ */
+export function describeFloorplan(root, model) {
+  buildFloorplan(root, model);
+  try {
+    return JSON.parse(node(root, [script('describe.mjs'), root, '--json']));
+  } catch (error) {
+    throw new Error(`Floorplan could not write the worksheets:\n${error.stdout ?? ''}${error.stderr ?? ''}`.trim());
   }
 }

@@ -5,7 +5,7 @@ import { loadProject } from '../src/load.mjs';
 import { validateModel, designFindings, RULES } from '../src/validate.mjs';
 import { checkGit, touches } from '../src/gitcheck.mjs';
 import { mapModel, renderMermaid, writeMap } from '../src/map.mjs';
-import { buildFloorplan } from '../src/floorplan.mjs';
+import { buildFloorplan, describeFloorplan, DESCRIPTIONS_GUIDE } from '../src/floorplan.mjs';
 import { mapLine, mapStatus, openPage, redrawAfterClose, writeMapSettings } from '../src/mapflow.mjs';
 import { designState, nextSteps, nextJson, noDesignNext, overview, renderNext } from '../src/next.mjs';
 import { execFileSync } from 'node:child_process';
@@ -105,7 +105,8 @@ const USAGE = `ppc — pp-suite contract tool
                                          the project as a picture: components, capabilities and screens, read from the design and the slices.
                                          Writes .sddpp/map/map.md (mermaid diagrams, shown by GitHub); --stdout prints it and writes nothing;
                                          --html also draws the interactive map with Floorplan (adopted, see THIRD_PARTY.md), reading the code,
-                                         into .sddpp/map/floorplan/index.html (a folder git ignores); --open shows it in the browser
+                                         into floorplan/index.html (a folder git ignores); --open shows it in the browser
+    ppc map --describe [dir]             draw the map, then list the files with no description and the worksheets to write them from
     ppc map --on [--open] | --off [dir]  put the map in the flow (off by default): each slice that closes redraws it, and ppc next and the
                                          session start give its link; with --open the browser opens it when a slice closes
     ppc help [<command>]                 this text, or only the lines of one command; \`ppc <command> --help\` does the same and nothing else
@@ -121,7 +122,7 @@ const OPTIONS = {
   standards: [], 'decide-standard': ['--adopt', '--details', '--later', '--trigger', '--not-needed', '--reason', '--accept-recommended', '--by'],
   'change-request': ['--slice', '--title', '--problem', '--proposal', '--component', '--adr', '--qa', '--budgets'],
   'decide-change': ['--accept', '--reject', '--by', '--reason'], 'apply-change': [], 'approve-red': ['--by'], refactor: [],
-  finish: ['--audit', '--budget-reason', '--mutation-reason'], mutation: ['--files', '--slice'], next: ['--json'], overview: [], map: ['--stdout', '--html', '--open', '--on', '--off'],
+  finish: ['--audit', '--budget-reason', '--mutation-reason'], mutation: ['--files', '--slice'], next: ['--json'], overview: [], map: ['--stdout', '--html', '--open', '--on', '--off', '--describe'],
   constitution: ['--check'], session: [], contract: [], init: ['--apply', '--shim', '--update', '--allow-untested', '--specify'],
   prompt: ['--task', '--stdout', '--force'], status: [],
 };
@@ -425,11 +426,29 @@ switch (command) {
       break;
     }
     for (const file of writeMap(root, map)) console.log(`Map written: ${file}\n  ${join(root, file)}`);
+    if (flags.has('--describe')) {
+      try {
+        const result = describeFloorplan(root, model);
+        if (result.nothingToDo || !result.worksheets?.length) {
+          console.log('Every file and route has a description.');
+          break;
+        }
+        console.log(`${result.totals.files} files and ${result.totals.routes} routes have no description yet. Each worksheet says what they define and who uses them:`);
+        for (const w of result.worksheets) console.log(`  ${w.worksheet} -> ${w.descriptions}  (${w.node}: ${w.files} files, ${w.routes} routes)`);
+        console.log(`Fill each \`description\` and improve each \`name\` in those files, without changing their keys, following\n  ${DESCRIPTIONS_GUIDE}\nthen draw the map again: ppc map --html`);
+      } catch (error) {
+        console.error(error.message);
+        process.exit(1);
+      }
+      break;
+    }
     if (flags.has('--html')) {
       try {
-        const { page } = buildFloorplan(root, model);
+        const { page, descriptions } = buildFloorplan(root, model);
         const opened = flags.has('--open') && openPage(join(root, page));
         console.log(`Interactive map written: ${page}\n  ${join(root, page)}${opened ? '\n  (opened in the browser)' : ''}`);
+        if (descriptions?.total) console.log(`Descriptions: ${descriptions.described} of ${descriptions.total} files.${descriptions.described < descriptions.total ? ' To write them: ppc map --describe' : ''}`);
+        console.log('To ask questions about the code from the map: node floorplan/serve.mjs (Claude Code CLI, read-only tools)');
       } catch (error) {
         console.error(error.message);
         process.exit(1);
