@@ -35,11 +35,16 @@ If the person named an id (`$ARGUMENTS`, for example `SL-022`, `CR-0006` or `DEB
 3. Also stop when a command fails or `ppc` or the guard refuses something (say what and why), and when a slice was closed
    (`ppc finish` succeeded): say what it delivered and what comes next, so the person can look before the next slice.
    When `map` in `ppc next --json` is not null, give its link, `[map](<map.page>)`, so they can see the project and what the
-   slice changed; if `map.drawn` is false, run `ppc map --html` first.
-4. Before you stop, put to the person the decisions that wait in `waiting` (debt) and `changes`, one question each. An item
+   slice changed.
+4. The map, when `map` in `ppc next --json` is not null. None of this is a decision; do it without asking:
+   - If `map.stale` is true (the code or the design changed since it was drawn, or it was never drawn), run `ppc map --html`.
+   - If `map.descriptions.review` is above 0, the code of those files changed since they were described: run
+     `ppc map --describe`, rewrite only the entries that have a `review` field so they say what the code does now, delete
+     that field, and run `ppc map --html`. Files that have no description yet are described when their slice closes.
+5. Before you stop, put to the person the decisions that wait in `waiting` (debt) and `changes`, one question each. An item
    whose command is `ppc ask DEBT-… --pay-in <slice>` is debt a closed slice did not pay: pick the next planned slice that
    touches its component (say why), and ask with that slice in place of `<slice>`.
-5. End with two lines: what was done in this run, and what happens at the next `/pp`.
+6. End with two lines: what was done in this run, and what happens at the next `/pp`.
 
 ## When the person decides
 
@@ -59,6 +64,13 @@ a command to type in a terminal. Instead:
 3. Run the command of the option they picked, exactly, right away, before anything else: an answer is good for 30
    minutes, once. For any other answer, run no approval. Only if the guard refuses
    the command, say so and give them the command to run themselves.
+
+## Turning the map on
+
+When the person asks for the map in the flow, run `ppc map --on`. It turns nothing on yet: it prints where the
+descriptions of the files can live (shared in git, or per clone) and which one it recommends. Ask that with the
+AskUserQuestion tool, the recommended option first, one line each on what happens, then run
+`ppc map --on --descriptions <their choice>` (add `--open` if they want the browser to open it) and `ppc map --html`.
 
 ## Rules
 
