@@ -1,5 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import { payProblem, screenApproved } from './policy.mjs';
+import { glanceStandard, lookAt } from './glance.mjs';
 import { STANDARDS, BY_ID, CUSTOM, TRIGGERS, recommend, renderStandards, describeAnswer, projectFacts, standardsFor } from './standards.mjs';
 
 // The card of one thing a person decides, in plain words: what it is and what approving it means. `ppc show <id>` prints it and
@@ -60,6 +61,10 @@ function sliceCard(model, entry, { redFiles, auditInput } = {}) {
   } else {
     out.push(...readList([entry.file, s.status === 'in_progress' && auditInput ? AUDIT_INPUT : null]));
     if (s.status === 'planned') out.push('', `To approve it to start:  ppc approve ${s.id}`);
+    // the glance (docs/standards.md, "Experience"): what a person looks at in a closed slice, and how to say they did
+    if (s.status === 'done' && !s.glanced_by && glanceStandard(model)) {
+      out.push('', 'Look at:', ...lookAt(model, s).map((l) => `  - ${l}`), '', `To say you looked:  ppc glance ${s.id}   (or --skip, if you will not)`);
+    }
   }
   return out.join('\n');
 }
@@ -257,6 +262,13 @@ export function askFor(model, id, { redFiles, budgetReason, mutationReason, payI
     const pays = paidBy(model, slice).map((e) => e.id);
     const also = pays.length ? ` It also pays ${pays.join(', ')}.` : '';
     return { questions: [{ question: `Approve ${id} "${slice.title}" to start?${also}`, header: 'Slice', multiSelect: false, options: [choose('Yes, approve it', `ppc approve ${id}`, 'It becomes ready, and the build can start'), ...SAY_NO] }] };
+  }
+  if (slice?.status === 'done' && !slice.glanced_by) {
+    return { questions: [{ question: `Did you look at what ${id} "${slice.title}" built, as a user would meet it?`, header: 'Glance', multiSelect: false, options: [
+      choose('Yes, I looked at it', `ppc glance ${id}`, 'Recorded with your name and the date; nothing else changes'),
+      choose('I will not look at this one', `ppc glance ${id} --skip`, 'Recorded as skipped, with your name and the date; it is not asked again'),
+      { label: 'Not yet', description: 'Nothing is recorded; it stays waiting for you' },
+    ] }] };
   }
   if (slice?.status === 'in_progress' && slice.phase === 'red') {
     const files = redFiles?.length ? ` (${redFiles.join(', ')})` : '';

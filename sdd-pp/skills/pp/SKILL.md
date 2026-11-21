@@ -43,7 +43,9 @@ If the person named an id (`$ARGUMENTS`, for example `SL-022`, `CR-0006` or `DEB
      that field, and run `ppc map --html`. Files that have no description yet are described when their slice closes.
 5. Before you stop, put to the person the decisions that wait in `waiting` (debt) and `changes`, one question each. An item
    whose command is `ppc ask DEBT-… --pay-in <slice>` is debt a closed slice did not pay: pick the next planned slice that
-   touches its component (say why), and ask with that slice in place of `<slice>`.
+   touches its component (say why), and ask with that slice in place of `<slice>`. An item whose decision `type` is `glance` is
+   a closed slice nobody has looked at: `ppc show SL-…` has what to look at, and the question is `ppc ask SL-…`. It holds
+   nothing up, so if they say "not yet", leave it waiting.
 6. End with two lines: what was done in this run, and what happens at the next `/pp`.
 
 ## When the person decides

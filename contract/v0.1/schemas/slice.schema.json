@@ -38,6 +38,10 @@
     "timebox_hours": { "type": "number", "exclusiveMinimum": 0, "maximum": 8 },
     "disposable": { "type": "boolean" },
     "outcome": { "type": "string", "minLength": 10, "description": "What a spike learned." },
+    "glanced_by": { "type": "string", "minLength": 1, "description": "Human who looked at what the closed slice built, as a user would meet it (the experience standard). Written by `ppc glance`." },
+    "glanced_on": { "type": "string", "format": "date" },
+    "glance_skipped": { "const": true, "description": "The person decided not to look at this one; recorded, and not asked again." },
+    "closed_on": { "type": "string", "format": "date", "description": "The day `ppc finish` closed the slice. Slices closed before this field existed have none." },
     "audit": { "$ref": "#/$defs/audit" }
   },
   "$defs": {
@@ -102,6 +106,7 @@
       }
     }
   },
+  "dependentRequired": { "glanced_by": ["glanced_on"], "glanced_on": ["glanced_by"], "glance_skipped": ["glanced_by"] },
   "allOf": [
     {
       "if": { "properties": { "type": { "enum": ["skeleton", "feature", "fix"] } }, "required": ["type"] },

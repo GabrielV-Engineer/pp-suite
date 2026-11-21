@@ -87,6 +87,9 @@ Status flow: `planned` → `ready` → `in_progress` → `done` (or `dropped`).
 - `done` needs an **audit** (commits, production lines, test lines, tests added, mutation score, decisions,
   debt created, deviations). A spike instead records its `outcome`. A slice that pays debt (`pays`) adds `debt_paid` and
   `debt_unpaid` (each with its reason); a feature slice must account for every entry, and an unpaid one is open again.
+- `finish` writes `closed_on`, the day the slice closed (a slice closed before this field existed has none).
+- A closed slice may carry `glanced_by` and `glanced_on`: a person looked at what it built, as a user would meet it (the
+  experience standard, `ppc glance`); `glance_skipped: true` says they decided not to. Never required, never a gate.
 - A slice may carry `test_policy` (`required`, `optional` or `none`), which overrides the blueprint's. See
   "Test policy" below.
 - Only one slice may be in progress at a time, and `.sddpp/active.json` must match it.

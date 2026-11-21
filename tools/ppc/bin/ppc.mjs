@@ -19,7 +19,7 @@ import { renderAdditions } from '../src/additions.mjs';
 import { BY_ID as STANDARD_IDS, recommend, renderStandards, projectFacts } from '../src/standards.mjs';
 import { renderDecision, askFor, redCommitFiles, DecisionError, AUDIT_INPUT } from '../src/decisions.mjs';
 import { buildPrompts, resolveTarget, writePrompts } from '../src/prompts.mjs';
-import { start, stop, widen, approve, reread, approveSlice, approveRed, approveDebt, scheduleDebt, decideAddition, decideStandard, toRefactor, finish, mutate, status, LifecycleError } from '../src/lifecycle.mjs';
+import { start, stop, widen, approve, reread, glance, approveSlice, approveRed, approveDebt, scheduleDebt, decideAddition, decideStandard, toRefactor, finish, mutate, status, LifecycleError } from '../src/lifecycle.mjs';
 
 const USAGE = `ppc — pp-suite contract tool
 
@@ -73,6 +73,9 @@ const USAGE = `ppc — pp-suite contract tool
     ppc decide-addition --accept-recommended [--but-cut ADD-1,ADD-2] [--but-keep ADD-3 --reason <why>] [--by <name>] [dir]
                                          keep or cut something the design contains that the person did not ask for. The person
                                          decides; an assistant may run it for what the person told it in the conversation
+    ppc glance <slice> [--skip] [--by <name>] [dir]
+                                         HUMAN ONLY: say you looked at what a closed slice built, as a user would meet it (--skip: you will not);
+                                         never holds anything up. --by defaults to the git user.name
     ppc reread (--all | SL-001 ...) [dir]
                                          HUMAN ONLY: say you read what changed in the design since the slices were planned (clears W03)
     ppc ask <id> [--budget-reason <why>] [--mutation-reason <why>] [--pay-in <slice>] [--details <text>] [dir]
@@ -122,7 +125,7 @@ const VALUE_OPTIONS = new Set(['--descriptions', '--by', '--audit', '--files', '
 // into an approval (`ppc approve --help` once approved the one slice that could be approved).
 const OPTIONS = {
   rules: [], validate: ['--strict', '--design'], 'check-git': [], start: [], stop: [], 'approve-slice': ['--by'], approve: ['--by', '--accept', '--drop', '--reason', '--pay-in', '--mockup'],
-  show: [], ask: ['--budget-reason', '--mutation-reason', '--pay-in', '--add-component', '--details'], touches: [], widen: ['--component'], reread: ['--all'], 'approve-debt': ['--by', '--accept', '--drop', '--reason'], 'schedule-debt': ['--slice'],
+  show: [], ask: ['--budget-reason', '--mutation-reason', '--pay-in', '--add-component', '--details'], touches: [], widen: ['--component'], reread: ['--all'], glance: ['--by', '--skip'], 'approve-debt': ['--by', '--accept', '--drop', '--reason'], 'schedule-debt': ['--slice'],
   'decide-addition': ['--keep', '--cut', '--alone', '--by', '--reason', '--accept-recommended', '--but-cut', '--but-keep'], additions: [],
   standards: [], 'decide-standard': ['--adopt', '--details', '--later', '--trigger', '--not-needed', '--reason', '--accept-recommended', '--by'],
   'change-request': ['--slice', '--title', '--problem', '--proposal', '--component', '--adr', '--qa', '--budgets'],
@@ -286,6 +289,12 @@ switch (command) {
       process.exit(1);
     }
     process.stdout.write(`${JSON.stringify(question, null, 2)}\n`);
+    break;
+  }
+  case 'glance': {
+    const id = positionals.find((p) => /^SL-\d+$/.test(p));
+    const root = resolve(positionals.find((p) => p !== id) ?? '.');
+    transition(() => glance(root, id, { by: options.get('by') ?? gitUserName(root), skip: flags.has('--skip') }));
     break;
   }
   case 'reread': {

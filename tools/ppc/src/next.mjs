@@ -9,6 +9,7 @@ import { join } from 'node:path';
 import { modeOf, testPolicy, screenApproved } from './policy.mjs';
 import { askFor } from './decisions.mjs';
 import { STANDARDS, TRIGGERS, triggerFired } from './standards.mjs';
+import { pendingGlances } from './glance.mjs';
 
 const RED = '/pp-red';
 const GREEN = '/pp-green';
@@ -149,6 +150,8 @@ function stepsOf(model, subjects, errors, facts) {
     .filter((x) => x.decision === 'later' && triggerFired(x.trigger, model.blueprint?.data, model.facts ?? {}))
     .map((x) => ({ who: 'human', what: `The ${x.id} standard waited until ${TRIGGERS[x.trigger]}, and that has happened: decide it again`, command: `ppc decide-standard ${x.id} ...`, decision: { type: 'standard', id: x.id } }));
   if (slices.length) waiting.push(...(undecidedStandards.length ? [decideStandards] : []), ...dueAgain);
+  // The glance (docs/standards.md, "Experience"): a closed slice nobody has looked at is the person's turn, beside the work. Never a blocker.
+  waiting.push(...pendingGlances(model).map((s) => ({ who: 'human', what: `Look at what ${s.id} "${s.title}" built, as a user would meet it, and say so (\`ppc show ${s.id}\`); it holds nothing up`, command: `ppc glance ${s.id}`, decision: { type: 'glance', id: s.id } })));
 
   const blocked = live
     .filter((s) => ['planned', 'ready'].includes(s.status) && unfinished(s, byId).length)

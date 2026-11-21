@@ -149,7 +149,22 @@ a fresh agent session applies the rubric and the person decides; the companion m
 asked at every review, with a recommendation; tools the agent may install are authorized once in the standard, and a tool outside
 the list is asked about (use once, add to the list, or no); measuring uses a command the project declares, as `app.check` does.
 
+### The glance (level 1)
+
+When `experience` is `glance`, `review` or `external`, a closed slice that a person meets (it touches a frontend, a backend or a
+library) waits for a glance. `custom`, `later` and `not needed` are the person's own way and are not nudged.
+
+| Piece | What it does |
+|---|---|
+| `closed_on` | `ppc finish` writes the day a slice closed. Only slices closed on or after the day the standard was decided wait for a glance; earlier ones were built under other terms, and a project with 30 closed slices does not get 30 reminders |
+| `ppc show SL-…` | On a closed slice nobody has looked at, a **Look at** list written from the slice: its screens against the approved mockups, what it was checked by (try those), the quality targets it names, the captures and console errors the audit saved. The same text every time |
+| `ppc ask SL-…` | Looked, will not look, or not yet. The first two end with the exact command |
+| `ppc glance SL-… [--skip]` | Records `glanced_by` and `glanced_on` (and `glance_skipped`) in the slice. Human-only: the guard asks the person, and refuses the three fields written by hand |
+| `ppc next` | The slice waits under "Also waiting for a person", one line each, with the command. It is never the next step of the work |
+
+It cannot tell whether the person really looked: `glanced_by` is a name, not a signature, like every approval here.
+
 **Status (2026-11-20).** Built and tested: the standard, its recommendation, the schema, rule `S03` for it (a `usability` quality
-attribute), and the debt kind `experience`. **Planned, not built:** the person's glance recorded and shown as pending in
-`ppc next`; the milestone review, its rubric and `.sddpp/reviews/`; the guide for someone else to try it; the measuring
+attribute), the debt kind `experience`, and the glance (level 1) as described above. **Planned, not built:** the tools the agent
+suggests for looking; the milestone review, its rubric and `.sddpp/reviews/`; the guide for someone else to try it; the measuring
 command and the authorized-tools list. Not measured: whether any of it makes what is built better.

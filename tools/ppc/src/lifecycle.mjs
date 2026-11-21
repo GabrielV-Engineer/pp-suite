@@ -663,6 +663,7 @@ export function finish(root, id, input, { mutationRunner, now = new Date() } = {
         doc.set('status', 'done');
         doc.delete('phase');
         doc.set('outcome', input.outcome);
+        doc.set('closed_on', now.toISOString().slice(0, 10));
       });
     } else {
       if (!Array.isArray(input?.commits) || input.commits.length === 0) fail('the audit needs "commits": [{ "sha": "...", "kind": "red|green|refactor|structural|docs" }]');
@@ -713,6 +714,7 @@ export function finish(root, id, input, { mutationRunner, now = new Date() } = {
         doc.set('status', 'done');
         doc.delete('phase');
         doc.set('audit', audit);
+        doc.set('closed_on', now.toISOString().slice(0, 10));
       });
       // `pays` keeps what the slice was to pay; what it did not pay is open again, tied to no slice (W09 says so)
       for (const { id: debtId } of account.unpaid) {
@@ -764,6 +766,27 @@ export function status(root) {
     return { text: `no slice is in progress${ready.length ? `; ready to start: ${ready.join(', ')}` : ''}` };
   }
   return { text: `${open.data.id} "${open.data.title}" is in progress, phase ${open.data.phase}` };
+}
+
+/**
+ * HUMAN ONLY (the guard asks the person): say you looked at what a closed slice built, as a user would meet it, or that you will not
+ * (`skip`). It records who and when, in the slice's own file, and changes nothing else. Never a gate: a slice closes without it.
+ */
+export function glance(root, id, { by, skip = false, today = new Date().toISOString().slice(0, 10) } = {}) {
+  if (!by || !by.trim()) fail('--by <name> is required (or set git config user.name): a person says they looked');
+  return transact(root, () => {
+    const model = loadValid(root);
+    const entry = model.slices.find((s) => s.data.id === id) ?? fail(`unknown slice ${id}`);
+    if (entry.data.status !== 'done') fail(`${id} is ${entry.data.status}; a glance is at what a closed slice built`);
+    if (entry.data.glanced_by) fail(`${id} was already looked at by ${entry.data.glanced_by} on ${entry.data.glanced_on}`);
+    editFrontmatter(root, entry.file, (doc) => {
+      doc.set('glanced_by', by.trim());
+      doc.set('glanced_on', today);
+      if (skip) doc.set('glance_skipped', true);
+    });
+    ensureValid(root);
+    return { slice: id, glanced_by: by.trim(), glanced_on: today, skipped: Boolean(skip) };
+  });
 }
 
 // ── standards: security, observability, git, CI ──────────────────────────────────
