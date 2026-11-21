@@ -516,8 +516,61 @@ test('plan: the capture tool and the design skills on the machine are reported, 
   writeFileSync(join(bin, 'playwright-cli'), '');
   const home = mkdtempSync(join(tmpdir(), 'home-'));
   mkdirSync(join(home, '.claude/skills/frontend-design'), { recursive: true });
+  writeFileSync(join(home, '.claude/skills/frontend-design/SKILL.md'), '---\nname: frontend-design\n---\n');
   const ready = plan(project(t, { specify: true }), env(machine(installed), { home, pathDirs: [bin] }));
   assert.match(check(ready, 'capture-tool').found, /playwright-cli/);
   assert.match(check(ready, 'design-skills').found, /frontend-design/);
   assert.match(renderPlan(ready), /info +Interface capture tool/);
+});
+
+test('plan: a design skill that a plugin brings is found, and a folder with no SKILL.md is not a skill', (t) => {
+  const home = mkdtempSync(join(tmpdir(), 'home-'));
+  t.after(() => rmSync(home, { recursive: true, force: true }));
+  const install = join(home, '.claude/plugins/cache/m/designer/1');
+  mkdirSync(join(install, 'skills/frontend-design'), { recursive: true });
+  writeFileSync(join(install, 'skills/frontend-design/SKILL.md'), '---\nname: frontend-design\n---\n');
+  mkdirSync(join(home, '.claude/skills/awesome-design-md'), { recursive: true }); // empty: not a skill
+  mkdirSync(join(home, '.claude/plugins'), { recursive: true });
+  writeFileSync(join(home, '.claude/plugins/installed_plugins.json'), JSON.stringify({ version: 2, plugins: { 'designer@m': [{ scope: 'user', installPath: install }] } }));
+  const found = check(plan(project(t, { specify: true }), env(machine(installed), { home })), 'design-skills').found;
+  assert.match(found, /frontend-design/);
+  assert.doesNotMatch(found, /awesome-design-md/);
+});
+
+test('plan: the skills, plugins and MCP servers the person has are reported by name as information that blocks nothing, and no server detail leaks', (t) => {
+  const home = mkdtempSync(join(tmpdir(), 'home-'));
+  t.after(() => rmSync(home, { recursive: true, force: true }));
+  mkdirSync(join(home, '.claude/skills/my-skill'), { recursive: true });
+  writeFileSync(join(home, '.claude/skills/my-skill/SKILL.md'), '---\nname: my-skill\n---\n');
+  writeFileSync(join(home, '.claude.json'), JSON.stringify({ mcpServers: { figma: { type: 'http', url: 'https://URL-SECRET.invalid' }, db: { command: 'x', env: { TOKEN: 'TOKEN-SECRET' } } } }));
+  const p = plan(project(t, { specify: true }), env(machine(installed), { home }));
+  const c = check(p, 'tools-inventory');
+  assert.equal(c.status, 'info');
+  assert.match(c.found, /^skills 1 \(my-skill\)/); // the project's own /pp-* commands are not counted as the person's
+  assert.match(c.found, /MCP 2\b.*db.*figma/);
+  assert.match(c.found, /plugins 0/);
+  assert.deepEqual(p.blocked, []);
+  assert.doesNotMatch(JSON.stringify(p) + renderPlan(p), /URL-SECRET|TOKEN-SECRET/);
+});
+
+test('plan: more than ten tools are cut to ten names and the rest are counted, so the line stays readable', (t) => {
+  const home = mkdtempSync(join(tmpdir(), 'home-'));
+  t.after(() => rmSync(home, { recursive: true, force: true }));
+  for (let i = 1; i <= 12; i++) {
+    mkdirSync(join(home, `.claude/skills/skill-${String(i).padStart(2, '0')}`), { recursive: true });
+    writeFileSync(join(home, `.claude/skills/skill-${String(i).padStart(2, '0')}/SKILL.md`), '---\nname: x\n---\n');
+  }
+  const found = check(plan(project(t, { specify: true }), env(machine(installed), { home })), 'tools-inventory').found;
+  assert.match(found, /^skills 12 \(skill-01, .*skill-10, \+2 more\)/);
+  assert.doesNotMatch(found, /skill-11/);
+});
+
+test('plan: an unreadable tools file is said so without quoting it, and blocks nothing', (t) => {
+  const home = mkdtempSync(join(tmpdir(), 'home-'));
+  t.after(() => rmSync(home, { recursive: true, force: true }));
+  writeFileSync(join(home, '.claude.json'), '{ broken SECRET-TEXT');
+  const p = plan(project(t, { specify: true }), env(machine(installed), { home }));
+  assert.match(check(p, 'tools-inventory').found, /could not be read/);
+  assert.doesNotMatch(JSON.stringify(p), /SECRET-TEXT/);
+  assert.deepEqual(p.blocked, []);
 });
