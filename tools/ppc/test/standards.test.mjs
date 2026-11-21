@@ -14,6 +14,7 @@ const decided = {
   observability: { id: 'observability', decision: 'not_needed', reason: 'A local app for one person', decided_by: 'owner', decided_on: '2026-11-19' },
   git: { id: 'git', decision: 'adopt', choice: 'trunk', decided_by: 'owner', decided_on: '2026-11-19' },
   ci: { id: 'ci', decision: 'adopt', choice: 'local', decided_by: 'owner', decided_on: '2026-11-19' },
+  experience: { id: 'experience', decision: 'adopt', choice: 'review', decided_by: 'owner', decided_on: '2026-11-19' },
 };
 const all = (over = {}) => Object.values({ ...decided, ...over });
 
@@ -32,7 +33,7 @@ const run = (m) => {
 const has = (found, rule, severity) => found.some((f) => f.rule === rule && (!severity || f.severity === severity));
 
 // ── the file and its schema ──────────────────────────────────────
-test('standards: four decided standards add no findings', () => {
+test('standards: every decided standard adds no findings', () => {
   const found = run(withStandards(all()));
   assert.deepEqual(found.filter((f) => f.file === '.sddpp/standards.yaml'), []);
 });
@@ -98,6 +99,53 @@ test('S03: adopted security is satisfied by a security quality attribute (the ex
   m.blueprint.data.quality_attributes = m.blueprint.data.quality_attributes.filter((q) => q.attribute !== 'security');
   m.slices = m.slices.map((s) => ({ ...s, data: { ...s.data, quality_attributes: (s.data.quality_attributes ?? []).filter((q) => q !== 'QA-004') } }));
   assert.ok(has(run(m), 'S03', 'warning'));
+});
+
+// ── experience: the fifth standard (docs/standards.md) ───────────
+const schemaBad = (over) => has(run(withStandards(all(over))), 'SCHEMA', 'error');
+const exp = (more) => ({ ...decided.experience, ...more });
+
+test('experience: its choices are glance, review, external and custom; it may be not needed, with a reason', () => {
+  for (const choice of ['glance', 'review', 'external']) assert.ok(!schemaBad({ experience: exp({ choice }) }), choice);
+  assert.ok(!schemaBad({ experience: exp({ choice: 'custom', details: 'Our QA team reviews every release' }) }));
+  assert.ok(schemaBad({ experience: exp({ choice: 'custom' }) }), 'custom needs details');
+  assert.ok(schemaBad({ experience: exp({ choice: 'basic' }) }), 'basic is a security choice');
+  assert.ok(schemaBad({ security: { ...decided.security, choice: 'review' } }), 'review is an experience choice');
+  const notNeeded = { id: 'experience', decision: 'not_needed', reason: 'Nothing here is used by a person', decided_by: 'o', decided_on: '2026-11-19' };
+  assert.ok(!schemaBad({ experience: notNeeded }));
+  assert.ok(!has(run(withStandards(all({ experience: notNeeded }))), 'S03'), 'not needed asks nothing of the design');
+});
+
+test('S03: adopted experience needs a usability quality attribute in the design', () => {
+  assert.ok(!has(run(withStandards(all())), 'S03'), 'the example carries one');
+  const m = withStandards(all());
+  m.blueprint.data.quality_attributes = m.blueprint.data.quality_attributes.filter((q) => q.attribute !== 'usability');
+  m.slices = m.slices.map((s) => ({ ...s, data: { ...s.data, quality_attributes: (s.data.quality_attributes ?? []).filter((q) => q !== 'QA-005') } }));
+  const found = run(m).filter((f) => f.rule === 'S03');
+  assert.equal(found.length, 1);
+  assert.match(found[0].message, /usability/);
+});
+
+test('recommend experience: review where there is a frontend, glance where a person meets an API or a library, not needed otherwise', () => {
+  const bp = loadProject(EXAMPLE).blueprint.data;
+  const only = (...kinds) => ({ ...bp, components: bp.components.filter((c) => kinds.includes(c.kind)) });
+  const r = recommend(bp, {}).experience;
+  assert.deepEqual([r.decision, r.choice], ['adopt', 'review']);
+  assert.ok(r.why.length > 10);
+  assert.equal(recommend(only('backend', 'database'), {}).experience.choice, 'glance');
+  assert.equal(recommend({ ...bp, components: [{ id: 'core', kind: 'library' }] }, {}).experience.choice, 'glance');
+  const none = recommend(only('database'), {}).experience;
+  assert.equal(none.decision, 'not_needed');
+  assert.ok(none.reason.length >= 5);
+  for (const kinds of [['frontend'], ['backend'], ['database'], ['frontend', 'backend', 'database']]) {
+    assert.notEqual(recommend(only(...kinds), {}).experience.choice, 'external', 'external is the person\'s decision, never a recommendation');
+  }
+});
+
+test('debt: experience is a kind of debt', () => {
+  const m = withStandards(all());
+  m.debt[0].data.entries[0].kind = 'experience';
+  assert.deepEqual(run(m).filter((f) => f.rule === 'SCHEMA'), []);
 });
 
 // ── recommendations from the project's facts ─────────────────────

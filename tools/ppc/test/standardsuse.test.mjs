@@ -70,7 +70,11 @@ test('slice card: no standards row when none applies', () => {
   assert.ok(!renderDecision(set(base(), null), 'SL-002').includes('Standards:'));
   const m = base();
   m.slices.find((s) => s.data.id === 'SL-002').data.components = ['frontend'];
-  assert.ok(!renderDecision(m, 'SL-002').includes('Standards:'), 'security is about the backend and the database');
+  const onScreen = renderDecision(m, 'SL-002');
+  assert.match(onScreen, /experience review/, 'a person meets the frontend');
+  assert.ok(!/security/.test(onScreen), 'security is about the backend and the database');
+  const noExperience = replace(m, 'experience', { decision: 'not_needed', reason: 'Nothing here is used by a person' });
+  assert.ok(!renderDecision(noExperience, 'SL-002').includes('Standards:'));
 });
 
 // ── ppc next ─────────────────────────────────────────────────────

@@ -20,7 +20,7 @@ Status: **v0.1, unstable.** Expect breaking changes until v1.0.
   slices/SL-001-*.md             one file per slice: the leaves of the WBS
   debt.yaml                      one register of technical debt for the project; each entry names its component
   change-requests/CR-0001-*.md   how SDD.PP asks for a blueprint change
-  standards.yaml                 how the project handles security, observability, git and CI, decided by a person
+  standards.yaml                 how the project handles security, observability, git, CI and the experience of its users, decided by a person
   active.json                    {slice, phase}: machine state read by the test-lock guard
 ```
 
@@ -178,7 +178,7 @@ Errors fail validation; warnings fail only with `--strict`. `ppc rules` prints t
 | `X03` | error | A cut addition was applied but the non-goal it becomes is not among the non-goals. |
 | `X04` | warning / error | An addition was decided to be cut but the cut was not applied (a warning while drafting, an error once slices exist). |
 | `X05` | error | An addition points at something that does not exist (a design id, or another addition it overlaps), or its id is duplicated. |
-| `S01` | warning | A standard (security, observability, git, CI) is undecided, or there is no standards file. Always a warning: `later` is a valid answer. |
+| `S01` | warning | A standard (security, observability, git, CI, experience) is undecided, or there is no standards file. Always a warning: `later` is a valid answer. |
 | `S02` | warning | A standard decided `later` has a trigger that has now happened (a remote, a CI configuration, a component of a kind), so it should be decided again. |
 | `S03` | warning | Security or observability is adopted and the design has no quality attribute of that kind (`security`, `operability`); a change request puts it in the design. |
 | `U01` | warning | The design has a frontend component and no interface document (`.architect/ui.md`); `/pp-design ui` writes it. |

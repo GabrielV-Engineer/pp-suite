@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:pp-suite:contract:0.1:standards",
   "title": "Standards (.sddpp/standards.yaml)",
-  "description": "How this project handles security, observability, git and CI. Each standard is adopted with a choice, deferred until a trigger, or not needed, by a person. Optional file, written by `ppc decide-standard`.",
+  "description": "How this project handles security, observability, git, CI and the experience of whoever uses it. Each standard is adopted with a choice, deferred until a trigger, or not needed, by a person. Optional file, written by `ppc decide-standard`.",
   "type": "object",
   "additionalProperties": false,
   "required": ["standards"],
@@ -38,7 +38,7 @@
       "additionalProperties": false,
       "required": ["id", "decision"],
       "properties": {
-        "id": { "enum": ["security", "observability", "git", "ci"] },
+        "id": { "enum": ["security", "observability", "git", "ci", "experience"] },
         "decision": true,
         "choice": true,
         "details": true,
@@ -61,6 +61,7 @@
         { "$ref": "#/$defs/answer" },
         { "if": { "properties": { "id": { "const": "security" } } }, "then": { "properties": { "choice": { "enum": ["basic", "strict", "custom"] } } } },
         { "if": { "properties": { "id": { "const": "observability" } } }, "then": { "properties": { "choice": { "enum": ["errors", "logs-metrics", "custom"] } } } },
+        { "if": { "properties": { "id": { "const": "experience" } } }, "then": { "properties": { "choice": { "enum": ["glance", "review", "external", "custom"] } } } },
         { "if": { "properties": { "id": { "const": "git" } } }, "then": { "properties": { "choice": { "enum": ["trunk", "branch-per-slice", "branch-per-slice-pr", "custom"] }, "decision": { "not": { "const": "not_needed" } } } } },
         { "if": { "properties": { "id": { "const": "ci" } } }, "then": { "properties": { "choice": { "enum": ["local", "github", "gitlab", "custom"] }, "decision": { "not": { "const": "not_needed" } } } } }
       ]

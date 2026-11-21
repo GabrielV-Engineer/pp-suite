@@ -19,7 +19,7 @@
         "component": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$", "description": "The component that owns this debt; the id prefix is that component's code." },
         "title": { "type": "string", "minLength": 5 },
         "description": { "type": "string", "minLength": 15 },
-        "kind": { "enum": ["duplication", "design", "test", "performance", "security", "dependency", "documentation", "accessibility", "other"] },
+        "kind": { "enum": ["duplication", "design", "test", "performance", "security", "dependency", "documentation", "accessibility", "experience", "other"] },
         "origin": {
           "type": "object",
           "additionalProperties": false,

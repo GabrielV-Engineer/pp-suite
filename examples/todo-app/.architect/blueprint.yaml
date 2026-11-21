@@ -40,6 +40,11 @@ quality_attributes:
     scenario: User-supplied text is validated and escaped, so it cannot inject markup or SQL.
     metric: injection findings in the automated tests
     target: "0"
+  - id: QA-005
+    attribute: usability
+    scenario: A person who has never seen the app adds a task and marks it as completed without reading any instructions.
+    metric: steps from opening the app to a completed task
+    target: "<= 3"
 
 capabilities:
   - id: CAP-001

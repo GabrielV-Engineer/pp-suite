@@ -49,6 +49,18 @@ export const STANDARDS = [
       gitlab: 'A GitLab CI pipeline runs ppc validate --strict and ppc check-git on every push',
     },
   },
+  {
+    id: 'experience',
+    title: 'Experience',
+    product: true,
+    attribute: 'usability',
+    components: ['frontend', 'backend', 'library'],
+    choices: {
+      glance: 'After a slice, a person looks at what a user would meet (screens, command output, error messages) next to the captures the audit records; it never holds the slice up',
+      review: 'Glance, plus a review of the whole against a short rubric when a capability is complete or when asked, where the person decides which findings become debt (the review itself is planned, not built)',
+      external: 'Review, plus a guide for someone other than the builder to try it, where the person decides who and whether, and skipping it blocks nothing (the guide is planned, not built)',
+    },
+  },
 ];
 export const BY_ID = new Map(STANDARDS.map((s) => [s.id, s]));
 export const CUSTOM = 'custom';
@@ -111,7 +123,12 @@ export function recommend(bp, facts = {}) {
     : facts.gitRemote
       ? { decision: 'adopt', choice: 'local', why: 'The remote is neither on GitHub nor on GitLab: run the checks by hand, or describe your CI as a custom choice' }
       : { decision: 'later', trigger: 'git_remote', why: 'The repository has no remote yet, and CI needs one: ask again when it gets one' };
-  return { security, observability, git, ci };
+  const experience = has.has('frontend')
+    ? { decision: 'adopt', choice: 'review', why: 'The design has a frontend component: people meet it on screens, and what the whole looks like matters more than each piece' }
+    : has.has('backend') || has.has('library')
+      ? { decision: 'adopt', choice: 'glance', why: `The design has a ${named(['backend', 'library'])} component: a person meets it through its API, its output or its errors` }
+      : { decision: 'not_needed', reason: 'The design has no frontend, backend or library component', why: 'The design has no frontend, backend or library component: nothing a person uses directly' };
+  return { security, observability, git, ci, experience };
 }
 
 /** One answer in a few words: "basic", "later: when the repository gets a remote", "not needed: <reason>". */
@@ -124,7 +141,7 @@ export function describeAnswer(a) {
 
 const row = (label, text) => `    ${`${label}:`.padEnd(13)}${text}`;
 
-/** The four standards in plain words: what was decided, or what is recommended and why, and how to decide. */
+/** The standards in plain words: what was decided, or what is recommended and why, and how to decide. */
 export function renderStandards(list = [], recommended = {}, { bp, facts, only } = {}) {
   const byId = new Map(list.map((s) => [s.id, s]));
   const out = [];

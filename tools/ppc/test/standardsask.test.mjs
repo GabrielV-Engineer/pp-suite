@@ -69,12 +69,12 @@ test('CLI: ppc standards prints them; decide-standard refuses unknown options an
   const { dir } = fresh(t);
   const shown = ppc(dir, 'standards');
   assert.equal(shown.status, 0);
-  assert.match(shown.stdout, /0 of 4 standards decided/);
+  assert.match(shown.stdout, /0 of 5 standards decided/);
   assert.equal(ppc(dir, 'decide-standard', 'git', '--adopt', 'trunk', '--squash').status, 2);
   const r = ppc(dir, 'decide-standard', 'git', '--adopt', 'branch-per-slice', '--by', 'owner');
   assert.equal(r.status, 0, r.stderr);
   assert.match(r.stdout, /git: branch-per-slice/);
-  assert.match(ppc(dir, 'standards').stdout, /1 of 4 standards decided/);
+  assert.match(ppc(dir, 'standards').stdout, /1 of 5 standards decided/);
   const refused = ppc(dir, 'decide-standard', 'git', '--not-needed', '--reason', 'We never use it', '--by', 'owner');
   assert.equal(refused.status, 1);
   assert.match(refused.stderr, /cannot be not needed/);

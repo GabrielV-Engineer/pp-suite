@@ -1,4 +1,4 @@
-# Standards: security, observability, git and CI, decided per project
+# Standards: security, observability, git, CI and experience, decided per project
 
 Status: **built, not yet tried on a real project** (2026-11-19). What exists, with tests: the file `.sddpp/standards.yaml`
 and its schema, rules `S01` to `S03`, `ppc standards`, `ppc decide-standard` (human-only through the guard), the panel
@@ -17,7 +17,7 @@ asked, the answer is recorded, and the rest of the flow reads it.
 
 ## What it is
 
-Four standards, a fixed list:
+Five standards, a fixed list:
 
 | Standard | Kind | Choices |
 |---|---|---|
@@ -25,6 +25,7 @@ Four standards, a fixed list:
 | `observability` | product | `errors`, `logs-metrics`, `custom` |
 | `git` | way of working | `trunk`, `branch-per-slice`, `branch-per-slice-pr`, `custom` |
 | `ci` | way of working | `local`, `github`, `gitlab`, `custom` |
+| `experience` | product | `glance`, `review`, `external`, `custom` (see [Experience](#experience-the-fifth-standard)) |
 
 `ppc standards` prints what each choice means. Each standard gets one of three answers, all valid:
 
@@ -46,6 +47,7 @@ Each standard comes with a recommended answer and the reason for it, computed fr
 | observability | `errors` if it has a backend or an infra component; otherwise not needed | something runs that can fail where nobody sees it |
 | git | `trunk` | the simplest, and the way `ppc check-git` was tried on a real project |
 | ci | `github` or `gitlab` from the remote's host; `local` for a remote elsewhere; `later` (trigger `git_remote`) with no remote | CI needs a remote, and runs on the platform that hosts it |
+| experience | `review` with a frontend component; `glance` with a backend or a library; not needed when no component is one a person uses | people meet a frontend on screens, where the whole matters; a backend or a library is met through its API, output and errors. Never `external`: that is the person's decision |
 
 `ppc decide-standard --accept-recommended` takes them all in one answer.
 
@@ -97,7 +99,7 @@ standards:
 |---|---|---|
 | `S01` | warning | There is no standards file, or a standard is missing or `pending` |
 | `S02` | warning | A standard decided `later` has a trigger that has now happened |
-| `S03` | warning | `security` or `observability` is adopted and the design has no quality attribute of that kind |
+| `S03` | warning | `security`, `observability` or `experience` is adopted and the design has no quality attribute of that kind (`security`, `operability`, `usability`) |
 
 A standard listed twice is `T12`, like any other duplicated id.
 
@@ -109,7 +111,7 @@ A standard listed twice is `T12`, like any other duplicated id.
   an infra component, a remote), and two sources of defaults would disagree. What a profile adds that the facts cannot
   tell (one person or a team) shows up in the git question. A reusable team profile stays possible later.
 - **2026-11-19: the constitution names a custom standard without quoting it.** The block is loaded into every session and
-  a test keeps it under 2,000 characters; the longest choices of all four standards fill most of the margin. The person's
+  a test keeps it under 2,000 characters; the longest choices of all the standards fill most of the margin. The person's
   words stay in the file, on the slice card and in `ppc standards`.
 - **2026-11-19: the file lives in `.sddpp/`, not `.architect/`.** Branches and CI are how the work is done, not what is
   built, so changing them should not need a change request. Security and observability do touch the product, which is
@@ -127,3 +129,27 @@ A standard listed twice is `T12`, like any other duplicated id.
 - `ppc init` offering to write the CI workflow for the chosen platform.
 - `check-git` reading the git standard (warning before a squash, branch names).
 - A team profile file reused across projects.
+
+## Experience: the fifth standard
+
+Added 2026-11-20. The first four ask how the code is protected, run and shipped. Nothing asked whether what was built is good
+to use: whether it looks dated, feels slow, or confuses whoever meets it. The tests cannot say, and a design approved as a
+mockup says nothing about the app as built. This standard asks how much of that judgment the project wants, and records it.
+
+It is not a quality tool. It records what the person decided and makes the flow read it, like the other four.
+
+| Choice | Adds |
+|---|---|
+| `glance` | After a slice, a person looks at what a user would meet. Never holds the slice up |
+| `review` | Glance, plus a review of the whole against a short rubric when a capability is complete or when asked; the person decides which findings become debt of kind `experience` |
+| `external` | Review, plus a guide for someone other than the builder to try it. No count of people, no cost and no team size is assumed; skipping it is recorded and blocks nothing |
+
+Decided with the owner (2026-11-20): any surface a person uses counts (screens, command output, API errors, documentation);
+a fresh agent session applies the rubric and the person decides; the companion mode (`guide`, `explain` or `delegate`) is
+asked at every review, with a recommendation; tools the agent may install are authorized once in the standard, and a tool outside
+the list is asked about (use once, add to the list, or no); measuring uses a command the project declares, as `app.check` does.
+
+**Status (2026-11-20).** Built and tested: the standard, its recommendation, the schema, rule `S03` for it (a `usability` quality
+attribute), and the debt kind `experience`. **Planned, not built:** the person's glance recorded and shown as pending in
+`ppc next`; the milestone review, its rubric and `.sddpp/reviews/`; the guide for someone else to try it; the measuring
+command and the authorized-tools list. Not measured: whether any of it makes what is built better.

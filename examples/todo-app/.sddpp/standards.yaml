@@ -19,3 +19,8 @@ standards:
     choice: local
     decided_by: example-owner
     decided_on: 2026-10-24
+  - id: experience
+    decision: adopt
+    choice: review
+    decided_by: example-owner
+    decided_on: 2026-10-24

@@ -1,5 +1,5 @@
 ---
-description: "STANDARDS: decide with the person how this project handles security, observability, git and CI, in the question panel"
+description: "STANDARDS: decide with the person how this project handles security, observability, git, CI and experience, in the question panel"
 ---
 
 ## User input
@@ -8,11 +8,11 @@ description: "STANDARDS: decide with the person how this project handles securit
 $ARGUMENTS
 ```
 
-A standard (`security`, `observability`, `git` or `ci`) to decide or change. Empty means every standard still undecided.
+A standard (`security`, `observability`, `git`, `ci` or `experience`) to decide or change. Empty means every standard still undecided.
 
 ## What this step is
 
-The design may say nothing about security, observability, branches, pull requests or CI, and nothing else asks. This step
+The design may say nothing about security, observability, branches, pull requests, CI or how it feels to use what is built, and nothing else asks. This step
 asks. pp-suite does not prescribe the answer: a local app for one person and a team service need different things. It
 makes sure each one is decided by the person, recorded in `.sddpp/standards.yaml`, and read by the rest of the flow (the
 constitution, the slice cards, the build and the audit). See `docs/standards.md` in pp-suite.
@@ -25,7 +25,7 @@ constitution, the slice cards, the build and the audit). See `docs/standards.md`
   it, and say what the other choices cost. Lean to the smaller answer for a small project: a standard nobody needs is
   ceremony.
 - **"Later" and "not needed" are good answers.** Deciding never holds the work up.
-- Only these four standards. Anything else the person wants recorded about how they work (a commit message style, a review
+- Only these five standards. Anything else the person wants recorded about how they work (a commit message style, a review
   rule) goes in their own part of `CLAUDE.md`, outside the pp-suite block.
 
 ## Steps
@@ -44,7 +44,7 @@ constitution, the slice cards, the build and the audit). See `docs/standards.md`
      that question. It records the standard as `custom`, in their words.
 4. After any decision, run `ppc constitution`, so `CLAUDE.md` lists the adopted standards.
 5. Run `ppc validate` and report what it says about the standards:
-   - `S03` means security or observability was adopted and the design has no quality attribute for it. Offer to open a
+   - `S03` means security, observability or experience was adopted and the design has no quality attribute for it (`security`, `operability`, `usability`). Offer to open a
      change request (`ppc change-request`) so the design carries it. That change goes through the person like any other.
 6. Say what follows from what they chose, in one line each. Do not do it now:
    - `ci` adopted on GitHub or GitLab: setting up the pipeline is work; `/pp-plan` gives it a slice.

@@ -5,7 +5,7 @@ type: feature
 status: planned
 blueprint_revision: 1
 capability: CAP-002
-quality_attributes: [QA-003]
+quality_attributes: [QA-003, QA-005]
 components: [frontend, backend, database]
 screens: [SCR-01]
 depends_on: [SL-002]
