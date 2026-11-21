@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:pp-suite:contract:0.1:tools",
+  "title": "Tools (.sddpp/tools.yaml)",
+  "description": "Which tool (a skill, a plugin or an MCP server) a person chose for each role in this project, or that the choice waits or is not needed. Only what a person chose is written here: the project may be public, so what a machine has installed never goes in this file. The roles are a list kept in code (ppc rules, K01); see docs/tools.md.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["tools"],
+  "properties": {
+    "tools": { "type": "array", "items": { "$ref": "#/$defs/entry" } }
+  },
+  "$defs": {
+    "trigger": {
+      "enum": ["frontend_component", "backend_component", "database_component", "infra_component"],
+      "description": "What asks again: the design gets a component of that kind."
+    },
+    "tool": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "kind"],
+      "properties": {
+        "name": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{1,79}$", "description": "As the tool is named where it is used: a skill (`plugin:skill` for one a plugin brings), a plugin, or an MCP server." },
+        "kind": { "enum": ["skill", "plugin", "mcp"] },
+        "source": { "type": "string", "minLength": 3, "maxLength": 300, "pattern": "^[^\\r\\n]+$", "description": "Where it comes from: a repository or a marketplace. Optional for a person's own skill." },
+        "pinned": { "type": "string", "minLength": 1, "maxLength": 80, "pattern": "^[^\\s]+$", "description": "The commit or version that was read and chosen." },
+        "access": { "enum": ["read-only", "read-write"], "description": "MCP only: whether the server may change anything (data, files, a remote service). Read-write is a person's decision with its reason." },
+        "access_reason": { "type": "string", "minLength": 5, "description": "MCP with read-write access only: why the server has to change things." }
+      },
+      "allOf": [
+        { "if": { "properties": { "kind": { "const": "mcp" } }, "required": ["kind"] }, "then": { "required": ["access"] }, "else": { "not": { "required": ["access"] } } },
+        { "if": { "properties": { "access": { "const": "read-write" } }, "required": ["access"] }, "then": { "required": ["access_reason"] }, "else": { "not": { "required": ["access_reason"] } } }
+      ]
+    },
+    "entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["role", "decision"],
+      "properties": {
+        "role": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+        "decision": { "enum": ["pending", "adopt", "later", "not_needed"] },
+        "tool": { "$ref": "#/$defs/tool" },
+        "trigger": { "$ref": "#/$defs/trigger" },
+        "reason": { "type": "string", "minLength": 5, "description": "Why the role is not needed." },
+        "decided_by": { "type": "string", "minLength": 1 },
+        "decided_on": { "type": "string", "format": "date" }
+      },
+      "allOf": [
+        { "if": { "properties": { "decision": { "enum": ["adopt", "later", "not_needed"] } }, "required": ["decision"] }, "then": { "required": ["decided_by", "decided_on"] } },
+        { "if": { "properties": { "decision": { "const": "adopt" } }, "required": ["decision"] }, "then": { "required": ["tool"] }, "else": { "not": { "required": ["tool"] } } },
+        { "if": { "properties": { "decision": { "const": "later" } }, "required": ["decision"] }, "then": { "required": ["trigger"] }, "else": { "not": { "required": ["trigger"] } } },
+        { "if": { "properties": { "decision": { "const": "not_needed" } }, "required": ["decision"] }, "then": { "required": ["reason"] } }
+      ]
+    }
+  }
+}

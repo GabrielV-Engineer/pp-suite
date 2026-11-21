@@ -4,9 +4,10 @@ import { readFileSync } from 'node:fs';
 import { basename } from 'node:path';
 import { modeOf, testPolicy, PAYERS, touchesDebt, testsOpen } from './policy.mjs';
 import { STANDARDS, TRIGGERS, triggerFired } from './standards.mjs';
+import { ROLES, TRIGGERS as TOOL_TRIGGERS, rolesFor, roleFacts, triggerFired as toolTriggerFired } from './tools.mjs';
 
 const SCHEMA_DIR = new URL('../../../contract/v0.1/schemas/', import.meta.url);
-const SCHEMA_NAMES = ['blueprint', 'slice', 'debt', 'adr', 'evidence', 'change-request', 'active', 'additions', 'ui', 'standards', 'review'];
+const SCHEMA_NAMES = ['blueprint', 'slice', 'debt', 'adr', 'evidence', 'change-request', 'active', 'additions', 'ui', 'standards', 'tools', 'review'];
 const WORK_TYPES = ['skeleton', 'feature', 'fix'];
 /** Heuristic budgets by declared level, a guard against over-engineering. They are defaults, not findings of any study. */
 const LEVEL_LIMITS = {
@@ -81,6 +82,9 @@ export const RULES = {
   S01: 'A standard (security, observability, git, CI, experience) is undecided, or there is no standards file (always a warning).',
   S02: 'A standard decided "later" has a trigger that has now happened, so it should be decided again.',
   S03: 'Security, observability or experience is adopted and the design has no quality attribute of that kind (security, operability, usability).',
+  K01: 'A role in the tools file is not one pp-suite knows, or is listed twice.',
+  K02: 'A role decided "later" has a trigger that has now happened, so it should be decided again.',
+  K03: 'The tools file exists, a role applies to a slice that is not closed (by what it touches), and the role has no decision.',
   X05: 'An addition points at something that does not exist (a design id, or another addition it overlaps), or its id is duplicated.',
 };
 
@@ -505,6 +509,32 @@ export function validateModel(model, { now = new Date() } = {}) {
           }
         }
         if (s.decision === 'adopt' && spec.product && !attributes.has(spec.attribute)) warn('S03', standardsFile, `${s.id} is adopted but the design has no ${spec.attribute} quality attribute; open a change request so the design carries it (\`ppc change-request\`)`);
+      }
+    }
+  }
+
+  // ── tools: K01 to K03 (warnings, but K01). The file is optional: a project that never made one gets nothing. Whether a tool is
+  // installed on this machine is not judged here: CI runs this on machines that are not the person's.
+  if (model.tools) {
+    const toolsFile = model.tools.file;
+    const found = schemaFindings('tools', model.tools.data, toolsFile);
+    out.push(...found);
+    if (!found.length) {
+      const list = model.tools.data.tools;
+      const known = new Set(ROLES.map((r) => r.id));
+      const seen = new Set();
+      for (const e of list) {
+        if (!known.has(e.role)) error('K01', toolsFile, `${e.role} is not a role pp-suite knows (${[...known].join(', ')})`);
+        else if (seen.has(e.role)) error('K01', toolsFile, `role ${e.role} is listed twice`);
+        seen.add(e.role);
+        if (e.decision === 'later' && toolTriggerFired(e.trigger, bp)) warn('K02', toolsFile, `${e.role} waited until ${TOOL_TRIGGERS[e.trigger]}, and that has happened; decide it again in ${toolsFile}`);
+      }
+      const decided = new Set(list.filter((e) => e.decision !== 'pending').map((e) => e.role));
+      const ahead = slices.filter(({ data: sl }) => ['planned', 'ready', 'in_progress'].includes(sl.status));
+      for (const role of ROLES) {
+        if (decided.has(role.id)) continue;
+        const ids = ahead.filter(({ data: sl }) => rolesFor(roleFacts(model, sl)).some((r) => r.id === role.id)).map(({ data: sl }) => sl.id);
+        if (ids.length) warn('K03', toolsFile, `${role.id} (${role.title}) applies to ${ids.slice(0, 8).join(', ')}${ids.length > 8 ? ` and ${ids.length - 8} more` : ''} because ${role.why}, and has no decision: adopt a tool, decide it later, or say it is not needed`);
       }
     }
   }

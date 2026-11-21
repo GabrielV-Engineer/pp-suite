@@ -36,6 +36,7 @@ export function loadProject(root) {
     active: null,
     additions: null,
     standards: null,
+    tools: null,
     ui: null,
     uiFiles: {},
   };
@@ -95,6 +96,15 @@ export function loadProject(root) {
       fail('.sddpp/standards.yaml', `invalid YAML: ${e.message}`);
     }
     model.facts = projectFacts(root);
+  }
+
+  // The tools a person chose for the project's roles (skills, plugins, MCP servers). Only what a person chose is in the file.
+  if (existsSync(join(root, '.sddpp/tools.yaml'))) {
+    try {
+      model.tools = { file: '.sddpp/tools.yaml', data: parseYaml(read('.sddpp/tools.yaml')) };
+    } catch (e) {
+      fail('.sddpp/tools.yaml', `invalid YAML: ${e.message}`);
+    }
   }
 
   // The interface document, and a hash of every file its screens name, so the validator stays free of file access. null = missing.

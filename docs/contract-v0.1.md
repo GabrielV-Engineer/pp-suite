@@ -120,6 +120,21 @@ deferred (`later`) until a `trigger` happens, or `not_needed` with a `reason` (o
 again keeps the earlier decision in `history`. Undecided standards are only warnings (`S01`): deciding them never holds the
 work up, and "later" is always an answer.
 
+## Tools (`.sddpp/tools.yaml`)
+
+Optional: a project that never makes the file gets no finding about it. It records which tool (a `skill`, a `plugin` or an `mcp`
+server) a person chose for each **role** (`ui-design`, `ui-capture`, `security-review`, `db-inspect`; the list is in
+[`tools.mjs`](../tools/ppc/src/tools.mjs) and `K01` rejects any other) (`tools.schema.json`; see [tools](tools.md)). Each role is
+`adopt`ed with a `tool` (`name`, `kind`, and optionally `source` and `pinned`), deferred (`later`) until a `trigger` happens, or
+`not_needed` with a `reason`; each decision says who made it and when. An MCP server also says its `access` (`read-only`, or
+`read-write` with an `access_reason`). A role applies to a slice by what the slice touches (the kinds of its components, its
+screens, the standards adopted), and `K03` asks for a decision when it applies to a slice not yet closed.
+
+The file holds only what a person chose: the project may be public, and what a machine has installed (`ppc init` lists it) never
+goes in. No rule asks whether a chosen tool is installed, because the validator runs on machines that are not the person's.
+**Not built yet:** a command that writes the file and a guard rule that keeps an agent from writing it (until then anyone with
+access to the files can edit it, and nothing checks who did).
+
 ## Interface (`.architect/ui.md`)
 
 Optional, and expected when the design has a `frontend` component (`U01`). Its frontmatter (`ui.schema.json`) lists the screens:
@@ -192,6 +207,9 @@ Errors fail validation; warnings fail only with `--strict`. `ppc rules` prints t
 | `S02` | warning | A standard decided `later` has a trigger that has now happened (a remote, a CI configuration, a component of a kind), so it should be decided again. |
 | `S03` | warning | Security, observability or experience is adopted and the design has no quality attribute of that kind (`security`, `operability`, `usability`); a change request puts it in the design. |
 | `S04` | warning | The experience standard is adopted, a slice closed against a performance or usability target, and no command that measures is declared: the targets are declared, not measured. |
+| `K01` | error | A role in the tools file is not one pp-suite knows, or is listed twice. |
+| `K02` | warning | A role decided `later` has a trigger that has now happened (the design gets a component of that kind), so it should be decided again. |
+| `K03` | warning | The tools file exists, a role applies to a slice that is not closed (by the kinds of its components, its screens and the standards adopted), and the role has no decision. One warning per role, naming the slices. |
 | `U01` | warning | The design has a frontend component and no interface document (`.architect/ui.md`); `/pp-design ui` writes it. |
 | `U02` | error | A capability the design puts in a frontend component (`justified_by`) has no screen in the interface document. |
 | `U03` | error | The interface document lacks a section a builder reads: Navigation, Flows, States, Visual system, Accessibility, Sizes. |
