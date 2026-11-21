@@ -20,7 +20,8 @@ Status: **v0.1, unstable.** Expect breaking changes until v1.0.
   slices/SL-001-*.md             one file per slice: the leaves of the WBS
   debt.yaml                      one register of technical debt for the project; each entry names its component
   change-requests/CR-0001-*.md   how SDD.PP asks for a blueprint change
-  reviews/RV-001-*.md            a review of what people meet, as a whole (the experience standard): how it is done, the rubric, the answers
+  reviews/RV-001-*.md            a review of what people meet, as a whole (the experience standard): how it is done, the rubric, the answers,
+                                 and whether someone other than the builder tried it (`outside_by`, `outside_on`, `outside_skipped`, `outside_note`)
   standards.yaml                 how the project handles security, observability, git, CI and the experience of its users, decided by a person
   active.json                    {slice, phase}: machine state read by the test-lock guard
 ```

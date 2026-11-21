@@ -86,4 +86,9 @@ a command to type in a terminal. Instead:
 7. Run `ppc validate`. `R02` means a finding is not in the register or does not name this review as its origin; fix it.
 8. Put each proposed entry to the person, one question each, as the text above says (`ppc show DEBT-…`, `ppc ask DEBT-…`; add
    `--pay-in <slice>` for a planned slice that touches its component).
-9. End with two lines: what the review found (how many concerns, how many criteria you could not check), and what `/pp` does next.
+9. When the experience standard is `external`, the review now waits for someone other than the builder to try it. Say so in one
+   line and give the guide: `ppc guide RV-…` prints it, the same text every time. You may add tools that would help (a screen
+   recording, a way to take notes), each as **your suggestion, not verified by pp-suite**, with what it is and where it comes from;
+   assume no number of people, no team and no cost, and say that skipping it is fine. The person says it was tried, or skipped,
+   through the panel (`ppc ask RV-…`); you never record it.
+10. End with two lines: what the review found (how many concerns, how many criteria you could not check), and what `/pp` does next.

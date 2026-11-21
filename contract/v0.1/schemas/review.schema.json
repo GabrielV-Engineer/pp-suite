@@ -26,9 +26,15 @@
     "opened_on": { "type": "string", "format": "date" },
     "status": { "enum": ["open", "closed"] },
     "closed_on": { "type": "string", "format": "date" },
+    "outside_by": { "type": "string", "minLength": 1, "description": "The person who says someone other than the builder tried what was built (level 3 of the experience standard), or that it will not be. Written by `ppc outside`." },
+    "outside_on": { "type": "string", "format": "date" },
+    "outside_skipped": { "const": true, "description": "The person decided not to do the outside test for this review; recorded, and it holds nothing up." },
+    "outside_note": { "type": "string", "minLength": 5, "description": "Who tried it and how it went, or why it was skipped, in the person's words. Optional." },
     "findings": { "type": "array", "uniqueItems": true, "items": { "type": "string", "pattern": "^DEBT-[A-Z]{2,5}-\\d{3,}$" }, "description": "The debt entries this review proposed; each one names this review as its origin." }
   },
+  "dependentRequired": { "outside_by": ["outside_on"], "outside_on": ["outside_by"], "outside_skipped": ["outside_by"], "outside_note": ["outside_by"] },
   "allOf": [
+    { "if": { "required": ["outside_by"] }, "then": { "properties": { "status": { "const": "closed" } } } },
     { "if": { "properties": { "status": { "const": "closed" } }, "required": ["status"] }, "then": { "required": ["closed_on"] }, "else": { "not": { "required": ["closed_on"] } } }
   ]
 }

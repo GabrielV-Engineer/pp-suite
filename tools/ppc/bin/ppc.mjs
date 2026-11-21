@@ -20,7 +20,8 @@ import { SURFACES, renderRubric } from '../src/rubric.mjs';
 import { BY_ID as STANDARD_IDS, recommend, renderStandards, projectFacts } from '../src/standards.mjs';
 import { renderDecision, askFor, redCommitFiles, DecisionError, AUDIT_INPUT } from '../src/decisions.mjs';
 import { buildPrompts, resolveTarget, writePrompts } from '../src/prompts.mjs';
-import { openReview } from '../src/reviewfile.mjs';
+import { openReview, recordOutside } from '../src/reviewfile.mjs';
+import { renderGuide } from '../src/guide.mjs';
 import { start, stop, widen, approve, reread, glance, approveSlice, approveRed, approveDebt, scheduleDebt, decideAddition, decideStandard, toRefactor, finish, mutate, status, LifecycleError } from '../src/lifecycle.mjs';
 
 const USAGE = `ppc — pp-suite contract tool
@@ -81,6 +82,9 @@ const USAGE = `ppc — pp-suite contract tool
     ppc review (CAP-001 | --project) --mode guide|explain|delegate [--surface cli,docs] [--by <name>] [dir]
                                          HUMAN ONLY: open a review of a complete capability, or of the whole project: how it is done is your choice;
                                          the file is .sddpp/reviews/RV-NNN-*.md, and /pp-experience carries it out. --surface adds cli or docs
+    ppc guide <RV-id> [dir]              the guide for someone other than the builder to try what a review covered (no number of people is assumed)
+    ppc outside <RV-id> [--skip] [--note <text>] [--by <name>] [dir]
+                                         HUMAN ONLY: say someone other than the builder tried it (--skip: it will not happen); never holds anything up
     ppc reread (--all | SL-001 ...) [dir]
                                          HUMAN ONLY: say you read what changed in the design since the slices were planned (clears W03)
     ppc ask <id> [--budget-reason <why>] [--mutation-reason <why>] [--pay-in <slice>] [--details <text>] [dir]
@@ -126,12 +130,12 @@ const USAGE = `ppc — pp-suite contract tool
     ppc help [<command>]                 this text, or only the lines of one command; \`ppc <command> --help\` does the same and nothing else
 `;
 
-const VALUE_OPTIONS = new Set(['--mode', '--surface', '--descriptions', '--by', '--audit', '--files', '--slice', '--accept', '--budget-reason', '--mutation-reason', '--reason', '--task', '--specify', '--title', '--problem', '--proposal', '--component', '--adr', '--qa', '--but-cut', '--but-keep', '--pay-in', '--add-component', '--mockup', '--adopt', '--details', '--trigger']);
+const VALUE_OPTIONS = new Set(['--note', '--mode', '--surface', '--descriptions', '--by', '--audit', '--files', '--slice', '--accept', '--budget-reason', '--mutation-reason', '--reason', '--task', '--specify', '--title', '--problem', '--proposal', '--component', '--adr', '--qa', '--but-cut', '--but-keep', '--pay-in', '--add-component', '--mockup', '--adopt', '--details', '--trigger']);
 // What each command accepts. Anything else is refused: an option that is silently ignored can turn a request for help, or a typo,
 // into an approval (`ppc approve --help` once approved the one slice that could be approved).
 const OPTIONS = {
   rules: [], validate: ['--strict', '--design'], 'check-git': [], start: [], stop: [], 'approve-slice': ['--by'], approve: ['--by', '--accept', '--drop', '--reason', '--pay-in', '--mockup'],
-  show: [], ask: ['--budget-reason', '--mutation-reason', '--pay-in', '--add-component', '--details'], touches: [], widen: ['--component'], reread: ['--all'], glance: ['--by', '--skip'], review: ['--project', '--mode', '--surface', '--by'], 'approve-debt': ['--by', '--accept', '--drop', '--reason'], 'schedule-debt': ['--slice'],
+  show: [], ask: ['--budget-reason', '--mutation-reason', '--pay-in', '--add-component', '--details'], touches: [], widen: ['--component'], reread: ['--all'], guide: [], outside: ['--by', '--skip', '--note'], glance: ['--by', '--skip'], review: ['--project', '--mode', '--surface', '--by'], 'approve-debt': ['--by', '--accept', '--drop', '--reason'], 'schedule-debt': ['--slice'],
   'decide-addition': ['--keep', '--cut', '--alone', '--by', '--reason', '--accept-recommended', '--but-cut', '--but-keep'], additions: [],
   rubric: [], standards: [], 'decide-standard': ['--adopt', '--details', '--later', '--trigger', '--not-needed', '--reason', '--accept-recommended', '--by'],
   'change-request': ['--slice', '--title', '--problem', '--proposal', '--component', '--adr', '--qa', '--budgets'],
@@ -295,6 +299,23 @@ switch (command) {
       process.exit(1);
     }
     process.stdout.write(`${JSON.stringify(question, null, 2)}\n`);
+    break;
+  }
+  case 'guide': {
+    const id = positionals.find((p) => /^RV-\d+$/.test(p));
+    const root = resolve(positionals.find((p) => p !== id) ?? '.');
+    const entry = id ? loadProject(root).reviews.find((r) => r.data.id === id) : null;
+    if (!entry) {
+      console.error(id ? `unknown review ${id}` : 'say which review: ppc guide RV-001');
+      process.exit(1);
+    }
+    process.stdout.write(renderGuide(loadProject(root), entry.data));
+    break;
+  }
+  case 'outside': {
+    const id = positionals.find((p) => /^RV-\d+$/.test(p));
+    const root = resolve(positionals.find((p) => p !== id) ?? '.');
+    transition(() => recordOutside(root, id, { by: options.get('by') ?? gitUserName(root), skip: flags.has('--skip'), note: options.get('note') }));
     break;
   }
   case 'review': {

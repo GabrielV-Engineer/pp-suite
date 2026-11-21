@@ -1,7 +1,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { stringify } from 'yaml';
-import { LifecycleError, loadValid, transact } from './lifecycle.mjs';
+import { LifecycleError, editFrontmatter, loadValid, transact } from './lifecycle.mjs';
 import { MODES } from './review.mjs';
 import { SURFACES, renderRubric, surfacesFor } from './rubric.mjs';
 
@@ -60,5 +60,29 @@ export function openReview(root, { scope, mode, by, surfaces: extra = [], today 
     writeFileSync(join(root, file), `---\n${front}---\n${body}`);
     loadValid(root);
     return { review: id, file, mode, surfaces, text: `Opened ${id} (${mode} mode) for ${scope === 'project' ? 'the project' : scope}: ${surfaces.join(', ')}. ${file}\nNext: /pp-experience ${id}` };
+  });
+}
+
+/**
+ * HUMAN ONLY (the guard asks the person): say that someone other than the builder tried what a closed review covered, or that it
+ * will not happen (`skip`). Records who says so and when, and a note if there is one, in the review's file; changes nothing else.
+ * Never a gate: no number of people is assumed, and nothing waits for it.
+ */
+export function recordOutside(root, id, { by, skip = false, note, today = new Date().toISOString().slice(0, 10) } = {}) {
+  if (!by || !by.trim()) fail('--by <name> is required (or set git config user.name): a person says it was tried');
+  if (note !== undefined && note.trim().length < 5) fail('the note needs at least 5 characters: who tried it and how it went, or why not');
+  return transact(root, () => {
+    const model = loadValid(root);
+    const entry = (model.reviews ?? []).find((r) => r.data.id === id) ?? fail(`unknown review ${id}`);
+    if (entry.data.status !== 'closed') fail(`${id} is still open: the review is done first, then someone else tries it`);
+    if (entry.data.outside_by) fail(`${id} already says so: ${entry.data.outside_by} on ${entry.data.outside_on}`);
+    editFrontmatter(root, entry.file, (doc) => {
+      doc.set('outside_by', by.trim());
+      doc.set('outside_on', today);
+      if (skip) doc.set('outside_skipped', true);
+      if (note !== undefined) doc.set('outside_note', note.trim());
+    });
+    loadValid(root);
+    return { review: id, outside_by: by.trim(), outside_on: today, skipped: Boolean(skip) };
   });
 }

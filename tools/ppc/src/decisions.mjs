@@ -2,6 +2,7 @@ import { execFileSync } from 'node:child_process';
 import { payProblem, screenApproved } from './policy.mjs';
 import { glanceStandard, lookAt } from './glance.mjs';
 import { openReviews, modesFor, pendingReviews } from './review.mjs';
+import { pendingOutside, renderGuide } from './guide.mjs';
 import { SURFACES, surfacesFor } from './rubric.mjs';
 import { STANDARDS, BY_ID, CUSTOM, TRIGGERS, recommend, renderStandards, describeAnswer, projectFacts, standardsFor } from './standards.mjs';
 
@@ -167,6 +168,20 @@ function askReview(model, id) {
   ] }] };
 }
 
+/** A review in plain words; when it waits for an outside test, with the guide. */
+function reviewStatusCard(model, r) {
+  const out = [
+    `${r.id}  Review of ${r.scope.type === 'project' ? 'the whole project' : r.scope.ref}`,
+    row('Mode', `${r.mode}, chosen by ${r.mode_chosen_by}`),
+    row('Surfaces', r.surfaces.map((s) => SURFACES[s].title).join(', ')),
+    row('State', r.status === 'closed' ? `closed ${r.closed_on}` : 'open: /pp-experience carries it out'),
+    ...(r.findings?.length ? [row('Findings', r.findings.join(', '))] : []),
+    ...(r.outside_by ? [row('Outside test', `${r.outside_skipped ? 'skipped' : 'done'} (${r.outside_by}, ${r.outside_on})`)] : []),
+  ];
+  if (pendingOutside(model).some((x) => x.id === r.id)) out.push('', renderGuide(model, r).trimEnd());
+  return out.join('\n');
+}
+
 export function renderDecision(model, id, extra = {}) {
   if (id === 'standards' || BY_ID.has(id)) {
     if (!model.blueprint) return null;
@@ -180,6 +195,8 @@ export function renderDecision(model, id, extra = {}) {
     const card = reviewCard(model, id === 'review' ? 'project' : id);
     return card ? `${card}\n` : null;
   }
+  const review = (model.reviews ?? []).find((r) => r.data.id === id);
+  if (review) return `${reviewStatusCard(model, review.data)}\n`;
   const slice = model.slices.find((s) => s.data.id === id);
   if (slice) return `${sliceCard(model, slice, extra)}\n`;
   for (const register of model.debt) {
@@ -280,6 +297,14 @@ function askStandards(model, id, details) {
 export function askFor(model, id, { redFiles, budgetReason, mutationReason, payIn, addComponent, details } = {}) {
   if (id === 'standards' || BY_ID.has(id)) return askStandards(model, id, details);
   if (id === 'review' || /^CAP-\d{3}$/.test(id)) return askReview(model, id);
+  if (/^RV-\d{3,}$/.test(id)) {
+    if (!pendingOutside(model).some((r) => r.id === id)) return null;
+    return { questions: [{ question: `Did someone other than you try what ${id} reviewed? It is your decision who, and whether; skipping it holds nothing up.`, header: 'Outside test', multiSelect: false, options: [
+      choose('Yes, someone tried it', `ppc outside ${id}`, 'Recorded with your name and the date; add --note in the terminal if you want to say who and how it went'),
+      choose('I will not do this one', `ppc outside ${id} --skip`, 'Recorded as skipped, with your name and the date; it is not asked again for this review'),
+      { label: 'Not yet', description: 'Nothing is recorded; it stays waiting for you' },
+    ] }] };
+  }
   if (id === 'reread') {
     const behind = model.slices.map((s) => s.data).filter((s) => !['done', 'dropped'].includes(s.status) && s.blueprint_revision < model.blueprint.data.revision);
     if (!behind.length) return null;

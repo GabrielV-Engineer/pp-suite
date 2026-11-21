@@ -186,8 +186,25 @@ repeat that. A dropped entry is a finding the person dismissed, with its reason.
 What it cannot do: tell whether a finding is right, or whether the agent really looked. A criterion the agent could not check is
 written `not checked: <why>`, and it is told never to write `ok` for it; nothing verifies that it obeyed.
 
+### The outside test (level 3)
+
+When `experience` is `external`, a review that is closed waits for someone other than the builder to try what it covered. **No
+number of people, no team and no cost is assumed**: the person decides who (a colleague, a user, themself after some time away) and
+whether it happens at all. Skipping it is recorded and **never holds anything up**.
+
+| Piece | What it does |
+|---|---|
+| `ppc guide RV-…` | The guide, the same text every time: what to ask them to do (the acceptance criteria of the closed slices), what to watch for (where they hesitate, what does nothing, what they misread, plus one line for each surface), and that the builder explains nothing while they try |
+| `ppc show RV-…` / `ppc ask RV-…` | The card with the guide, and the panel question: someone tried it, I will not do this one, or not yet |
+| `ppc outside RV-… [--skip] [--note <text>]` | Human-only; the guard asks the person and refuses the fields written by hand. Records `outside_by` and `outside_on` (and `outside_skipped`, and the note: who tried it and how it went, or why not) in the review file. Only a closed review can have one |
+| `ppc next` | A closed review waits under "Also waiting for a person". Only reviews closed on or after the day the standard was decided; a skipped one is asked again only when another review closes, since each review has its own record |
+
+It cannot tell whether anyone really tried it: `outside_by` is a name, not a signature. The tools that would help (a screen recording,
+a way to take notes) are for the agent to **suggest, as its own suggestions**, when it presents the guide; pp-suite names none.
+
 **Status (2026-11-20).** Built and tested: the standard, its recommendation, the schema, rule `S03` for it (a `usability` quality
-attribute), the debt kind `experience`, the glance (level 1), and the review of the whole (level 2) as described above, with the
+attribute), the debt kind `experience`, the glance (level 1), the review of the whole (level 2) and the outside test (level 3) as
+described above, with the
 prompt `/pp-experience` **written and not yet run by an agent on a real project** (it tells the agent to name tools only as its own
-suggestions, which pp-suite did not verify; nothing checks that it does). **Planned, not built:** the guide for someone else to try
-it; the measuring command and the authorized-tools list. Not measured: whether any of it makes what is built better.
+suggestions, which pp-suite did not verify; nothing checks that it does). **Planned, not built:** the measuring command and the
+authorized-tools list. Not measured: whether any of it makes what is built better.

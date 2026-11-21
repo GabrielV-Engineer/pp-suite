@@ -11,6 +11,7 @@ import { askFor } from './decisions.mjs';
 import { STANDARDS, TRIGGERS, triggerFired } from './standards.mjs';
 import { pendingGlances } from './glance.mjs';
 import { openReviews, pendingReviews } from './review.mjs';
+import { pendingOutside } from './guide.mjs';
 
 const RED = '/pp-red';
 const GREEN = '/pp-green';
@@ -154,6 +155,7 @@ function stepsOf(model, subjects, errors, facts) {
   // The glance (docs/standards.md, "Experience"): a closed slice nobody has looked at is the person's turn, beside the work. Never a blocker.
   // The review of the whole (docs/standards.md, "Experience"): a complete capability is the person's turn to choose how; an open one is the agent's. Neither blocks.
   waiting.push(...pendingReviews(model).map((c) => ({ who: 'human', what: `${c.id} "${c.name}" is complete: review it as a whole, against the rubric, and choose how it is done (\`ppc show ${c.id}\`); it holds nothing up`, command: `ppc review ${c.id} --mode guide|explain|delegate`, decision: { type: 'review', id: c.id } })));
+  waiting.push(...pendingOutside(model).map((r) => ({ who: 'human', what: `${r.id} is reviewed: have someone other than you try it, or skip it (\`ppc show ${r.id}\` has the guide); it holds nothing up`, command: `ppc outside ${r.id}`, decision: { type: 'outside', id: r.id } })));
   waiting.push(...openReviews(model).map((r) => ({ who: 'agent', what: `Carry out review ${r.id} (${r.mode} mode): answer the rubric and propose each finding as debt`, command: `/pp-experience ${r.id}` })));
   waiting.push(...pendingGlances(model).map((s) => ({ who: 'human', what: `Look at what ${s.id} "${s.title}" built, as a user would meet it, and say so (\`ppc show ${s.id}\`); it holds nothing up`, command: `ppc glance ${s.id}`, decision: { type: 'glance', id: s.id } })));
 
