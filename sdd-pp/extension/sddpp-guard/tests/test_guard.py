@@ -145,6 +145,50 @@ class GuardTest(unittest.TestCase):
                     self.assertEqual(code, 2)
                     self.assertIn("human", message)
 
+    # ── the tools a person chose: `ppc decide-tool` is theirs, and so is the whole file ──
+    def test_the_agent_cannot_decide_which_tool_a_project_uses(self):
+        for state in (None, {"slice": "SL-002", "phase": "green"}):
+            root = self.project(state)
+            for cmd in ("ppc decide-tool ui-design --adopt frontend-design --kind skill --by me",
+                        "node tools/ppc/bin/ppc.mjs decide-tool db-inspect --adopt postgres --kind mcp --access read-write --access-reason x --by me",
+                        "cd proj && ppc  decide-tool ui-capture --not-needed --reason whatever"):
+                with self.subTest(state=state, cmd=cmd):
+                    code, message = guard.decide(payload("Bash", command=cmd), root)
+                    self.assertEqual(code, 2)
+                    self.assertIn("human", message)
+
+    def test_the_agent_cannot_write_the_tools_file_by_hand_even_when_it_leaves_decided_by_alone(self):
+        # Swapping the tool an existing decision names, or widening an MCP server to read-write, touches no `decided_by` line, which is
+        # all the decision-field rule looks at; the whole file is a person's decision, so any write to it is refused.
+        root = self.project()
+        (root / ".sddpp" / "tools.yaml").write_text("tools:\n  - role: db-inspect\n    decision: adopt\n    tool:\n      name: postgres\n      kind: mcp\n      access: read-only\n")
+        writes = [
+            payload("Edit", file_path=".sddpp/tools.yaml", old_string="access: read-only", new_string="access: read-write"),
+            payload("Edit", file_path=str(root / ".sddpp" / "tools.yaml"), old_string="name: postgres", new_string="name: something-else"),
+            payload("MultiEdit", file_path=".sddpp/tools.yaml", edits=[{"old_string": "kind: mcp", "new_string": "kind: skill"}]),
+            payload("Write", file_path=".sddpp/tools.yaml", content="tools: []\n"),
+            payload("Bash", command="sed -i 's/read-only/read-write/' .sddpp/tools.yaml"),
+            payload("Bash", command="echo '  - role: ui-design' >> .sddpp/tools.yaml"),
+            payload("Bash", command="python3 -c \"open('.sddpp/tools.yaml','w').write('tools: []')\""),
+            payload("Bash", command="cp /tmp/mine.yaml .sddpp/tools.yaml"),
+        ]
+        for data in writes:
+            with self.subTest(tool=data["tool_name"], input=data["tool_input"]):
+                code, message = guard.decide(data, root)
+                self.assertEqual(code, 2)
+                self.assertIn("decide-tool", message)
+
+    def test_the_tools_file_can_be_read_and_the_rule_reaches_no_other_file(self):
+        root = self.project()
+        for data in (payload("Read", file_path=".sddpp/tools.yaml"), payload("Bash", command="cat .sddpp/tools.yaml"),
+                     payload("Bash", command="grep -n role .sddpp/tools.yaml"),
+                     payload("Edit", file_path=".sddpp/slices/SL-001-x.md", old_string="a", new_string="b"),
+                     payload("Edit", file_path="docs/tools.yaml", old_string="a", new_string="b"),
+                     payload("Edit", file_path="docs/tools.md", old_string="a", new_string="b"),
+                     payload("Bash", command="ppc show SL-001")):
+            with self.subTest(tool=data["tool_name"], input=data["tool_input"]):
+                self.assertEqual(self.code(root, data), 0)
+
     # ── an approval asks the person in Claude Code's own permission prompt, where that was tested ──
     # Tried with the real Claude Code on 2026-10-30 (docs/ask-spike.md): a hook answer of "ask" kept the command from running in
     # the default and accept-edits modes even when `Bash` was allowed. Any other mode, or an unknown one, keeps the block.

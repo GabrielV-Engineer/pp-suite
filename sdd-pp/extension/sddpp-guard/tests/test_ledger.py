@@ -151,6 +151,15 @@ class LedgerTest(unittest.TestCase):
         self.assertEqual(self.decide(root, 'ppc decide-standard security --not-needed --reason "not needed, decided in the panel"')[0], 0)
         self.assertIn(self.decide(root, 'ppc decide-standard security --not-needed --reason "not needed, decided in the panel"')[0], (2, guard.ASK))
 
+    def test_a_tool_picked_in_the_panel_goes_through_once_and_no_other_choice_does(self):
+        root = self.project()
+        picked = "ppc decide-tool ui-design --adopt frontend-design --kind skill --source anthropics/skills"
+        self.record(root, {"Which tool for the interface?": f"Use frontend-design — {picked}"})
+        self.assertIn(self.decide(root, "ppc decide-tool ui-design --adopt taste-skill --kind skill")[0], (2, guard.ASK), "another tool")
+        self.assertIn(self.decide(root, "ppc decide-tool ui-design --adopt frontend-design --kind mcp --access read-write --access-reason x")[0], (2, guard.ASK), "the same name, another kind")
+        self.assertEqual(self.decide(root, picked)[0], 0)
+        self.assertIn(self.decide(root, picked)[0], (2, guard.ASK), "the answer is used up")
+
     def test_without_an_answer_the_old_behavior_holds_and_the_message_points_at_pp(self):
         root = self.project()
         code, message = self.decide(root, "ppc approve SL-001", mode="default")

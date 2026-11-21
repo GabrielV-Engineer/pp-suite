@@ -46,6 +46,11 @@ APPROVAL = re.compile(
 DECISION_FIELD = re.compile(r"(approved_by|red_approved_by|decided_by|accepted_reason|dropped_reason|budget_override_reason|mutation_override_reason|glanced_by|glance_skipped|mode_chosen_by|outside_by|outside_skipped|measure_command|allowed_tools)[\"']?\s*:")
 CONTRACT_DIR = re.compile(r"(^|/)(\.sddpp/|\.architect/additions\.yaml$|\.architect/ui\.md$)")
 
+# `.sddpp/tools.yaml` records which tool a person chose for each role. Every line of it is a decision: swapping the tool an entry names, or
+# widening an MCP server from read-only to read-write, touches no `decided_by` line, which is all DECISION_FIELD looks at. So the whole file is
+# refused to an agent; `ppc decide-tool` writes it, and that command goes through the person (APPROVAL matches it).
+TOOLS_FILE = re.compile(r"(^|/)\.sddpp/tools\.yaml$")
+
 TEST_PATH = re.compile(
     r"(^|/)(tests?|__tests__|spec)/"  # tests/, test/, __tests__/, spec/
     r"|[._-](test|spec)\.[a-z0-9]+$"  # name.test.ts, name_spec.rb
@@ -192,6 +197,19 @@ def _writes_a_decision(payload, root: Path) -> bool:
     return False
 
 
+def _writes_the_tools_file(payload) -> bool:
+    """True when a tool call would write `.sddpp/tools.yaml`; reading it is fine."""
+    if not isinstance(payload, dict):
+        return False
+    tool, args = payload.get("tool_name", ""), payload.get("tool_input") or {}
+    if tool in FILE_TOOLS:
+        return bool(TOOLS_FILE.search(str(args.get("file_path") or args.get("notebook_path") or "").replace("\\", "/")))
+    if tool == "Bash":
+        command = str(args.get("command", ""))
+        return ".sddpp/tools.yaml" in command and writes(command)
+    return False
+
+
 def _writes_the_ledger(payload) -> bool:
     """True when a tool call would write the file that holds the person's panel answers: only the recorder hook may."""
     if not isinstance(payload, dict):
@@ -227,6 +245,13 @@ def decide(payload, root: Path):
                     "question with the AskUserQuestion tool, and the command they pick goes through (`/pp` does it). Only if the panel "
                     "cannot be used do they run the command themselves."
                 )
+
+    # The tools a person chose are theirs, line by line: the file is written by `ppc decide-tool` and by no other hand.
+    if _writes_the_tools_file(payload):
+        return 2, (
+            "SDD.PP guard: .sddpp/tools.yaml records which tool a person chose for each role, and every line of it is a decision. Do not edit "
+            "it; put the choice to the person with `ppc decide-tool` (asked in the question panel), which writes it in their name."
+        )
 
     # Decisions belong to a human too: no file tool or shell write may record one.
     if isinstance(payload, dict) and _writes_a_decision(payload, root):

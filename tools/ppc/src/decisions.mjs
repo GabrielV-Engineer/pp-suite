@@ -4,6 +4,7 @@ import { glanceStandard, lookAt } from './glance.mjs';
 import { openReviews, modesFor, pendingReviews } from './review.mjs';
 import { pendingOutside, renderGuide } from './guide.mjs';
 import { SURFACES, surfacesFor } from './rubric.mjs';
+import { ROLES, TRIGGERS as TOOL_TRIGGERS, toolFromFlags } from './tools.mjs';
 import { STANDARDS, BY_ID, CUSTOM, TRIGGERS, recommend, renderStandards, describeAnswer, projectFacts, standardsFor } from './standards.mjs';
 
 // The card of one thing a person decides, in plain words: what it is and what approving it means. `ppc show <id>` prints it and
@@ -326,7 +327,46 @@ function askStandards(model, id, details, extras = {}) {
   return { questions: [{ question: `${spec.title}: how should this project handle it?${current} Choose Other to describe your own rule or tool.`, header: spec.title.slice(0, 12), multiSelect: false, options: [...kept, options[3] ?? { label: 'Not yet', description: 'Nothing is decided; it waits for you' }] }] };
 }
 
-export function askFor(model, id, { redFiles, budgetReason, mutationReason, payIn, addComponent, details, measure, tools, addTool } = {}) {
+/** One line for a role's decision, as the question shows what stands now. */
+const toolWords = (e) => (e.decision === 'adopt' ? `${e.tool.name} (${e.tool.kind})` : e.decision === 'later' ? `later, when ${TOOL_TRIGGERS[e.trigger]}` : `not needed: ${e.reason}`);
+
+/**
+ * The panel question for a role's tool. With no tool named, the choices that need none (not needed, not yet): a tool is named through
+ * Other, and the agent comes back with it. With one, a confirmation that carries the exact command and what pp-suite found on this
+ * machine (`installed`: true, false, or undefined when nobody looked). The name the agent brings is its own suggestion, never verified.
+ */
+function askTool(model, id, { tool, kind, source, pinned, access, accessReason, installed }) {
+  if (!model.blueprint) return null;
+  const role = ROLES.find((r) => r.id === id);
+  const stands = (model.tools?.data.tools ?? []).find((e) => e.role === id && e.decision !== 'pending');
+  const header = role.title.slice(0, 12);
+  const No = { label: 'No', description: 'Nothing is decided; it waits for you' };
+  if (tool === undefined) {
+    const now = stands ? ` Now: ${toolWords(stands)} (deciding again keeps this in its history).` : '';
+    return { questions: [{ question: `${role.title}: does this project need a tool for it?${now} To use one, choose Other and name it; the agent then puts it here to confirm.`, header, multiSelect: false, options: [
+      choose('Not needed', `ppc decide-tool ${id} --not-needed --reason "${NOT_NEEDED_REASON}"`, `Recorded as not needed for ${role.title.toLowerCase()}, with your name and the date; you can decide again later`),
+      { label: 'Not yet', description: 'Nothing is decided; it waits for you' }] }] };
+  }
+  const named = toolFromFlags({ adopt: tool, kind, source, pinned, access, accessReason }, (message) => {
+    throw new DecisionError(message);
+  });
+  if (named.source) named.source = carriedValue('--source', named.source, { min: 3, max: 300 });
+  if (named.access_reason) named.access_reason = carriedValue('--access-reason', named.access_reason, { min: 5, max: 200 });
+  if (stands?.decision === 'adopt' && JSON.stringify(stands.tool) === JSON.stringify(named)) return null;
+  const command = ['ppc decide-tool', id, '--adopt', named.name, '--kind', named.kind, named.source && `--source "${named.source}"`, named.pinned && `--pinned ${named.pinned}`, named.access && `--access ${named.access}`, named.access_reason && `--access-reason "${named.access_reason}"`].filter(Boolean).join(' ');
+  const facts = [
+    installed === true ? `It is on this machine.` : installed === false ? `pp-suite did not find it on this machine: the agent named it from its own knowledge, which pp-suite did not verify. You would install it first, then restart the session.` : '',
+    named.source ? `Source: ${named.source}${named.pinned ? `, ${named.pinned}` : ''}.` : named.pinned ? `Pinned: ${named.pinned}.` : '',
+    named.access === 'read-only' ? 'It may only read.' : named.access === 'read-write' ? `It may change things: ${named.access_reason}.` : '',
+  ].filter(Boolean).join(' ');
+  const now = stands ? ` Now: ${toolWords(stands)} (changing it keeps this in its history).` : '';
+  return { questions: [{ question: `Use ${named.name} (${named.kind}) for ${role.title.toLowerCase()} in this project?${now} ${facts}`.trim(), header, multiSelect: false, options: [
+    choose('Yes, use it', command, 'Recorded in .sddpp/tools.yaml with your name and the date; the slices that call for this role will name it'),
+    No] }] };
+}
+
+export function askFor(model, id, { redFiles, budgetReason, mutationReason, payIn, addComponent, details, measure, tools, addTool, tool, kind, source, pinned, access, accessReason, installed } = {}) {
+  if (ROLES.some((r) => r.id === id)) return askTool(model, id, { tool, kind, source, pinned, access, accessReason, installed });
   if (id === 'standards' || BY_ID.has(id)) return askStandards(model, id, details, { measure, tools, addTool });
   if (id === 'review' || /^CAP-\d{3}$/.test(id)) return askReview(model, id);
   if (/^RV-\d{3,}$/.test(id)) {

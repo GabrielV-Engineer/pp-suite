@@ -31,12 +31,9 @@
         { "if": { "properties": { "access": { "const": "read-write" } }, "required": ["access"] }, "then": { "required": ["access_reason"] }, "else": { "not": { "required": ["access_reason"] } } }
       ]
     },
-    "entry": {
+    "answer": {
       "type": "object",
-      "additionalProperties": false,
-      "required": ["role", "decision"],
       "properties": {
-        "role": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
         "decision": { "enum": ["pending", "adopt", "later", "not_needed"] },
         "tool": { "$ref": "#/$defs/tool" },
         "trigger": { "$ref": "#/$defs/trigger" },
@@ -50,6 +47,26 @@
         { "if": { "properties": { "decision": { "const": "later" } }, "required": ["decision"] }, "then": { "required": ["trigger"] }, "else": { "not": { "required": ["trigger"] } } },
         { "if": { "properties": { "decision": { "const": "not_needed" } }, "required": ["decision"] }, "then": { "required": ["reason"] } }
       ]
+    },
+    "entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["role", "decision"],
+      "properties": {
+        "role": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+        "decision": true,
+        "tool": true,
+        "trigger": true,
+        "reason": true,
+        "decided_by": true,
+        "decided_on": true,
+        "history": {
+          "type": "array",
+          "description": "Earlier decisions, oldest first. A change never erases why it was decided before.",
+          "items": { "type": "object", "allOf": [{ "$ref": "#/$defs/answer" }], "required": ["decision"], "unevaluatedProperties": false }
+        }
+      },
+      "allOf": [{ "$ref": "#/$defs/answer" }]
     }
   }
 }

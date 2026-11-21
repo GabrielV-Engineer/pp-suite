@@ -132,8 +132,11 @@ screens, the standards adopted), and `K03` asks for a decision when it applies t
 
 The file holds only what a person chose: the project may be public, and what a machine has installed (`ppc init` lists it) never
 goes in. No rule asks whether a chosen tool is installed, because the validator runs on machines that are not the person's.
-**Not built yet:** a command that writes the file and a guard rule that keeps an agent from writing it (until then anyone with
-access to the files can edit it, and nothing checks who did).
+`ppc decide-tool` writes the file: it refuses a result the contract rejects (nothing is written) and keeps an earlier decision of
+the same role in `history`. It is a person's choice: the guard lets it through only when the person picked, in the question panel
+(`ppc ask <role>`), the option that names exactly that command, and refuses every other write to the file, since each line of it is a
+decision (swapping the tool an entry names, or widening an MCP server to read-write, touches no `decided_by` line). Reading it is
+free. `ppc tools` shows the roles, the decisions and the slices that call for each.
 
 ## Interface (`.architect/ui.md`)
 

@@ -91,3 +91,11 @@ export function readInventory({ home = '', root }) {
 
   return { skills: skills.sort(byName), plugins: plugins.sort(byName), mcp: mcp.sort(byName), problems };
 }
+
+/** Whether the machine has a tool of this kind with this name; a skill is found by its full name (`plugin:skill`) or its bare one. */
+export function hasTool(inventory, kind, name) {
+  if (kind === 'skill') return inventory.skills.some((s) => s.name === name || bareName(s.name) === name);
+  if (kind === 'plugin') return inventory.plugins.some((p) => p.name === name);
+  if (kind === 'mcp') return inventory.mcp.some((m) => m.name === name);
+  return false;
+}

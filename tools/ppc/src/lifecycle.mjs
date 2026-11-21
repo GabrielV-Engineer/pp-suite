@@ -10,6 +10,7 @@ import { generatedGlobs } from './testpaths.mjs';
 import { overlapGroup, triage } from './additions.mjs';
 import { nextSteps } from './next.mjs';
 import { gitSubjects } from './session.mjs';
+import { ROLES, TRIGGERS as TOOL_TRIGGERS, toolFromFlags } from './tools.mjs';
 import { STANDARDS, BY_ID, CUSTOM, TRIGGERS, recommend, projectFacts, validChoice, mayBeNotNeeded, describeAnswer } from './standards.mjs';
 
 // The slices that pay debt: a refactor slice changes structure, a fix slice behavior (often through a change request).
@@ -921,5 +922,57 @@ export function decideStandard(root, id, { acceptRecommended = false, by, today 
     if (problems.length) fail(`the decision would leave ${file} invalid:\n${describe(problems)}`);
     const words = Object.entries(answers).map(([one]) => `${one}: ${describeAnswer(list.find((s) => s.id === one))}`);
     return { decided: Object.fromEntries(Object.entries(answers).map(([one]) => [one, describeAnswer(list.find((s) => s.id === one))])), text: `${words.join('\n')}\nRecorded in ${file}. Next: run \`ppc constitution\` so CLAUDE.md lists the adopted standards.` };
+  });
+}
+
+// ── tools: the skill, plugin or MCP server a person chose for a role (docs/tools.md) ─────────────
+
+const TOOL_FIELDS = ['decision', 'tool', 'trigger', 'reason', 'decided_by', 'decided_on'];
+const toolAnswerOf = (item) => Object.fromEntries(TOOL_FIELDS.filter((k) => item[k] !== undefined).map((k) => [k, item[k]]));
+
+/**
+ * Record one role's decision in `.sddpp/tools.yaml`: a tool adopted, the choice deferred until a trigger, or not needed. A person's:
+ * the guard lets the command through only when they picked it in the question panel. Nothing is written when the result would be
+ * invalid, and an earlier decision of the same role goes to its `history`.
+ */
+export function decideTool(root, role, { by, today = new Date().toISOString().slice(0, 10), adopt, kind, source, pinned, access, accessReason, later, trigger, notNeeded, reason } = {}) {
+  if (!by || !by.trim()) fail('--by <name> is required (or set git config user.name): a person decides which tool a project uses');
+  const roles = ROLES.map((r) => r.id);
+  if (!role) fail(`name the role to decide (ppc decide-tool <role> ...); the roles are ${roles.join(', ')}`);
+  if (!roles.includes(role)) fail(`unknown role ${role}; the roles are ${roles.join(', ')}`);
+  const asked = [adopt !== undefined, Boolean(later), Boolean(notNeeded)].filter(Boolean).length;
+  if (asked !== 1) fail(`say one answer for ${role}: --adopt <tool> --kind <skill|plugin|mcp>, --later --trigger <what>, or --not-needed --reason <why>`);
+  let answer;
+  if (adopt !== undefined) {
+    answer = { decision: 'adopt', tool: toolFromFlags({ adopt, kind, source, pinned, access, accessReason }, fail) };
+  } else if (later) {
+    if (!Object.hasOwn(TOOL_TRIGGERS, trigger ?? '')) fail(`--later needs --trigger, one of ${Object.keys(TOOL_TRIGGERS).join(', ')}: what asks again`);
+    answer = { decision: 'later', trigger };
+  } else {
+    if (!(reason?.trim().length >= 5)) fail(`--not-needed needs a --reason of at least 5 characters: why ${role} does not apply here`);
+    answer = { decision: 'not_needed', reason: reason.trim() };
+  }
+  return transact(root, () => {
+    const model = loadProject(root);
+    if (!model.blueprint) fail('there is no design yet (.architect/blueprint.yaml); the tools are decided after it');
+    const file = '.sddpp/tools.yaml';
+    const abs = join(root, file);
+    let list = [];
+    if (existsSync(abs)) {
+      const data = parseDocument(readFileSync(abs, 'utf8')).toJSON();
+      list = Array.isArray(data?.tools) ? data.tools : fail(`${file} has no list of tools; fix it by hand first`);
+    }
+    const before = list.find((e) => e.role === role);
+    const history = [...(before?.history ?? []), ...(before && before.decision !== 'pending' ? [toolAnswerOf(before)] : [])];
+    const next = { role, ...answer, decided_by: by.trim(), decided_on: today, ...(history.length ? { history } : {}) };
+    list = before ? list.map((e) => (e === before ? next : e)) : [...list, next];
+    const order = (e) => (roles.includes(e.role) ? roles.indexOf(e.role) : roles.length);
+    list.sort((a, b) => order(a) - order(b));
+    mkdirSync(dirname(abs), { recursive: true });
+    writeFileSync(abs, stringify({ tools: list }, { lineWidth: 0 }));
+    const problems = validateModel(loadProject(root)).filter((f) => f.file === file && f.severity === 'error');
+    if (problems.length) fail(`the decision would leave ${file} invalid:\n${describe(problems)}`);
+    const words = answer.decision === 'adopt' ? `${answer.tool.name} (${answer.tool.kind}${answer.tool.access ? `, ${answer.tool.access}` : ''})` : answer.decision === 'later' ? `later, when ${TOOL_TRIGGERS[answer.trigger]}` : `not needed: ${answer.reason}`;
+    return { role, decision: answer.decision, text: `${role}: ${words}\nRecorded in ${file}.` };
   });
 }

@@ -17,12 +17,14 @@ import { applyChange, decideChange, openChange } from '../src/changes.mjs';
 import { sessionContext, gitSubjects, gitUserName, buildFacts, panelAnswers } from '../src/session.mjs';
 import { renderAdditions } from '../src/additions.mjs';
 import { SURFACES, renderRubric } from '../src/rubric.mjs';
+import { ROLES, renderTools } from '../src/tools.mjs';
+import { readInventory, hasTool } from '../src/inventory.mjs';
 import { BY_ID as STANDARD_IDS, recommend, renderStandards, projectFacts } from '../src/standards.mjs';
 import { renderDecision, askFor, redCommitFiles, DecisionError, AUDIT_INPUT } from '../src/decisions.mjs';
 import { buildPrompts, resolveTarget, writePrompts } from '../src/prompts.mjs';
 import { openReview, recordOutside } from '../src/reviewfile.mjs';
 import { renderGuide } from '../src/guide.mjs';
-import { start, stop, widen, approve, reread, glance, approveSlice, approveRed, approveDebt, scheduleDebt, decideAddition, decideStandard, toRefactor, finish, mutate, status, LifecycleError } from '../src/lifecycle.mjs';
+import { start, stop, widen, approve, reread, glance, approveSlice, approveRed, approveDebt, scheduleDebt, decideAddition, decideStandard, decideTool, toRefactor, finish, mutate, status, LifecycleError } from '../src/lifecycle.mjs';
 
 const USAGE = `ppc — pp-suite contract tool
 
@@ -92,6 +94,9 @@ const USAGE = `ppc — pp-suite contract tool
                                          command; with a reason, the exception that lets a slice in progress close; with
                                          --pay-in, a debt entry is approved or scheduled into the slice that pays it; for a
                                          standard, --details asks to record the person's own rule (ppc ask security --details "...")
+    ppc ask <role> [--tool <name> --kind <skill|plugin|mcp> [--source <where>] [--pinned <version>] [--access <read-only|read-write> [--access-reason <why>]]] [dir]
+                                         the panel question for a role's tool (ui-design, ui-capture, security-review, db-inspect): with no
+                                         tool, not needed or not yet; with one, a confirmation that says whether it was found on this machine
     ppc additions [dir]                  the additions in plain words: what needs you, what a recommendation settles
 
   Standards (security, observability, git, CI: decided per project, see docs/standards.md)
@@ -102,6 +107,10 @@ const USAGE = `ppc — pp-suite contract tool
                                          earlier answer in its history. --adopt custom --details "<text>" records your own rule or tool
     ppc decide-standard --accept-recommended [--by <name>] [dir]
                                          HUMAN ONLY: take the recommendation for every standard still undecided
+    ppc tools [dir]                      each role (ui-design, ui-capture, security-review, db-inspect): the tool chosen for it, the slices not yet closed that call for it, and whether a chosen tool is on this machine
+    ppc decide-tool <role> (--adopt <tool> --kind <skill|plugin|mcp> [--source <where>] [--pinned <commit|version>] [--access <read-only|read-write> [--access-reason <why>]] | --later --trigger <what> | --not-needed --reason <why>) [--by <name>] [dir]
+                                         HUMAN ONLY: record the skill, plugin or MCP server this project uses for a role (ui-design, ui-capture,
+                                         security-review, db-inspect); an MCP server says its access; deciding again keeps the earlier answer in history
     ppc refactor [dir]                   green -> refactor
     ppc finish <slice> --audit <file.json> [--budget-reason <text>] [--mutation-reason <text>] [dir]
                                          close the slice; the diff size is measured from git.
@@ -130,14 +139,15 @@ const USAGE = `ppc — pp-suite contract tool
     ppc help [<command>]                 this text, or only the lines of one command; \`ppc <command> --help\` does the same and nothing else
 `;
 
-const VALUE_OPTIONS = new Set(['--measure', '--tools', '--add-tool', '--note', '--mode', '--surface', '--descriptions', '--by', '--audit', '--files', '--slice', '--accept', '--budget-reason', '--mutation-reason', '--reason', '--task', '--specify', '--title', '--problem', '--proposal', '--component', '--adr', '--qa', '--but-cut', '--but-keep', '--pay-in', '--add-component', '--mockup', '--adopt', '--details', '--trigger']);
+const VALUE_OPTIONS = new Set(['--measure', '--tools', '--add-tool', '--tool', '--note', '--mode', '--surface', '--descriptions', '--by', '--audit', '--files', '--slice', '--accept', '--budget-reason', '--mutation-reason', '--reason', '--task', '--specify', '--title', '--problem', '--proposal', '--component', '--adr', '--qa', '--but-cut', '--but-keep', '--pay-in', '--add-component', '--mockup', '--adopt', '--details', '--trigger', '--kind', '--source', '--pinned', '--access', '--access-reason']);
 // What each command accepts. Anything else is refused: an option that is silently ignored can turn a request for help, or a typo,
 // into an approval (`ppc approve --help` once approved the one slice that could be approved).
 const OPTIONS = {
   rules: [], validate: ['--strict', '--design'], 'check-git': [], start: [], stop: [], 'approve-slice': ['--by'], approve: ['--by', '--accept', '--drop', '--reason', '--pay-in', '--mockup'],
-  show: [], ask: ['--budget-reason', '--mutation-reason', '--pay-in', '--add-component', '--details', '--measure', '--tools', '--add-tool'], touches: [], widen: ['--component'], reread: ['--all'], guide: [], outside: ['--by', '--skip', '--note'], glance: ['--by', '--skip'], review: ['--project', '--mode', '--surface', '--by'], 'approve-debt': ['--by', '--accept', '--drop', '--reason'], 'schedule-debt': ['--slice'],
+  show: [], ask: ['--budget-reason', '--mutation-reason', '--pay-in', '--add-component', '--details', '--measure', '--tools', '--add-tool', '--tool', '--kind', '--source', '--pinned', '--access', '--access-reason'], touches: [], widen: ['--component'], reread: ['--all'], guide: [], outside: ['--by', '--skip', '--note'], glance: ['--by', '--skip'], review: ['--project', '--mode', '--surface', '--by'], 'approve-debt': ['--by', '--accept', '--drop', '--reason'], 'schedule-debt': ['--slice'],
   'decide-addition': ['--keep', '--cut', '--alone', '--by', '--reason', '--accept-recommended', '--but-cut', '--but-keep'], additions: [],
-  rubric: [], standards: [], 'decide-standard': ['--measure', '--tools', '--add-tool', '--adopt', '--details', '--later', '--trigger', '--not-needed', '--reason', '--accept-recommended', '--by'],
+  'decide-tool': ['--adopt', '--kind', '--source', '--pinned', '--access', '--access-reason', '--later', '--trigger', '--not-needed', '--reason', '--by'],
+  rubric: [], standards: [], tools: [], 'decide-standard': ['--measure', '--tools', '--add-tool', '--adopt', '--details', '--later', '--trigger', '--not-needed', '--reason', '--accept-recommended', '--by'],
   'change-request': ['--slice', '--title', '--problem', '--proposal', '--component', '--adr', '--qa', '--budgets'],
   'decide-change': ['--accept', '--reject', '--by', '--reason'], 'apply-change': [], 'approve-red': ['--by'], refactor: [],
   finish: ['--audit', '--budget-reason', '--mutation-reason'], mutation: ['--files', '--slice'], next: ['--json'], overview: [], map: ['--stdout', '--html', '--open', '--on', '--off', '--describe', '--descriptions'],
@@ -284,11 +294,15 @@ switch (command) {
     break;
   }
   case 'ask': {
-    const id = positionals.find((p) => (/^([A-Z]+-|reread$|standards$|review$)/.test(p) || STANDARD_IDS.has(p)) && !p.includes('/'));
+    const roleIds = new Set(ROLES.map((r) => r.id));
+    const id = positionals.find((p) => (/^([A-Z]+-|reread$|standards$|review$)/.test(p) || STANDARD_IDS.has(p) || roleIds.has(p)) && !p.includes('/'));
     const root = resolve(positionals.find((p) => p !== id) ?? '.');
+    // a tool the agent names is looked for in the person's home, so the question can say whether pp-suite found it (it never claims it did without looking)
+    const named = options.get('tool');
+    const installed = named !== undefined && options.get('kind') ? hasTool(readInventory({ home: homedir(), root }), options.get('kind'), named) : undefined;
     let question;
     try {
-      question = id ? askFor(loadProject(root), id, { redFiles: redCommitFiles(root, id), budgetReason: options.get('budget-reason'), mutationReason: options.get('mutation-reason'), payIn: options.get('pay-in'), addComponent: options.get('add-component'), details: options.get('details'), measure: options.get('measure'), tools: options.get('tools'), addTool: options.get('add-tool') }) : null;
+      question = id ? askFor(loadProject(root), id, { redFiles: redCommitFiles(root, id), budgetReason: options.get('budget-reason'), mutationReason: options.get('mutation-reason'), payIn: options.get('pay-in'), addComponent: options.get('add-component'), details: options.get('details'), measure: options.get('measure'), tools: options.get('tools'), addTool: options.get('add-tool'), tool: named, kind: options.get('kind'), source: options.get('source'), pinned: options.get('pinned'), access: options.get('access'), accessReason: options.get('access-reason'), installed }) : null;
     } catch (error) {
       if (!(error instanceof DecisionError)) throw error;
       console.error(error.message);
@@ -394,6 +408,26 @@ switch (command) {
       if (other && !existsSync(resolve(other))) throw new LifecycleError(`unknown standard ${other}; the standards are ${[...STANDARD_IDS.keys()].join(', ')}`);
       const root = resolve(other ?? '.');
       return decideStandard(root, id, { acceptRecommended: flags.has('--accept-recommended'), by: options.get('by') ?? gitUserName(root), adopt: options.get('adopt'), details: options.get('details'), measure: options.get('measure'), tools: options.get('tools')?.split(',').map((t) => t.trim()).filter(Boolean), addTool: options.get('add-tool'), later: flags.has('--later'), trigger: options.get('trigger'), notNeeded: flags.has('--not-needed'), reason: options.get('reason') });
+    });
+    break;
+  case 'tools': {
+    const root = dirAt(0);
+    const model = loadProject(root);
+    if (!model.blueprint) {
+      console.error('there is no design yet (.architect/blueprint.yaml); the tools are decided after it');
+      process.exit(1);
+    }
+    process.stdout.write(renderTools(model, readInventory({ home: homedir(), root })));
+    break;
+  }
+  case 'decide-tool':
+    transition(() => {
+      const roles = new Set(ROLES.map((r) => r.id));
+      const role = positionals.find((p) => roles.has(p));
+      const other = positionals.find((p) => p !== role);
+      if (other && !existsSync(resolve(other))) throw new LifecycleError(`unknown role ${other}; the roles are ${[...roles].join(', ')}`);
+      const root = resolve(other ?? '.');
+      return decideTool(root, role, { by: options.get('by') ?? gitUserName(root), adopt: options.get('adopt'), kind: options.get('kind'), source: options.get('source'), pinned: options.get('pinned'), access: options.get('access'), accessReason: options.get('access-reason'), later: flags.has('--later'), trigger: options.get('trigger'), notNeeded: flags.has('--not-needed'), reason: options.get('reason') });
     });
     break;
   case 'change-request': {
