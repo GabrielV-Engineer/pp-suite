@@ -25,6 +25,12 @@ constitution, the slice cards, the build and the audit). See `docs/standards.md`
   it, and say what the other choices cost. Lean to the smaller answer for a small project: a standard nobody needs is
   ceremony.
 - **"Later" and "not needed" are good answers.** Deciding never holds the work up.
+- **Experience also carries a measuring command and a list of tools.** After `experience` is decided, say that quality targets
+  (performance, usability) are declared and not measured until the person gives a command (`ppc ask experience --measure "<command>"`;
+  you may propose one that the project already has, such as a script in its `package.json`, and the person reads it before
+  saying yes, because the audit of every slice will run it). Offer a list of tools the agent may use to look at or measure what was
+  built, chosen from the kinds of component in the design, and ask it with `ppc ask experience --tools "<a,b>"`. Every name is
+  **your suggestion, not verified by pp-suite**: say what each is and where it comes from. Both are optional; "none" is an answer.
 - Only these five standards. Anything else the person wants recorded about how they work (a commit message style, a review
   rule) goes in their own part of `CLAUDE.md`, outside the pp-suite block.
 

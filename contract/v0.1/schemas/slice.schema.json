@@ -91,6 +91,23 @@
             "notes": { "type": "string" }
           }
         },
+        "measurements": {
+          "type": "array",
+          "minItems": 1,
+          "description": "What the audit measured against the slice's quality targets, with the command the project declared (the experience standard). `met` is the auditor's reading of the target; ppc does not judge it.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["qa", "command", "value", "met"],
+            "properties": {
+              "qa": { "type": "string", "pattern": "^QA-\\d{3}$" },
+              "command": { "type": "string", "minLength": 3 },
+              "value": { "type": "string", "minLength": 1 },
+              "met": { "type": "boolean" },
+              "note": { "type": "string", "minLength": 1 }
+            }
+          }
+        },
         "debt_unpaid": {
           "type": "array",
           "description": "The debt in `pays` this slice did not pay, and why; that debt is open again.",

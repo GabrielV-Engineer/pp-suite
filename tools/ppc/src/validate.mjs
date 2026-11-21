@@ -74,6 +74,8 @@ export const RULES = {
   U05: 'A screen\'s mockup is not approved, or changed after a person approved it.',
   U06: 'An unfinished work slice on a frontend component names no screen, or names a screen that does not exist.',
   U07: 'Slices build to screens and the interface document names no command that opens the real app (app.check).',
+  W10: 'A command that measures the quality targets is declared, and a slice closed after that did not record what it measured.',
+  S04: 'The experience standard is adopted, a slice closed that meets a performance or usability target, and no command that measures is declared.',
   R01: 'A review is of a capability the design does not have.',
   R02: 'A finding a review lists is not in the debt register, or that entry does not name this review as its origin.',
   S01: 'A standard (security, observability, git, CI, experience) is undecided, or there is no standards file (always a warning).',
@@ -488,6 +490,20 @@ export function validateModel(model, { now = new Date() } = {}) {
       for (const s of list) {
         if (s.decision === 'later' && triggerFired(s.trigger, bp, model.facts ?? {})) warn('S02', standardsFile, `${s.id} waited until ${TRIGGERS[s.trigger]}, and that has happened; decide it again with \`ppc ask ${s.id}\``);
         const spec = STANDARDS.find((x) => x.id === s.id);
+        if (s.id === 'experience' && s.decision === 'adopt' && ['glance', 'review', 'external'].includes(s.choice)) {
+          // measuring (docs/standards.md, "Experience"): the targets are declared; a command that measures them is the person's to decide
+          const measurable = new Set(bp.quality_attributes.filter((q) => ['performance', 'usability'].includes(q.attribute)).map((q) => q.id));
+          const closed = slices.filter(({ data: sl }) => sl.status === 'done' && (sl.quality_attributes ?? []).some((q) => measurable.has(q)));
+          if (!s.measure_command && closed.length) warn('S04', standardsFile, `${closed.map(({ data: sl }) => sl.id).join(', ')} closed against quality targets that can be measured (performance, usability), and no command measures them: the targets are declared, not measured. Give one with \`ppc ask experience --measure "<command>"\` (an agent in delegate mode may propose it; you decide)`);
+          if (s.measure_command) {
+            for (const { file, data: sl } of closed) {
+              if (!sl.closed_on || String(sl.closed_on) < String(s.measure_on ?? s.decided_on)) continue;
+              for (const q of (sl.quality_attributes ?? []).filter((x) => measurable.has(x))) {
+                if (!(sl.audit?.measurements ?? []).some((m) => m.qa === q)) warn('W10', file, `${sl.id} closed against ${q}, and the project measures with \`${s.measure_command}\`, but its audit records no measurement of ${q}`);
+              }
+            }
+          }
+        }
         if (s.decision === 'adopt' && spec.product && !attributes.has(spec.attribute)) warn('S03', standardsFile, `${s.id} is adopted but the design has no ${spec.attribute} quality attribute; open a change request so the design carries it (\`ppc change-request\`)`);
       }
     }

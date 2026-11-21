@@ -116,6 +116,13 @@ a command to type in a terminal. Instead:
    "console_errors": <how many>, "screenshots": [".sddpp/ui-checks/<slice id>/SCR-01.png"] }` (or `"screenshots": []` with
    `"no_screenshots_reason"`). `ppc finish` does not close a slice with screens without it, and checks the screenshots exist.
 
+   If `ppc standards experience` shows `Measures with:` a command, and the slice names a performance or usability quality
+   target (`quality_attributes` in the slice file), run that command, and for each such target add `"measurements": [{ "qa":
+   "QA-001", "command": "<what you ran>", "value": "<what it printed, as printed>", "met": <true|false>, "note": "<optional>"
+   }]`. `met` is your reading of the target in the blueprint, and the person reads it too: `ppc finish` does not judge it. A
+   command that fails, or cannot run here, is not `met: true`: say so in a deviation and leave the measurement out (`W10` will
+   say it was not recorded). Without a declared command, do not invent one; `S04` tells the person to decide one.
+
    If the slice pays debt (`pays` in the slice file), account for every entry, checking each against the diff, not against
    the plan: `"debt_paid": ["DEBT-…"]` for what the commits fixed, and `"debt_unpaid": [{ "id": "DEBT-…", "reason": "<why
    not>" }]` for what they did not. A feature slice does not close without this account. What is not paid is open again,

@@ -202,9 +202,32 @@ whether it happens at all. Skipping it is recorded and **never holds anything up
 It cannot tell whether anyone really tried it: `outside_by` is a name, not a signature. The tools that would help (a screen recording,
 a way to take notes) are for the agent to **suggest, as its own suggestions**, when it presents the guide; pp-suite names none.
 
-**Status (2026-11-20).** Built and tested: the standard, its recommendation, the schema, rule `S03` for it (a `usability` quality
-attribute), the debt kind `experience`, the glance (level 1), the review of the whole (level 2) and the outside test (level 3) as
-described above, with the
-prompt `/pp-experience` **written and not yet run by an agent on a real project** (it tells the agent to name tools only as its own
-suggestions, which pp-suite did not verify; nothing checks that it does). **Planned, not built:** the measuring command and the
-authorized-tools list. Not measured: whether any of it makes what is built better.
+### Measuring, and the tools the agent may use
+
+The quality targets of the design (a latency, a number of steps) are declared. Declared is not measured. The experience entry of
+`.sddpp/standards.yaml` can carry two more fields, both decided by a person, because an agent will run what they say:
+
+| Field | What it is |
+|---|---|
+| `measure_command` | One line: the command that measures the quality targets and prints the numbers. The project declares it as it declares `app.check`; **pp-suite ships no tool and runs nothing itself**. In `delegate` mode an agent may propose one (`ppc ask experience --measure "<command>"`); the person reads it and decides |
+| `allowed_tools` | The tools the agent may run to look at or measure what was built, authorized once. Run **temporarily and outside the repository** (`npx`, `uvx`, a scratch directory), never added to its dependencies. A tool outside the list is asked about: **use it once** (nothing recorded), **add it to the list** (`ppc decide-standard experience --add-tool "<name>"`) or **no** |
+
+Both are set with `ppc decide-standard experience --measure … | --tools "a,b" | --add-tool …`, which changes the adopted answer
+(the choice stays and the earlier one goes to history), and a new choice keeps them unless it says otherwise. `decided_on` does not
+move on such a change: it is the day the terms of the standard were decided, and it says which closed slices wait for a glance or a
+review, so adding a tool must not make them stop waiting. The command has its own day (`measure_on`), `decided_by` is whoever made
+the last change, and every earlier state stays in `history`. The guard refuses the fields written by hand.
+
+The audit of a slice runs the command and records `measurements` (`qa`, `command`, `value` as printed, and `met`, the auditor's
+reading of the target; `ppc finish` checks the shape and that the quality attribute exists, and **does not judge `met`**). Two
+warnings: `S04` when a slice closed against a performance or usability target and no command is declared, and `W10` when one is
+declared and a slice closed after it did not record the measurement.
+
+What it cannot do: tell whether the command measures what the target says, or whether a tool is safe. The names in the list are
+the person's decision on the agent's suggestion; pp-suite verified none. Whether to put an unknown tool's code on the machine is
+the person's judgment, which is why the agent says what it is and where it comes from first.
+
+**Status (2026-11-21).** Built and tested: everything in this section and the ones above, with the prompt `/pp-experience` (and the
+step added to `/pp-audit`) **written and not yet run by an agent on a real project**. It tells the agent to name tools only as its own
+suggestions, which pp-suite did not verify; nothing checks that it does. **Nothing planned is left from the plan of 2026-11-20.**
+Not measured: whether any of it makes what is built better.

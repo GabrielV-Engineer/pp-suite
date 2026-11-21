@@ -139,7 +139,7 @@ export function describeAnswer(a) {
   return `not needed: ${a.reason}`;
 }
 
-const row = (label, text) => `    ${`${label}:`.padEnd(13)}${text}`;
+const row = (label, text) => `    ${`${label}:`.padEnd(15)}${text}`;
 
 /** The standards in plain words: what was decided, or what is recommended and why, and how to decide. */
 export function renderStandards(list = [], recommended = {}, { bp, facts, only } = {}) {
@@ -154,6 +154,10 @@ export function renderStandards(list = [], recommended = {}, { bp, facts, only }
     if (decided) {
       out.push(row('Decided', `${describeAnswer(own)} (${own.decided_by}, ${own.decided_on})`));
       if (own.decision === 'adopt' && own.choice !== CUSTOM) out.push(row('Means', s.choices[own.choice]));
+      if (s.id === 'experience' && own.decision === 'adopt') {
+        out.push(row('Measures with', own.measure_command ?? 'not declared: the quality targets are declared, not measured. To give a command:  ppc ask experience --measure "<command>"'));
+        out.push(row('Tools allowed', own.allowed_tools?.length ? own.allowed_tools.join(', ') : 'none authorized. To authorize some:  ppc ask experience --tools "<a,b>"'));
+      }
       if (own.decision === 'later' && bp && triggerFired(own.trigger, bp, facts)) out.push(row('Ask again', `${TRIGGERS[own.trigger]} has happened`));
     }
     const r = recommended[s.id];

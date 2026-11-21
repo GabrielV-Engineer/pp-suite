@@ -627,6 +627,23 @@ function uiCheckOf(root, s, input) {
  * How the whole suite ran at the close (found in the first real project, SL-032: a failure outside the slice was only a line in
  * the deviations). A failure needs a proposed test debt entry in `debt_created`, so the person decides it like any other debt.
  */
+function measurementsOf(model, input) {
+  const list = input.measurements;
+  if (list === undefined) return undefined;
+  const shape = 'a list of { "qa": "QA-001", "command": "<what measured>", "value": "<what it printed>", "met": true|false }';
+  if (!Array.isArray(list) || !list.length) fail(`"measurements" is ${shape}`);
+  const qas = new Set(model.blueprint.data.quality_attributes.map((q) => q.id));
+  return list.map((x) => {
+    if (!x || typeof x !== 'object') fail(`"measurements" is ${shape}`);
+    if (!qas.has(x.qa)) fail(`"measurements": ${x.qa} is not a quality attribute of the design`);
+    if (typeof x.command !== 'string' || x.command.trim().length < 3) fail('"measurements" needs "command": what measured it');
+    if (typeof x.value !== 'string' || !x.value.trim()) fail('"measurements" needs "value": what the command printed, as printed');
+    if (typeof x.met !== 'boolean') fail('"measurements" needs "met": true or false, your reading of the target (ppc does not judge it)');
+    if (x.note !== undefined && (typeof x.note !== 'string' || !x.note.trim())) fail('"measurements": a note is text');
+    return { qa: x.qa, command: x.command.trim(), value: x.value.trim(), met: x.met, ...(x.note ? { note: x.note.trim() } : {}) };
+  });
+}
+
 function suiteOf(model, input) {
   const suite = input.suite;
   if (suite === undefined) return undefined;
@@ -691,6 +708,7 @@ export function finish(root, id, input, { mutationRunner, now = new Date() } = {
       }
       const account = debtAccount(s, input);
       const ui_check = uiCheckOf(root, s, input);
+      const measurements = measurementsOf(model, input);
       const suite = suiteOf(model, input);
       const debt_created = [...(input.debt_created ?? [])];
       if (withoutTests && policy === 'optional') debt_created.push(proposeTestDebt(root, model, s, now.toISOString().slice(0, 10)));
@@ -708,6 +726,7 @@ export function finish(root, id, input, { mutationRunner, now = new Date() } = {
         ...(account.paid.length ? { debt_paid: account.paid } : {}),
         ...(account.unpaid.length ? { debt_unpaid: account.unpaid } : {}),
         ...(ui_check ? { ui_check } : {}),
+        ...(measurements ? { measurements } : {}),
         ...(suite ? { suite } : {}),
       };
       editFrontmatter(root, entry.file, (doc) => {
@@ -791,7 +810,7 @@ export function glance(root, id, { by, skip = false, today = new Date().toISOStr
 
 // ── standards: security, observability, git, CI ──────────────────────────────────
 
-const ANSWER_FIELDS = ['decision', 'choice', 'details', 'trigger', 'reason', 'decided_by', 'decided_on'];
+const ANSWER_FIELDS = ['decision', 'choice', 'details', 'trigger', 'reason', 'measure_command', 'measure_on', 'allowed_tools', 'decided_by', 'decided_on'];
 const answerOf = (item) => Object.fromEntries(ANSWER_FIELDS.filter((k) => item[k] !== undefined).map((k) => [k, item[k]]));
 
 /** The answer one call asks for, checked against what the contract allows; a refusal says why. */
@@ -813,13 +832,44 @@ function standardAnswer(id, { adopt, details, later, trigger, notNeeded, reason 
   return { decision: 'not_needed', reason: reason.trim() };
 }
 
+// The experience standard also carries the command that measures and the tools the agent may run (docs/standards.md, "Experience").
+const checkedMeasure = (text) => {
+  const command = String(text).trim();
+  if (/[\r\n]/.test(command)) fail('the command is one line');
+  if (command.length < 3 || command.length > 300) fail('the command needs 3 to 300 characters: what measures the quality targets and prints the numbers');
+  return command;
+};
+const checkedTool = (text) => {
+  const name = String(text).trim();
+  if (!/^[^,\r\n"]{2,80}$/.test(name)) fail(`a tool name needs 2 to 80 characters, with no comma or quote (got "${name}")`);
+  return name;
+};
+/** The command and the tools an adopted experience answer ends up with: what is asked, else what the one before it had. */
+function experienceExtras(before, { measure, tools, addTool }, today) {
+  const measure_command = measure !== undefined ? checkedMeasure(measure) : before?.measure_command;
+  let allowed = tools !== undefined ? tools.map(checkedTool) : before?.allowed_tools;
+  if (new Set(allowed ?? []).size !== (allowed ?? []).length) fail('a tool is listed twice');
+  if (addTool !== undefined) {
+    const name = checkedTool(addTool);
+    if ((allowed ?? []).includes(name)) fail(`${name} is already on the list of tools`);
+    allowed = [...(allowed ?? []), name];
+  }
+  // the command has its own day: a new one is today, one kept keeps the day it was decided
+  const measure_on = measure !== undefined ? today : before?.measure_on ?? before?.decided_on;
+  return { ...(measure_command ? { measure_command, measure_on } : {}), ...(allowed?.length ? { allowed_tools: allowed } : {}) };
+}
+
 /**
  * HUMAN ONLY (the guard asks the person): decide one standard, or with `acceptRecommended` every undecided one as recommended from
  * the design and the repository. A standard decided again keeps its earlier decision in `history`. Writes `.sddpp/standards.yaml`
  * and nothing else.
  */
-export function decideStandard(root, id, { acceptRecommended = false, by, today = new Date().toISOString().slice(0, 10), ...answer } = {}) {
+export function decideStandard(root, id, { acceptRecommended = false, by, today = new Date().toISOString().slice(0, 10), measure, tools, addTool, ...answer } = {}) {
   if (!by || !by.trim()) fail('--by <name> is required (or set git config user.name): a person decides the standards');
+  const extras = { measure, tools, addTool };
+  const asksExtras = [measure, tools, addTool].some((x) => x !== undefined);
+  const asksAnswer = answer.adopt !== undefined || Boolean(answer.later) || Boolean(answer.notNeeded);
+  if (asksExtras && id !== 'experience') fail(`only the experience standard has a measuring command and tools; ${id ?? 'every standard'} has neither`);
   return transact(root, () => {
     const model = loadProject(root);
     if (!model.blueprint) fail('there is no design yet (.architect/blueprint.yaml); the standards are decided after it');
@@ -832,7 +882,10 @@ export function decideStandard(root, id, { acceptRecommended = false, by, today 
     }
     const decided = (one) => list.find((s) => s.id === one && s.decision !== 'pending');
     const answers = {};
+    // a change to the command or the tools is not a change of terms: the day the standard was decided stays
+    const keepDay = new Set();
     if (acceptRecommended) {
+      if (asksExtras) fail('--measure, --tools and --add-tool change one standard: name it, and do not use --accept-recommended');
       if (id) fail('name a standard, or use --accept-recommended, not both');
       const recommended = recommend(model.blueprint.data, model.facts ?? projectFacts(root));
       for (const s of STANDARDS) {
@@ -843,12 +896,21 @@ export function decideStandard(root, id, { acceptRecommended = false, by, today 
       if (!Object.keys(answers).length) fail('every standard is decided already; to change one, name it: ppc decide-standard <standard> ...');
     } else {
       if (!id) fail('name the standard to decide (ppc decide-standard <standard> ...), or use --accept-recommended');
-      answers[id] = standardAnswer(id, answer);
+      const before = list.find((s) => s.id === id);
+      if (asksExtras && !asksAnswer) {
+        // a change to what the adopted answer carries: the choice stays, and the earlier answer goes to history
+        if (before?.decision !== 'adopt') fail(`${id} is not adopted: adopt a choice first (ppc decide-standard ${id} --adopt <choice>), then its command and its tools`);
+        answers[id] = { decision: 'adopt', choice: before.choice, ...(before.details ? { details: before.details } : {}), ...experienceExtras(before, extras, today) };
+        keepDay.add(id);
+      } else {
+        const one = standardAnswer(id, answer);
+        answers[id] = one.decision === 'adopt' && id === 'experience' ? { ...one, ...experienceExtras(before?.decision === 'adopt' ? before : undefined, extras, today) } : one;
+      }
     }
     for (const [one, plain] of Object.entries(answers)) {
       const before = list.find((s) => s.id === one);
       const history = [...(before?.history ?? []), ...(before && before.decision !== 'pending' ? [answerOf(before)] : [])];
-      const next = { id: one, ...plain, decided_by: by.trim(), decided_on: today, ...(history.length ? { history } : {}) };
+      const next = { id: one, ...plain, decided_by: by.trim(), decided_on: keepDay.has(one) ? before.decided_on : today, ...(history.length ? { history } : {}) };
       list = before ? list.map((s) => (s === before ? next : s)) : [...list, next];
     }
     const order = (s) => STANDARDS.findIndex((x) => x.id === s.id);

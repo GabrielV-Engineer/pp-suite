@@ -254,8 +254,40 @@ function standardCommand(id, answer) {
   return `ppc decide-standard ${id} --not-needed --reason "${answer.reason}"`;
 }
 
+/** A one-line value that can ride in a quoted argument of the command, or an error that says why not. */
+function carriedValue(flag, value, { min, max }) {
+  const text = String(value).trim();
+  if (text.includes('"') || /[\r\n]/.test(text)) throw new DecisionError(`${flag}: it cannot contain a double quote or a line break`);
+  if (text.length < min || text.length > max) throw new DecisionError(`${flag}: it needs ${min} to ${max} characters`);
+  return text;
+}
+
+/** The panel questions about what the experience standard carries: the command that measures, the tools the agent may use. */
+function askExperienceExtras(model, { measure, tools, addTool }) {
+  const own = standardsOf(model).find((x) => x.id === 'experience' && x.decision === 'adopt');
+  if (!own) return null;
+  const No = { label: 'No', description: 'Nothing is decided; it waits for you' };
+  if (measure !== undefined) {
+    const command = carriedValue('--measure', measure, { min: 3, max: 300 });
+    return { questions: [{ question: `Record \`${command}\` as how this project measures its quality targets? The audit of a slice will run it, so read it first.`, header: 'Experience', multiSelect: false, options: [
+      choose('Yes, record it', `ppc decide-standard experience --measure "${command}"`, 'The audit of each slice runs it and records the numbers against the quality targets; you can change it later'), No] }] };
+  }
+  if (tools !== undefined) {
+    const names = String(tools).split(',').map((t) => carriedValue('--tools', t, { min: 2, max: 80 }));
+    return { questions: [{ question: `Allow the agent to use ${names.join(', ')}? pp-suite did not verify them: the agent names them from its own knowledge. Each is run temporarily, outside the repository, and is never added to its dependencies.`, header: 'Experience', multiSelect: false, options: [
+      choose('Yes, allow them', `ppc decide-standard experience --tools "${names.join(',')}"`, 'This becomes the list; a tool outside it is asked about each time'), No] }] };
+  }
+  const name = carriedValue('--add-tool', addTool, { min: 2, max: 80 });
+  if (own.allowed_tools?.includes(name)) return null;
+  return { questions: [{ question: `The agent wants to use ${name}, which is not on your list. pp-suite did not verify it. Use it once, add it to the list, or not at all?`, header: 'Experience', multiSelect: false, options: [
+    { label: 'Use it once, do not add it', description: 'The agent runs it temporarily, outside the repository, and nothing is recorded' },
+    choose('Add it to the list', `ppc decide-standard experience --add-tool "${name}"`, 'It may be used from now on, still only temporarily and outside the repository'),
+    { label: 'No, do not use it', description: 'The agent goes on without it, or says what it could not check' }] }] };
+}
+
 /** The panel question for every undecided standard at once, or for one; the recommendation always first. */
-function askStandards(model, id, details) {
+function askStandards(model, id, details, extras = {}) {
+  if (id === 'experience' && Object.values(extras).some((x) => x !== undefined)) return askExperienceExtras(model, extras);
   if (!model.blueprint) return null;
   const recommended = recommendedOf(model);
   if (id === 'standards') {
@@ -294,8 +326,8 @@ function askStandards(model, id, details) {
   return { questions: [{ question: `${spec.title}: how should this project handle it?${current} Choose Other to describe your own rule or tool.`, header: spec.title.slice(0, 12), multiSelect: false, options: [...kept, options[3] ?? { label: 'Not yet', description: 'Nothing is decided; it waits for you' }] }] };
 }
 
-export function askFor(model, id, { redFiles, budgetReason, mutationReason, payIn, addComponent, details } = {}) {
-  if (id === 'standards' || BY_ID.has(id)) return askStandards(model, id, details);
+export function askFor(model, id, { redFiles, budgetReason, mutationReason, payIn, addComponent, details, measure, tools, addTool } = {}) {
+  if (id === 'standards' || BY_ID.has(id)) return askStandards(model, id, details, { measure, tools, addTool });
   if (id === 'review' || /^CAP-\d{3}$/.test(id)) return askReview(model, id);
   if (/^RV-\d{3,}$/.test(id)) {
     if (!pendingOutside(model).some((r) => r.id === id)) return null;

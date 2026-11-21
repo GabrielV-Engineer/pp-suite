@@ -89,6 +89,7 @@ Status flow: `planned` → `ready` → `in_progress` → `done` (or `dropped`).
 - `done` needs an **audit** (commits, production lines, test lines, tests added, mutation score, decisions,
   debt created, deviations). A spike instead records its `outcome`. A slice that pays debt (`pays`) adds `debt_paid` and
   `debt_unpaid` (each with its reason); a feature slice must account for every entry, and an unpaid one is open again.
+- A slice's audit may carry `measurements`: what the project's measuring command printed for each performance or usability target the slice names (`qa`, `command`, `value`, and `met`, the auditor's reading; `ppc finish` checks the shape, not `met`).
 - `finish` writes `closed_on`, the day the slice closed (a slice closed before this field existed has none).
 - A closed slice may carry `glanced_by` and `glanced_on`: a person looked at what it built, as a user would meet it (the
   experience standard, `ppc glance`); `glance_skipped: true` says they decided not to. Never required, never a gate.
@@ -178,6 +179,7 @@ Errors fail validation; warnings fail only with `--strict`. `ppc rules` prints t
 | `W07` | warning | The first slice of a capability does not reach every component the design gives that capability (`justified_by`). A spike may prove a risk first. |
 | `W08` | warning | An unfinished slice depends on a slice it shares no component with, so the dependency may be only the planning order. |
 | `W09` | warning | An open debt entry was to be paid by a slice that closed without paying it, and no slice is to pay it now. |
+| `W10` | warning | The project declares a command that measures its quality targets (the experience standard), and a slice closed after that did not record, in its audit, what it measured against a performance or usability target it names. |
 | `X01` | warning / error | An addition is still undecided (a warning while the design is drafted, an error once slices exist). |
 | `X02` | error | A cut addition was applied but something that only it justified is still in the design. |
 | `X03` | error | A cut addition was applied but the non-goal it becomes is not among the non-goals. |
@@ -188,6 +190,7 @@ Errors fail validation; warnings fail only with `--strict`. `ppc rules` prints t
 | `S01` | warning | A standard (security, observability, git, CI, experience) is undecided, or there is no standards file. Always a warning: `later` is a valid answer. |
 | `S02` | warning | A standard decided `later` has a trigger that has now happened (a remote, a CI configuration, a component of a kind), so it should be decided again. |
 | `S03` | warning | Security, observability or experience is adopted and the design has no quality attribute of that kind (`security`, `operability`, `usability`); a change request puts it in the design. |
+| `S04` | warning | The experience standard is adopted, a slice closed against a performance or usability target, and no command that measures is declared: the targets are declared, not measured. |
 | `U01` | warning | The design has a frontend component and no interface document (`.architect/ui.md`); `/pp-design ui` writes it. |
 | `U02` | error | A capability the design puts in a frontend component (`justified_by`) has no screen in the interface document. |
 | `U03` | error | The interface document lacks a section a builder reads: Navigation, Flows, States, Visual system, Accessibility, Sizes. |

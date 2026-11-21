@@ -130,14 +130,14 @@ const USAGE = `ppc — pp-suite contract tool
     ppc help [<command>]                 this text, or only the lines of one command; \`ppc <command> --help\` does the same and nothing else
 `;
 
-const VALUE_OPTIONS = new Set(['--note', '--mode', '--surface', '--descriptions', '--by', '--audit', '--files', '--slice', '--accept', '--budget-reason', '--mutation-reason', '--reason', '--task', '--specify', '--title', '--problem', '--proposal', '--component', '--adr', '--qa', '--but-cut', '--but-keep', '--pay-in', '--add-component', '--mockup', '--adopt', '--details', '--trigger']);
+const VALUE_OPTIONS = new Set(['--measure', '--tools', '--add-tool', '--note', '--mode', '--surface', '--descriptions', '--by', '--audit', '--files', '--slice', '--accept', '--budget-reason', '--mutation-reason', '--reason', '--task', '--specify', '--title', '--problem', '--proposal', '--component', '--adr', '--qa', '--but-cut', '--but-keep', '--pay-in', '--add-component', '--mockup', '--adopt', '--details', '--trigger']);
 // What each command accepts. Anything else is refused: an option that is silently ignored can turn a request for help, or a typo,
 // into an approval (`ppc approve --help` once approved the one slice that could be approved).
 const OPTIONS = {
   rules: [], validate: ['--strict', '--design'], 'check-git': [], start: [], stop: [], 'approve-slice': ['--by'], approve: ['--by', '--accept', '--drop', '--reason', '--pay-in', '--mockup'],
-  show: [], ask: ['--budget-reason', '--mutation-reason', '--pay-in', '--add-component', '--details'], touches: [], widen: ['--component'], reread: ['--all'], guide: [], outside: ['--by', '--skip', '--note'], glance: ['--by', '--skip'], review: ['--project', '--mode', '--surface', '--by'], 'approve-debt': ['--by', '--accept', '--drop', '--reason'], 'schedule-debt': ['--slice'],
+  show: [], ask: ['--budget-reason', '--mutation-reason', '--pay-in', '--add-component', '--details', '--measure', '--tools', '--add-tool'], touches: [], widen: ['--component'], reread: ['--all'], guide: [], outside: ['--by', '--skip', '--note'], glance: ['--by', '--skip'], review: ['--project', '--mode', '--surface', '--by'], 'approve-debt': ['--by', '--accept', '--drop', '--reason'], 'schedule-debt': ['--slice'],
   'decide-addition': ['--keep', '--cut', '--alone', '--by', '--reason', '--accept-recommended', '--but-cut', '--but-keep'], additions: [],
-  rubric: [], standards: [], 'decide-standard': ['--adopt', '--details', '--later', '--trigger', '--not-needed', '--reason', '--accept-recommended', '--by'],
+  rubric: [], standards: [], 'decide-standard': ['--measure', '--tools', '--add-tool', '--adopt', '--details', '--later', '--trigger', '--not-needed', '--reason', '--accept-recommended', '--by'],
   'change-request': ['--slice', '--title', '--problem', '--proposal', '--component', '--adr', '--qa', '--budgets'],
   'decide-change': ['--accept', '--reject', '--by', '--reason'], 'apply-change': [], 'approve-red': ['--by'], refactor: [],
   finish: ['--audit', '--budget-reason', '--mutation-reason'], mutation: ['--files', '--slice'], next: ['--json'], overview: [], map: ['--stdout', '--html', '--open', '--on', '--off', '--describe', '--descriptions'],
@@ -288,7 +288,7 @@ switch (command) {
     const root = resolve(positionals.find((p) => p !== id) ?? '.');
     let question;
     try {
-      question = id ? askFor(loadProject(root), id, { redFiles: redCommitFiles(root, id), budgetReason: options.get('budget-reason'), mutationReason: options.get('mutation-reason'), payIn: options.get('pay-in'), addComponent: options.get('add-component'), details: options.get('details') }) : null;
+      question = id ? askFor(loadProject(root), id, { redFiles: redCommitFiles(root, id), budgetReason: options.get('budget-reason'), mutationReason: options.get('mutation-reason'), payIn: options.get('pay-in'), addComponent: options.get('add-component'), details: options.get('details'), measure: options.get('measure'), tools: options.get('tools'), addTool: options.get('add-tool') }) : null;
     } catch (error) {
       if (!(error instanceof DecisionError)) throw error;
       console.error(error.message);
@@ -393,7 +393,7 @@ switch (command) {
       const other = positionals.find((p) => p !== id);
       if (other && !existsSync(resolve(other))) throw new LifecycleError(`unknown standard ${other}; the standards are ${[...STANDARD_IDS.keys()].join(', ')}`);
       const root = resolve(other ?? '.');
-      return decideStandard(root, id, { acceptRecommended: flags.has('--accept-recommended'), by: options.get('by') ?? gitUserName(root), adopt: options.get('adopt'), details: options.get('details'), later: flags.has('--later'), trigger: options.get('trigger'), notNeeded: flags.has('--not-needed'), reason: options.get('reason') });
+      return decideStandard(root, id, { acceptRecommended: flags.has('--accept-recommended'), by: options.get('by') ?? gitUserName(root), adopt: options.get('adopt'), details: options.get('details'), measure: options.get('measure'), tools: options.get('tools')?.split(',').map((t) => t.trim()).filter(Boolean), addTool: options.get('add-tool'), later: flags.has('--later'), trigger: options.get('trigger'), notNeeded: flags.has('--not-needed'), reason: options.get('reason') });
     });
     break;
   case 'change-request': {

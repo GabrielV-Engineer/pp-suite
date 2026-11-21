@@ -27,15 +27,25 @@ an entry of technical debt. You do not decide anything: the person decides on th
     say what it is, where it comes from and what it would show. Then wait for what they report, and write their words under
     "Answers", saying they are theirs.
   - `explain`: say in a few lines what you will check and how, then do it.
-  - `delegate`: do it yourself and report. **Do not install anything.** A tool you lack is a suggestion to the person, with the
-    same labels as in `guide`. (A list of tools the person allows is planned, not built.)
+  - `delegate`: do it yourself and report. You may run the tools on the list the person authorized (`ppc standards experience`,
+    "Tools allowed"), see **Tools** below; for anything else, ask first. A tool you lack and may not use is a suggestion to the
+    person, with the same labels as in `guide`.
 - **Read it as a stranger would.** Do not rely on having built it in this session. Open the real app, run the real command, read the
   real response. A criterion you could not check is written `not checked: <why>`, never `ok`.
 - **Say what you saw, not a verdict on taste.** For "feels current and quick" (and any criterion that is partly taste), write what is
   there ("the list jumps with no transition when a task is added"), not "it looks bad". The person decides what to do about it.
 - **The rubric cites its sources.** `ppc rubric` prints each criterion with the page it comes from and its words. Claim no more than
   the quote says. Where it says "Changed by pp-suite", it is a rule for another kind of surface that pp-suite moved, and you say so.
-- **Never write a decision field.** `mode` and `mode_chosen_by` are the person's; the guard refuses them from you.
+- **Tools.** A tool is someone else's code: say what it is and where it comes from before the first run, run it **temporarily and
+  outside this repository** (`npx`, `uvx` or a scratch directory), and never add it to the project's dependencies or lockfiles.
+  A tool on the list may be run. For one that is not, ask with `ppc ask experience --add-tool "<name>"` and follow the answer:
+  "use it once" means run it this time and record nothing; "add it to the list" means the person ran the command, so it is on the
+  list now; "no" means go on without it and write `not checked: <why>` for what it would have shown. Pick no tool because it is
+  popular: pick it because it answers one criterion, and say which.
+- **Measuring.** If the standard shows no `Measures with:` command and a quality target of the design can be measured, you may
+  propose one (`ppc ask experience --measure "<command>"`); the person decides, because every audit runs it.
+- **Never write a decision field.** `mode`, `mode_chosen_by`, `measure_command` and `allowed_tools` are the person's; the guard
+  refuses them from you.
 - **A finding is a real concern, not an observation.** One entry of debt each, in the same words the person will read in the panel.
 
 ## When the person decides
