@@ -12,6 +12,7 @@ acceptance:
     scenario: Given the system is running, when the health endpoint is requested, then it answers 200 and reports the database as reachable.
   - id: AC-2
     scenario: Given a change is pushed, when CI runs, then it executes the unit tests, the architecture tests and `ppc validate`.
+    audience: system
 approved_by: example-owner
 ---
 

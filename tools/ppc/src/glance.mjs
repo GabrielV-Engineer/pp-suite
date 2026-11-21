@@ -37,7 +37,10 @@ export function lookAt(model, s) {
   const out = [];
   const screens = (s.screens ?? []).map((id) => (Array.isArray(model.ui?.data?.screens) ? model.ui.data.screens : []).find((x) => x.id === id) ?? { id });
   if (screens.length) out.push(`The screens: ${screens.map((x) => `${x.id}${x.name ? ` "${x.name}"` : ''}`).join(', ')}. Does the real one look like the mockup you approved${screens.some((x) => x.mockup) ? ` (${screens.filter((x) => x.mockup).map((x) => x.mockup).join(', ')})` : ''}?`);
-  for (const a of s.acceptance ?? []) out.push(`Try it yourself, ${a.id}: ${a.scenario}`);
+  const tryable = (s.acceptance ?? []).filter((a) => a.audience !== 'system');
+  for (const a of tryable) out.push(`Try it yourself, ${a.id}: ${a.scenario}`);
+  const hidden = (s.acceptance ?? []).filter((a) => a.audience === 'system');
+  if (hidden.length) out.push(`Not for a person to try (marked audience: system): ${hidden.map((a) => a.id).join(', ')}.`);
   for (const id of s.quality_attributes ?? []) {
     const q = (model.blueprint?.data.quality_attributes ?? []).find((x) => x.id === id);
     if (q) out.push(`${q.id} ${q.attribute}: ${q.scenario} Metric: ${q.metric}. Target: ${q.target}.`);

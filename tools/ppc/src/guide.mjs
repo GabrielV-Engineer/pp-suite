@@ -26,7 +26,7 @@ export function renderGuide(model, review) {
   const cap = project ? null : (model.blueprint?.data.capabilities ?? []).find((c) => c.id === review.scope.ref);
   const where = project ? 'the whole project' : `${review.scope.ref}${cap ? ` "${cap.name}"` : ''}`;
   const slices = model.slices.map((s) => s.data).filter((s) => s.status === 'done' && (project || s.capability === review.scope.ref));
-  const asks = slices.flatMap((s) => (s.acceptance ?? []).map((a) => `  - ${s.id} ${a.id}: ${a.scenario}`));
+  const asks = slices.flatMap((s) => (s.acceptance ?? []).filter((a) => a.audience !== 'system').map((a) => `  - ${s.id} ${a.id}: ${a.scenario}`));
   return [
     `Guide: someone other than the builder tries ${where}`,
     '',
@@ -38,7 +38,7 @@ export function renderGuide(model, review) {
     'came to learn.',
     '',
     'Ask them to:',
-    ...(asks.length ? asks : ['  - (the closed slices list no acceptance criteria: ask them to do what the thing is for)']),
+    ...(asks.length ? asks : ['  - (no closed slice has a criterion a person can try: ask them to do what the thing is for)']),
     '',
     'Watch for:',
     '  - where they hesitate or stop',

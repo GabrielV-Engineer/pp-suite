@@ -157,7 +157,7 @@ library) waits for a glance. `custom`, `later` and `not needed` are the person's
 | Piece | What it does |
 |---|---|
 | `closed_on` | `ppc finish` writes the day a slice closed. Only slices closed on or after the day the standard was decided wait for a glance; earlier ones were built under other terms, and a project with 30 closed slices does not get 30 reminders |
-| `ppc show SL-…` | On a closed slice nobody has looked at, a **Look at** list written from the slice: its screens against the approved mockups, what it was checked by (try those), the quality targets it names, the captures and console errors the audit saved. The same text every time |
+| `ppc show SL-…` | On a closed slice nobody has looked at, a **Look at** list written from the slice: its screens against the approved mockups, what it was checked by (try those), the quality targets it names, the captures and console errors the audit saved. The same text every time. A criterion marked `audience: system` (CI, the build: nobody who uses the thing could see it) is left out, and a line says which; without the field a criterion is shown, because pp-suite does not guess from the words |
 | `ppc ask SL-…` | Looked, will not look, or not yet. The first two end with the exact command |
 | `ppc glance SL-… [--skip]` | Records `glanced_by` and `glanced_on` (and `glance_skipped`) in the slice. Human-only: the guard asks the person, and refuses the three fields written by hand |
 | `ppc next` | The slice waits under "Also waiting for a person", one line each, with the command. It is never the next step of the work |

@@ -93,6 +93,7 @@ Status flow: `planned` → `ready` → `in_progress` → `done` (or `dropped`).
 - `finish` writes `closed_on`, the day the slice closed (a slice closed before this field existed has none).
 - A closed slice may carry `glanced_by` and `glanced_on`: a person looked at what it built, as a user would meet it (the
   experience standard, `ppc glance`); `glance_skipped: true` says they decided not to. Never required, never a gate.
+- An acceptance criterion may carry `audience: system` when nobody who uses the thing could see it being met (CI, the build); the look-at list of a closed slice and the guide for someone else leave it out and say which were left out. Without the field it is shown.
 - A slice may carry `test_policy` (`required`, `optional` or `none`), which overrides the blueprint's. See
   "Test policy" below.
 - Only one slice may be in progress at a time, and `.sddpp/active.json` must match it.

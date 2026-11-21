@@ -24,7 +24,8 @@
         "required": ["id", "scenario"],
         "properties": {
           "id": { "type": "string", "pattern": "^AC-\\d+$" },
-          "scenario": { "type": "string", "minLength": 15 }
+          "scenario": { "type": "string", "minLength": 15 },
+          "audience": { "enum": ["user", "system"], "description": "Who could see this criterion being met. `system` means nobody who uses the thing could (CI, the build, an internal check): the look-at list and the guide for someone else leave it out. Without it the criterion is shown; pp-suite does not guess from the words." }
         }
       }
     },

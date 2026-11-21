@@ -53,6 +53,9 @@ first; do not run those, and do not write `spec.md`, `plan.md` or `tasks.md`.
 - **A standard that needs setup gets a slice.** `ppc standards` lists what the person decided. If `ci` is adopted on GitHub
   or GitLab, or `observability` is adopted, and nothing in the project does it yet, plan that work as a slice like any other,
   on the component that owns it, after the skeleton. If no component of the design can own it, that is a change request.
+- Mark a criterion `audience: system` when nobody who uses the thing could see it being met (CI, the build, an internal check).
+  Without the field it is shown to the person who looks at the slice and to whoever tries it, so do not mark one just because
+  it is technical: mark it when a person could never see it.
 - Acceptance criteria come from the capability's description and the quality attributes. Write them as "Given ..., when
   ..., then ...". Do not invent features. If a capability is too vague to write a testable criterion, stop and ask the
   person one question; do not guess.
