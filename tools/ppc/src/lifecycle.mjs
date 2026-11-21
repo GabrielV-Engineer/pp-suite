@@ -11,6 +11,7 @@ import { overlapGroup, triage } from './additions.mjs';
 import { nextSteps } from './next.mjs';
 import { gitSubjects } from './session.mjs';
 import { ROLES, TRIGGERS as TOOL_TRIGGERS, toolFromFlags, parseUse } from './tools.mjs';
+import { readUses, toolsAccount } from './uses.mjs';
 import { STANDARDS, BY_ID, CUSTOM, TRIGGERS, recommend, projectFacts, validChoice, mayBeNotNeeded, describeAnswer } from './standards.mjs';
 
 // The slices that pay debt: a refactor slice changes structure, a fix slice behavior (often through a change request).
@@ -645,6 +646,26 @@ function measurementsOf(model, input) {
   });
 }
 
+/**
+ * The account of the tools a person chose for the roles this slice called for, from the record the hook keeps, with the agent's reason for a
+ * tool it did not use (`tools_unused`). Undefined when no role had a tool adopted. Never a reason to refuse a close: it says what happened.
+ */
+function toolsOf(root, model, slice, input) {
+  const account = toolsAccount(model, slice, readUses(root));
+  const given = input.tools_unused;
+  if (given !== undefined && !Array.isArray(given)) fail('"tools_unused" is a list: [{ "role": "ui-design", "reason": "<why the tool was not used>" }]');
+  const reasons = new Map();
+  for (const x of given ?? []) {
+    if (!x || typeof x !== 'object' || typeof x.role !== 'string') fail('"tools_unused" needs "role" in each item');
+    const own = account.find((a) => a.role === x.role);
+    if (!own || own.used !== false) fail(`"tools_unused": ${x.role} is not a role this slice called for with a tool that was not used (ppc records which were used; ${own ? `${own.tool} ${own.used ? 'was used' : 'has no record'}` : 'it has no tool adopted for this slice'})`);
+    if (typeof x.reason !== 'string' || x.reason.trim().length < 5 || /[\r\n]/.test(x.reason)) fail(`"tools_unused": ${x.role} needs "reason", one line of at least 5 characters`);
+    reasons.set(x.role, x.reason.trim());
+  }
+  if (!account.length) return undefined;
+  return account.map((a) => (reasons.has(a.role) ? { ...a, reason: reasons.get(a.role) } : a));
+}
+
 function suiteOf(model, input) {
   const suite = input.suite;
   if (suite === undefined) return undefined;
@@ -675,6 +696,7 @@ export function finish(root, id, input, { mutationRunner, now = new Date() } = {
 
     let production_lines = 0;
     let test_lines = 0;
+    let toolsRecorded;
     if (s.type === 'spike') {
       if (typeof input?.outcome !== 'string') fail('a spike needs "outcome": what it learned');
       editFrontmatter(root, entry.file, (doc) => {
@@ -711,6 +733,8 @@ export function finish(root, id, input, { mutationRunner, now = new Date() } = {
       const ui_check = uiCheckOf(root, s, input);
       const measurements = measurementsOf(model, input);
       const suite = suiteOf(model, input);
+      const tools = toolsOf(root, model, s, input);
+      toolsRecorded = tools;
       const debt_created = [...(input.debt_created ?? [])];
       if (withoutTests && policy === 'optional') debt_created.push(proposeTestDebt(root, model, s, now.toISOString().slice(0, 10)));
       const audit = {
@@ -728,6 +752,7 @@ export function finish(root, id, input, { mutationRunner, now = new Date() } = {
         ...(account.unpaid.length ? { debt_unpaid: account.unpaid } : {}),
         ...(ui_check ? { ui_check } : {}),
         ...(measurements ? { measurements } : {}),
+        ...(tools ? { tools } : {}),
         ...(suite ? { suite } : {}),
       };
       editFrontmatter(root, entry.file, (doc) => {
@@ -757,7 +782,7 @@ export function finish(root, id, input, { mutationRunner, now = new Date() } = {
 
     const problems = checkGit(loadProject(root), root, { tips: new Map([[id, 'HEAD']]) });
     if (problems.length) fail(`the audit does not match git history:\n${describe(problems)}`);
-    return { slice: id, production_lines, test_lines };
+    return { slice: id, production_lines, test_lines, ...(toolsRecorded ? { tools: toolsRecorded } : {}) };
   });
 }
 

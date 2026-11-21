@@ -123,6 +123,12 @@ a command to type in a terminal. Instead:
    command that fails, or cannot run here, is not `met: true`: say so in a deviation and leave the measurement out (`W10` will
    say it was not recorded). Without a declared command, do not invent one; `S04` tells the person to decide one.
 
+   If the slice's card (`ppc show`) listed a role under "Tools" with a tool the person chose, and you did not use that tool, say why in the audit
+   input: `"tools_unused": [{ "role": "ui-design", "reason": "<one line: why the tool did not apply to this slice>" }]`. ppc records whether
+   each chosen tool was used, from what the hook noted while you worked, and writes the answer into the audit (`tools`): do not write `tools`
+   yourself. The reason is yours and the person reads it; a tool that was used needs none, and a slice that never called for the role has nothing
+   to say. `W11` warns when a tool was not used and no reason was given. It never holds a close up.
+
    If the slice pays debt (`pays` in the slice file), account for every entry, checking each against the diff, not against
    the plan: `"debt_paid": ["DEBT-…"]` for what the commits fixed, and `"debt_unpaid": [{ "id": "DEBT-…", "reason": "<why
    not>" }]` for what they did not. A feature slice does not close without this account. What is not paid is open again,

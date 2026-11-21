@@ -15,6 +15,7 @@ import time
 from pathlib import Path
 
 LEDGER = Path(".sddpp") / "answers.jsonl"
+USES = Path(".sddpp") / "uses.jsonl"  # which skills and MCP servers were used, by name, and in which slice (docs/tools.md)
 SEP = " — "  # an em dash between spaces: what separates the words of a label from the command it stands for
 TTL_SECONDS = 30 * 60  # an answer is good for half an hour, once
 
@@ -100,11 +101,28 @@ def command_of(label):
         return None
 
 
-def append(root: Path, record: dict):
-    file = root / LEDGER
+def _append(file: Path, record: dict):
     file.parent.mkdir(parents=True, exist_ok=True)
     with file.open("a", encoding="utf-8") as handle:
         handle.write(json.dumps(record, ensure_ascii=False) + "\n")
+
+
+def append(root: Path, record: dict):
+    _append(root / LEDGER, record)
+
+
+def append_use(root: Path, record: dict):
+    _append(root / USES, record)
+
+
+def active_slice(root: Path):
+    """The slice in progress (`.sddpp/active.json`), or None when there is none or the state cannot be read."""
+    try:
+        data = json.loads((root / ".sddpp" / "active.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    slice_id = data.get("slice") if isinstance(data, dict) else None
+    return slice_id if isinstance(slice_id, str) and slice_id else None
 
 
 def _read(root: Path):

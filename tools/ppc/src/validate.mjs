@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { basename } from 'node:path';
 import { modeOf, testPolicy, PAYERS, touchesDebt, testsOpen } from './policy.mjs';
 import { STANDARDS, TRIGGERS, triggerFired } from './standards.mjs';
-import { ROLES, TRIGGERS as TOOL_TRIGGERS, undecidedRoles, triggerFired as toolTriggerFired } from './tools.mjs';
+import { ROLES, TRIGGERS as TOOL_TRIGGERS, undecidedRoles, rolesFor, roleFacts, triggerFired as toolTriggerFired } from './tools.mjs';
 
 const SCHEMA_DIR = new URL('../../../contract/v0.1/schemas/', import.meta.url);
 const SCHEMA_NAMES = ['blueprint', 'slice', 'debt', 'adr', 'evidence', 'change-request', 'active', 'additions', 'ui', 'standards', 'tools', 'review'];
@@ -84,6 +84,7 @@ export const RULES = {
   S03: 'Security, observability or experience is adopted and the design has no quality attribute of that kind (security, operability, usability).',
   K01: 'A role in the tools file is not one pp-suite knows, or is listed twice.',
   K02: 'A role decided "later" has a trigger that has now happened, so it should be decided again.',
+  W11: 'A slice closed after a tool was adopted for a role it called for, and its audit says the tool was not used with no reason, or has no account of it.',
   K03: 'The tools file exists, a role applies to a slice that is not closed (by what it touches), and the role has no decision.',
   X05: 'An addition points at something that does not exist (a design id, or another addition it overlaps), or its id is duplicated.',
 };
@@ -528,6 +529,17 @@ export function validateModel(model, { now = new Date() } = {}) {
         else if (seen.has(e.role)) error('K01', toolsFile, `role ${e.role} is listed twice`);
         seen.add(e.role);
         if (e.decision === 'later' && toolTriggerFired(e.trigger, bp)) warn('K02', toolsFile, `${e.role} waited until ${TOOL_TRIGGERS[e.trigger]}, and that has happened; decide it again in ${toolsFile}`);
+      }
+      // W11: the audit of a slice closed after a tool was adopted says whether it was used (ppc finish writes it from the hook's record; the rule
+      // reads only the audit, which is in git, because the record is local and CI has none)
+      for (const { file, data: sl } of slices.filter(({ data }) => data.status === 'done' && data.audit)) {
+        for (const role of rolesFor(roleFacts(model, sl))) {
+          const chosen = list.find((e) => e.role === role.id && e.decision === 'adopt');
+          if (!chosen || String(chosen.decided_on) > String(sl.closed_on ?? '')) continue;
+          const account = (sl.audit.tools ?? []).find((a) => a.role === role.id);
+          if (!account) warn('W11', file, `${sl.id} closed after ${chosen.tool.name} was adopted for ${role.id} (${role.title}), and its audit has no account of it: ppc finish writes one when the slice calls for a role that has a tool`);
+          else if (account.used === false && !account.reason) warn('W11', file, `${sl.id} closed calling for ${role.id} (${role.title}), and its audit says ${chosen.tool.name} was not used and gives no reason (tools_unused in the audit input)`);
+        }
       }
       for (const { role, slices: ids } of undecidedRoles(model)) {
         warn('K03', toolsFile, `${role.id} (${role.title}) applies to ${ids.slice(0, 8).join(', ')}${ids.length > 8 ? ` and ${ids.length - 8} more` : ''} because ${role.why}, and has no decision: adopt a tool, decide it later, or say it is not needed`);

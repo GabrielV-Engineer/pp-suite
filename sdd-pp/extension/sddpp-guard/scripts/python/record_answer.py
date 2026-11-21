@@ -2,7 +2,7 @@
 """SDD.PP answer recorder: when a person answers the question panel, remember the answers that name a `ppc` command.
 
 Runs as a Claude Code PostToolUse hook (registered by Spec Kit from extension.yml); the matcher is every tool, so it returns at once
-for anything but the panel. It never fails and prints nothing: a missing record only means the guard asks the person again.
+for anything but the panel, a skill or an MCP tool (the last two are noted by `record_use`, into `.sddpp/uses.jsonl`). It never fails and prints nothing: a missing record only means the guard asks the person again.
 Standard library only.
 """
 import json
@@ -31,12 +31,41 @@ def record(payload, root: Path):
                 })
 
 
+def record_use(payload, root: Path):
+    """Note that a skill or an MCP server was used, and in which slice: names only, never what the tool was given or answered.
+
+    A skill arrives as the `Skill` tool with `tool_input.skill` (a plugin's skill as `plugin:skill`); an MCP tool as `mcp__<server>__<tool>`
+    with an `mcp_server` field (seen on 2026-11-21, docs/tools.md). `ppc finish` reads this to say whether the tool a person chose for a role
+    was used; the guard keeps the file the recorder's.
+    """
+    if not isinstance(payload, dict):
+        return
+    tool = payload.get("tool_name")
+    if tool == "Skill":
+        kind, name = "skill", (payload.get("tool_input") or {}).get("skill") if isinstance(payload.get("tool_input"), dict) else None
+    elif isinstance(tool, str) and tool.startswith("mcp__"):
+        server = payload.get("mcp_server")
+        named = server.get("name") if isinstance(server, dict) else None
+        kind, name = "mcp", named if isinstance(named, str) and named else tool[len("mcp__"):].split("__", 1)[0]
+    else:
+        return
+    if not isinstance(name, str) or not name:
+        return
+    ledger.append_use(root, {"at": time.time(), "session_id": payload.get("session_id"), "tool_use_id": payload.get("tool_use_id"),
+                             "slice": ledger.active_slice(root), "kind": kind, "name": name})
+
+
 def main() -> None:
     try:
         payload = json.load(sys.stdin)
-        record(payload, ledger.project_root(payload))
+        root = ledger.project_root(payload)
     except Exception:  # a hook that fails must not stop the session
-        pass
+        sys.exit(0)
+    for write in (record, record_use):  # one failing does not stop the other
+        try:
+            write(payload, root)
+        except Exception:
+            pass
     sys.exit(0)
 
 

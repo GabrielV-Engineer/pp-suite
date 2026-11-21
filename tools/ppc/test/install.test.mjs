@@ -26,6 +26,7 @@ function project(t, { git = true, specify = false, pp = specify } = {}) {
         mkdirSync(join(dir, '.claude/skills', skill.name), { recursive: true });
         writeFileSync(join(dir, '.claude/skills', skill.name, 'SKILL.md'), skill.content);
       }
+      writeFileSync(join(dir, '.gitignore'), 'node_modules/\n.sddpp/uses.jsonl\n');
     }
     spawnSync('git', ['add', '-A'], { cwd: dir });
     spawnSync('git', ['commit', '-q', '-m', 'base'], { cwd: dir });
@@ -120,7 +121,7 @@ test('plan: a directory that is not a git repository blocks, since ppc reads git
 test('plan: a fresh project gets specify init, the three extensions and the removal of the Spec Kit skills this flow does not use, in that order, none done', (t) => {
   const p = plan(project(t), env(machine()));
   const ids = p.steps.filter((s) => !s.done).map((s) => s.id);
-  assert.deepEqual(ids.filter((id) => id !== 'npm-ci'), ['specify-init', 'extension-architect-pp', 'extension-sddpp-guard', 'extension-sddpp-cycle', ...DROPPED_SKILLS.map((n) => `drop-${n}`), ...longSkillNames(SUITE).map((n) => `drop-long-${n}`), 'pp-skill', ...shortSkills(SUITE).map((x) => `short-${x.name}`)]);
+  assert.deepEqual(ids.filter((id) => id !== 'npm-ci'), ['specify-init', 'extension-architect-pp', 'extension-sddpp-guard', 'extension-sddpp-cycle', ...DROPPED_SKILLS.map((n) => `drop-${n}`), ...longSkillNames(SUITE).map((n) => `drop-long-${n}`), 'pp-skill', ...shortSkills(SUITE).map((x) => `short-${x.name}`), 'ignore-uses']);
   const init = p.steps.find((s) => s.id === 'specify-init');
   assert.deepEqual(init.command.slice(0, 2), ['specify', 'init']);
   for (const flag of ['--here', '--force', '--non-interactive']) assert.ok(init.command.includes(flag), flag);
@@ -130,6 +131,35 @@ test('plan: a fresh project gets specify init, the three extensions and the remo
   const guard = p.steps.find((s) => s.id === 'extension-sddpp-guard');
   assert.deepEqual(guard.command, ['specify', 'extension', 'add', join(SUITE, 'sdd-pp/extension/sddpp-guard'), '--dev']);
   assert.equal(p.steps.find((s) => s.id === 'drop-speckit-plan').remove, join(p.steps.find((x) => x.id === 'specify-init').cwd, '.claude/skills/speckit-plan'));
+});
+
+test('plan: the record of which tools were used is kept out of git, because it names the MCP servers a person uses', (t) => {
+  const dir = project(t, { specify: true });
+  const step = (d) => plan(d, env(machine(installed))).steps.find((s) => s.id === 'ignore-uses');
+  assert.equal(step(dir).done, true, 'a project that already ignores it has nothing to do');
+  const bare = project(t, { specify: true });
+  rmSync(join(bare, '.gitignore'));
+  const missing = step(bare);
+  assert.equal(missing.done, false);
+  assert.equal(missing.target, join(bare, '.gitignore'));
+  assert.equal(missing.content, '.sddpp/uses.jsonl\n');
+  assert.match(missing.title, /\.sddpp\/uses\.jsonl/);
+  writeFileSync(join(bare, '.gitignore'), 'node_modules/\n.env');
+  assert.equal(step(bare).content, 'node_modules/\n.env\n.sddpp/uses.jsonl\n', 'what was there is kept, and a missing final newline is added first');
+  writeFileSync(join(bare, '.gitignore'), '# .sddpp/uses.jsonl\n');
+  assert.equal(step(bare).done, false, 'a comment is not an entry');
+  writeFileSync(join(bare, '.gitignore'), '/.sddpp/uses.jsonl\r\n');
+  assert.equal(step(bare).done, true, 'the anchored form counts');
+});
+
+test('apply: the line is written into .gitignore and what was there stays', (t) => {
+  const dir = project(t, { specify: true });
+  writeFileSync(join(dir, '.gitignore'), 'node_modules/\n');
+  spawnSync('git', ['add', '-A'], { cwd: dir });
+  spawnSync('git', ['commit', '-q', '-m', 'ignore'], { cwd: dir });
+  apply(dir, env(machine(installed)), { run: runner([]) });
+  assert.equal(readFileSync(join(dir, '.gitignore'), 'utf8'), 'node_modules/\n.sddpp/uses.jsonl\n');
+  assert.equal(plan(dir, env(machine(installed))).steps.find((s) => s.id === 'ignore-uses').done, true);
 });
 
 test('plan: what is already installed at the right version is marked done, and the rest still runs', (t) => {
@@ -264,7 +294,7 @@ test('apply: runs the steps that are not done, in order, inside the project', (t
   const fresh = project(t);
   const log2 = [];
   const r2 = apply(fresh, env(machine()), { run: runner(log2) });
-  assert.deepEqual(r2.ran.filter((id) => id !== 'npm-ci'), ['specify-init', 'extension-architect-pp', 'extension-sddpp-guard', 'extension-sddpp-cycle', ...DROPPED_SKILLS.map((n) => `drop-${n}`), ...longSkillNames(SUITE).map((n) => `drop-long-${n}`), 'pp-skill', ...shortSkills(SUITE).map((x) => `short-${x.name}`)]);
+  assert.deepEqual(r2.ran.filter((id) => id !== 'npm-ci'), ['specify-init', 'extension-architect-pp', 'extension-sddpp-guard', 'extension-sddpp-cycle', ...DROPPED_SKILLS.map((n) => `drop-${n}`), ...longSkillNames(SUITE).map((n) => `drop-long-${n}`), 'pp-skill', ...shortSkills(SUITE).map((x) => `short-${x.name}`), 'ignore-uses']);
   assert.ok(log2.every((l) => l.cwd === fresh || l.command[0] === 'npm'));
 });
 

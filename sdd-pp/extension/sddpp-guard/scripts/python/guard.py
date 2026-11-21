@@ -210,24 +210,28 @@ def _writes_the_tools_file(payload) -> bool:
     return False
 
 
-def _writes_the_ledger(payload) -> bool:
-    """True when a tool call would write the file that holds the person's panel answers: only the recorder hook may."""
+def _written_record(payload):
+    """The file of the recorder's that a tool call would write ("answers.jsonl", the person's panel answers, or "uses.jsonl", which skills and
+    MCP servers were used), or None. Only the recorder hook may write them; reading them is free."""
     if not isinstance(payload, dict):
-        return False
+        return None
     tool, args = payload.get("tool_name", ""), payload.get("tool_input") or {}
-    if tool in FILE_TOOLS:
-        return str(args.get("file_path") or args.get("notebook_path") or "").replace("\\", "/").endswith("answers.jsonl")
-    if tool == "Bash":
-        command = str(args.get("command", ""))
-        return "answers.jsonl" in command and writes(command)
-    return False
+    for name in ("answers.jsonl", "uses.jsonl"):
+        if tool in FILE_TOOLS and str(args.get("file_path") or args.get("notebook_path") or "").replace("\\", "/").endswith(name):
+            return name
+        if tool == "Bash" and name in str(args.get("command", "")) and writes(str(args.get("command", ""))):
+            return name
+    return None
 
 
 def decide(payload, root: Path):
     """Return (exit_code, message) for one PreToolUse payload; the code is ASK when the person should be asked."""
     # The proof that a person decided is theirs alone: the agent writes neither the ledger nor the answers to its own question.
-    if _writes_the_ledger(payload):
+    record = _written_record(payload)
+    if record == "answers.jsonl":
         return 2, "SDD.PP guard: .sddpp/answers.jsonl holds the person's answers in the question panel; only the recorder hook writes it."
+    if record == "uses.jsonl":
+        return 2, "SDD.PP guard: .sddpp/uses.jsonl records which skills and MCP servers were used; only the recorder hook writes it."
     if isinstance(payload, dict) and payload.get("tool_name") == "AskUserQuestion" and (payload.get("tool_input") or {}).get("answers"):
         return 2, "SDD.PP guard: the answers to a question are the person's; do not fill them in. Ask the question without `answers`."
 

@@ -19,7 +19,7 @@ provides:
       description: "Runtime event handler: lock test files during the green phase"
     - name: "speckit.sddpp-guard.record-answer"
       file: "commands/record-answer.md"
-      description: "Runtime event handler: remember the question-panel answers that name a ppc command"
+      description: "Runtime event handler: remember the question-panel answers that name a ppc command, and which skills and MCP servers were used"
 
 events:
   pre_tool_use:

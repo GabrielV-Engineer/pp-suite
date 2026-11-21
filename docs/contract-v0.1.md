@@ -138,6 +138,11 @@ the same role in `history`. It is a person's choice: the guard lets it through o
 decision (swapping the tool an entry names, or widening an MCP server to read-write, touches no `decided_by` line). Reading it is
 free. `ppc tools` shows the roles, the decisions and the slices that call for each.
 
+Whether a chosen tool was **used** is recorded when a slice closes: a hook (the same `PostToolUse` recorder as the panel answers) notes, by name only, each skill and
+MCP server used and the slice in progress (`.sddpp/uses.jsonl`, local and kept out of git by `ppc init`), and `ppc finish` writes into the audit, for every role
+the slice called for that has a tool, `tools: [{ role, tool, kind, used }]` with `used` true, false, or null when nothing was recorded for the slice. A tool that was
+not used carries the agent's own `reason` (`tools_unused` in the audit input), and `W11` warns when it has none. This says that the tool was used, not that it helped.
+
 ## Interface (`.architect/ui.md`)
 
 Optional, and expected when the design has a `frontend` component (`U01`). Its frontmatter (`ui.schema.json`) lists the screens:
@@ -199,6 +204,7 @@ Errors fail validation; warnings fail only with `--strict`. `ppc rules` prints t
 | `W08` | warning | An unfinished slice depends on a slice it shares no component with, so the dependency may be only the planning order. |
 | `W09` | warning | An open debt entry was to be paid by a slice that closed without paying it, and no slice is to pay it now. |
 | `W10` | warning | The project declares a command that measures its quality targets (the experience standard), and a slice closed after that did not record, in its audit, what it measured against a performance or usability target it names. |
+| `W11` | warning | A slice closed after a tool was adopted for a role it called for, and its audit (`tools`, written by `ppc finish` from the record the hook keeps) says the tool was not used with no `reason`, or has no account of it. It reads the audit and never the local record of uses, because the record is not in git and CI has none; `used: null` (nothing recorded for the slice) is not judged. |
 | `X01` | warning / error | An addition is still undecided (a warning while the design is drafted, an error once slices exist). |
 | `X02` | error | A cut addition was applied but something that only it justified is still in the design. |
 | `X03` | error | A cut addition was applied but the non-goal it becomes is not among the non-goals. |

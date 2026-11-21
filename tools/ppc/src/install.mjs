@@ -197,6 +197,12 @@ export function plan(root, env, { shim = false, allowUntested = false, update = 
     { id: 'pp-skill', title: 'Install the /pp skill', target: ppTarget, content: ppSource, mode: 0o644, done: ppStatus === 'ok' || (ppStatus === 'differs' && !update) },
     ...shorts.map((sk, i) => ({ id: `short-${sk.name}`, title: `Install /${sk.name}`, target: shortTarget(sk.name), content: sk.content, mode: 0o644, done: shortStatus[i] === 'ok' || (shortStatus[i] === 'differs' && !update) })),
   ];
+  // `.sddpp/uses.jsonl` names the skills and MCP servers that were used (docs/tools.md); a server's name can say something about its owner
+  // and the repository may be public, so it stays out of git. Written as a diff the person reviews, like everything `init` does.
+  const gitignore = join(root, '.gitignore');
+  const ignoreText = existsSync(gitignore) ? readFileSync(gitignore, 'utf8') : '';
+  const ignored = ignoreText.split(/\r?\n/).some((l) => ['.sddpp/uses.jsonl', '/.sddpp/uses.jsonl'].includes(l.trim()));
+  steps.push({ id: 'ignore-uses', title: 'Keep the record of which tools were used (.sddpp/uses.jsonl) out of git: it names the MCP servers a person uses', target: gitignore, content: `${ignoreText}${ignoreText && !ignoreText.endsWith('\n') ? '\n' : ''}.sddpp/uses.jsonl\n`, mode: 0o644, done: ignored });
   if (shim) {
     const dir = pathDirs.find((d) => d === join(home, '.local/bin'));
     const status = checks.find((c) => c.id === 'ppc-on-path').status;

@@ -72,6 +72,23 @@
         "debt_created": { "type": "array", "items": { "type": "string", "pattern": "^DEBT-[A-Z]{2,5}-\\d{3,}$" } },
         "deviations": { "type": "array", "items": { "type": "string", "minLength": 3 } },
         "debt_paid": { "type": "array", "items": { "type": "string", "pattern": "^DEBT-[A-Z]{2,5}-\\d{3,}$" }, "uniqueItems": true, "description": "The debt in `pays` this slice paid." },
+        "tools": {
+          "type": "array",
+          "description": "For each role the slice called for that had a tool adopted: whether the tool was used, from the record the hook keeps. `used` is null when nothing was recorded for the slice. `reason` is the agent's, for a tool it did not use.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["role", "tool", "kind", "used"],
+            "properties": {
+              "role": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+              "tool": { "type": "string", "minLength": 2 },
+              "kind": { "enum": ["skill", "plugin", "mcp"] },
+              "used": { "type": ["boolean", "null"] },
+              "reason": { "type": "string", "minLength": 5, "pattern": "^[^\\r\\n]+$" }
+            },
+            "allOf": [{ "if": { "properties": { "used": { "const": false } }, "required": ["used"] }, "else": { "not": { "required": ["reason"] } } }]
+          }
+        },
         "suite": {
           "type": "object",
           "additionalProperties": false,
