@@ -1,7 +1,7 @@
 import { chmodSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parse as parseYaml } from 'yaml';
-import { longSkillNames, shortSkills, SHORT_SKILLS } from './skills.mjs';
+import { longSkillNames, shortSkills, isOwnSkill } from './skills.mjs';
 import { readInventory, bareName } from './inventory.mjs';
 
 // Sets a project up for pp-suite. It reports first and changes nothing; `apply` runs only the project-level steps
@@ -76,8 +76,7 @@ export function plan(root, env, { shim = false, allowUntested = false, update = 
   add({ id: 'design-skills', label: 'Design skills (optional)', status: 'info', found: design.length ? design.join(', ') : "none; /pp-design ui uses pp-suite's own design guide" });
   const named = (label, items) => `${label} ${items.length}${items.length ? ` (${items.slice(0, 10).map((i) => i.name).join(', ')}${items.length > 10 ? `, +${items.length - 10} more` : ''})` : ''}`;
   // pp-suite's own commands (`/pp`, `/pp-*`) and Spec Kit's are not "yours": listed, they would fill the ten names this line shows.
-  const suiteOwn = new Set(['pp', ...SHORT_SKILLS.map((k) => k.name)]);
-  const yours = inventory.skills.filter((k) => !suiteOwn.has(k.name) && !k.name.startsWith('speckit-'));
+  const yours = inventory.skills.filter((k) => !isOwnSkill(k.name));
   const summary = [named('skills', yours), named('plugins', inventory.plugins), named('MCP', inventory.mcp), ...inventory.problems].join(' · ');
   add({ id: 'tools-inventory', label: 'Skills, plugins and MCP servers you have (information only)', status: 'info', found: summary });
 

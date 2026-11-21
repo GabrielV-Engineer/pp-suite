@@ -4,7 +4,8 @@ import { glanceStandard, lookAt } from './glance.mjs';
 import { openReviews, modesFor, pendingReviews } from './review.mjs';
 import { pendingOutside, renderGuide } from './guide.mjs';
 import { SURFACES, surfacesFor } from './rubric.mjs';
-import { ROLES, TRIGGERS as TOOL_TRIGGERS, toolFromFlags, toolsFor } from './tools.mjs';
+import { ROLES, TRIGGERS as TOOL_TRIGGERS, toolFromFlags, toolsFor, undecidedRoles, parseUse } from './tools.mjs';
+import { hasTool } from './inventory.mjs';
 import { STANDARDS, BY_ID, CUSTOM, TRIGGERS, recommend, renderStandards, describeAnswer, projectFacts, standardsFor } from './standards.mjs';
 
 // The card of one thing a person decides, in plain words: what it is and what approving it means. `ppc show <id>` prints it and
@@ -368,7 +369,39 @@ function askTool(model, id, { tool, kind, source, pinned, access, accessReason, 
     No] }] };
 }
 
-export function askFor(model, id, { redFiles, budgetReason, mutationReason, payIn, addComponent, details, measure, tools, addTool, tool, kind, source, pinned, access, accessReason, installed } = {}) {
+/**
+ * Decision C: every role that slices call for and nobody decided, in ONE question. With no proposals: none of them needed, one by one, or
+ * not yet. With `use` ("role=kind:name,..."), the agent's proposals in one confirmation, each saying whether pp-suite found the tool on this
+ * machine (`inventory`; nothing is claimed when nobody looked). The names are the agent's own suggestions, never verified.
+ */
+function askTools(model, { use, inventory }) {
+  if (!model.blueprint) return null;
+  const No = { label: 'No', description: 'Nothing is decided; it waits for you' };
+  if (use === undefined) {
+    const left = undecidedRoles(model);
+    if (!left.length) return null;
+    const ids = left.map((x) => x.role.id);
+    const words = left.map(({ role, slices }) => `${role.id} (${slices.slice(0, 3).join(', ')}${slices.length > 3 ? ` and ${slices.length - 3} more` : ''})`).join('; ');
+    return { questions: [{ question: `Slices call for a tool in ${ids.length === 1 ? 'one role' : `${ids.length} roles`} and nobody decided: ${words}. Does this project use a tool for ${ids.length === 1 ? 'it' : 'them'}? To name one, choose Other and say which; the agent proposes from what you have.`, header: 'Tools', multiSelect: false, options: [
+      choose(ids.length === 1 ? 'It is not needed' : 'None of them is needed', `ppc decide-tool --roles ${ids.join(',')} --not-needed --reason "${NOT_NEEDED_REASON}"`, `Recorded as not needed, with your name and the date; ppc next stops asking, and you can decide ${ids.length === 1 ? 'it' : 'any of them'} again later`),
+      { label: 'One by one', description: 'Nothing is decided yet; each role is asked on its own, with the tool the agent proposes for it' },
+      { label: 'Not yet', description: 'Nothing is decided; it waits for you' }] }] };
+  }
+  const items = parseUse(use, (message) => {
+    throw new DecisionError(message);
+  });
+  const canonical = items.map(({ role, tool }) => `${role}=${tool.kind}:${tool.name}${tool.access ? `:${tool.access}` : ''}`).join(',');
+  const lines = items.map(({ role, tool }) => {
+    const found = inventory ? (hasTool(inventory, tool.kind, tool.name) ? 'on this machine' : 'did not find it on this machine: the agent named it from its own knowledge, which pp-suite did not verify; install it first, then restart the session') : '';
+    return `${role}: ${tool.name} (${tool.kind}${tool.access ? `, ${tool.access}` : ''})${found ? `, ${found}` : ''}`;
+  });
+  return { questions: [{ question: `Use these tools in this project? ${lines.join('; ')}.`, header: 'Tools', multiSelect: false, options: [
+    choose('Yes, use them', `ppc decide-tool --use "${canonical}"`, 'Each is recorded with your name and the date; the slices that call for those roles will name them'),
+    No] }] };
+}
+
+export function askFor(model, id, { redFiles, budgetReason, mutationReason, payIn, addComponent, details, measure, tools, addTool, tool, kind, source, pinned, access, accessReason, installed, use, inventory } = {}) {
+  if (id === 'tools') return askTools(model, { use, inventory });
   if (ROLES.some((r) => r.id === id)) return askTool(model, id, { tool, kind, source, pinned, access, accessReason, installed });
   if (id === 'standards' || BY_ID.has(id)) return askStandards(model, id, details, { measure, tools, addTool });
   if (id === 'review' || /^CAP-\d{3}$/.test(id)) return askReview(model, id);

@@ -10,7 +10,7 @@ import { generatedGlobs } from './testpaths.mjs';
 import { overlapGroup, triage } from './additions.mjs';
 import { nextSteps } from './next.mjs';
 import { gitSubjects } from './session.mjs';
-import { ROLES, TRIGGERS as TOOL_TRIGGERS, toolFromFlags } from './tools.mjs';
+import { ROLES, TRIGGERS as TOOL_TRIGGERS, toolFromFlags, parseUse } from './tools.mjs';
 import { STANDARDS, BY_ID, CUSTOM, TRIGGERS, recommend, projectFacts, validChoice, mayBeNotNeeded, describeAnswer } from './standards.mjs';
 
 // The slices that pay debt: a refactor slice changes structure, a fix slice behavior (often through a change request).
@@ -952,6 +952,14 @@ export function decideTool(root, role, { by, today = new Date().toISOString().sl
     if (!(reason?.trim().length >= 5)) fail(`--not-needed needs a --reason of at least 5 characters: why ${role} does not apply here`);
     answer = { decision: 'not_needed', reason: reason.trim() };
   }
+  return recordToolAnswers(root, [{ role, answer }], { by, today });
+}
+
+const toolWords = (answer) => (answer.decision === 'adopt' ? `${answer.tool.name} (${answer.tool.kind}${answer.tool.access ? `, ${answer.tool.access}` : ''})` : answer.decision === 'later' ? `later, when ${TOOL_TRIGGERS[answer.trigger]}` : `not needed: ${answer.reason}`);
+
+/** Write the answers of one or several roles in one step: all of them, or none (a file the contract rejects is put back as it was). */
+function recordToolAnswers(root, items, { by, today }) {
+  const roles = ROLES.map((r) => r.id);
   return transact(root, () => {
     const model = loadProject(root);
     if (!model.blueprint) fail('there is no design yet (.architect/blueprint.yaml); the tools are decided after it');
@@ -962,17 +970,39 @@ export function decideTool(root, role, { by, today = new Date().toISOString().sl
       const data = parseDocument(readFileSync(abs, 'utf8')).toJSON();
       list = Array.isArray(data?.tools) ? data.tools : fail(`${file} has no list of tools; fix it by hand first`);
     }
-    const before = list.find((e) => e.role === role);
-    const history = [...(before?.history ?? []), ...(before && before.decision !== 'pending' ? [toolAnswerOf(before)] : [])];
-    const next = { role, ...answer, decided_by: by.trim(), decided_on: today, ...(history.length ? { history } : {}) };
-    list = before ? list.map((e) => (e === before ? next : e)) : [...list, next];
+    for (const { role, answer } of items) {
+      const before = list.find((e) => e.role === role);
+      const history = [...(before?.history ?? []), ...(before && before.decision !== 'pending' ? [toolAnswerOf(before)] : [])];
+      const next = { role, ...answer, decided_by: by.trim(), decided_on: today, ...(history.length ? { history } : {}) };
+      list = before ? list.map((e) => (e === before ? next : e)) : [...list, next];
+    }
     const order = (e) => (roles.includes(e.role) ? roles.indexOf(e.role) : roles.length);
     list.sort((a, b) => order(a) - order(b));
     mkdirSync(dirname(abs), { recursive: true });
     writeFileSync(abs, stringify({ tools: list }, { lineWidth: 0 }));
     const problems = validateModel(loadProject(root)).filter((f) => f.file === file && f.severity === 'error');
     if (problems.length) fail(`the decision would leave ${file} invalid:\n${describe(problems)}`);
-    const words = answer.decision === 'adopt' ? `${answer.tool.name} (${answer.tool.kind}${answer.tool.access ? `, ${answer.tool.access}` : ''})` : answer.decision === 'later' ? `later, when ${TOOL_TRIGGERS[answer.trigger]}` : `not needed: ${answer.reason}`;
-    return { role, decision: answer.decision, text: `${role}: ${words}\nRecorded in ${file}. Next: run \`ppc constitution\` so the project rules in CLAUDE.md name it.` };
+    const lines = items.map(({ role, answer }) => `${role}: ${toolWords(answer)}`);
+    return { role: items[0].role, decision: items[0].answer.decision, decided: Object.fromEntries(items.map(({ role, answer }) => [role, answer.decision])), text: `${lines.join('\n')}\nRecorded in ${file}. Next: run \`ppc constitution\` so the project rules in CLAUDE.md name ${items.length === 1 ? 'it' : 'them'}.` };
   });
+}
+
+/**
+ * Decide several roles at once, the way the panel offers them (`ppc ask tools`): every role named is not needed (`roles` + `notNeeded` +
+ * `reason`), or each role named gets the tool the agent proposed (`use`: "role=kind:name[:read-only],..."). All or nothing. A server that
+ * may change things is never decided here: it needs its reason, so it is decided on its own.
+ */
+export function decideTools(root, { by, today = new Date().toISOString().slice(0, 10), roles, notNeeded, reason, use } = {}) {
+  if (!by || !by.trim()) fail('--by <name> is required (or set git config user.name): a person decides which tool a project uses');
+  const known = ROLES.map((r) => r.id);
+  if ((use !== undefined) === Boolean(roles !== undefined || notNeeded)) fail('say one answer for several roles: either --use "<role>=<kind>:<name>,..." or --roles <a,b,...> --not-needed --reason <why>');
+  if (use !== undefined) return recordToolAnswers(root, parseUse(use, fail).map(({ role, tool }) => ({ role, answer: { decision: 'adopt', tool } })), { by, today });
+  if (!roles?.length) fail(`--roles needs at least one role; the roles are ${known.join(', ')}`);
+  for (const [i, role] of roles.entries()) {
+    if (!known.includes(role)) fail(`unknown role ${role}; the roles are ${known.join(', ')}`);
+    if (roles.indexOf(role) !== i) fail(`${role} is named twice`);
+  }
+  if (!notNeeded) fail('--roles goes with --not-needed --reason <why>; to adopt a tool for each role, use --use');
+  if (!(reason?.trim().length >= 5)) fail('--not-needed needs a --reason of at least 5 characters: why these roles do not apply here');
+  return recordToolAnswers(root, roles.map((role) => ({ role, answer: { decision: 'not_needed', reason: reason.trim() } })), { by, today });
 }

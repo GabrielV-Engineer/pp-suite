@@ -7,6 +7,7 @@ import { nextSteps, renderNext } from '../src/next.mjs';
 import { renderDecision } from '../src/decisions.mjs';
 import { renderConstitution, writeConstitution, checkConstitution } from '../src/constitution.mjs';
 import { decideTool } from '../src/lifecycle.mjs';
+import { ROLES } from '../src/tools.mjs';
 import { EXAMPLE, repo } from './helpers.mjs';
 
 // The tools a person chose are read by the rest of the flow, where the work happens: a decision nobody reads is the problem this
@@ -24,7 +25,6 @@ const withTools = (list) => {
 };
 /** The design alone, as before planning. */
 const designOnly = (m) => Object.assign(m, { slices: [], debt: [], changeRequests: [] });
-const toolItems = (m) => nextSteps(m, []).waiting.filter((a) => a.decision?.type === 'tool');
 const read = (rel) => readFileSync(fileURLToPath(new URL(rel, import.meta.url)), 'utf8');
 
 // ── the card ─────────────────────────────────────────────────────
@@ -88,56 +88,81 @@ test('the build prompt tells the agent to use the chosen tool, never to pick one
   assert.match(build, /access/);
 });
 
-test('the /pp skill knows what an item of type tool is', () => {
+test('the /pp skill knows both items: the one about all the roles, and a role asked again', () => {
   const pp = read('../../../sdd-pp/skills/pp/SKILL.md');
+  assert.match(pp, /`type` is `tools`/);
+  assert.match(pp, /\/pp-tools/);
   assert.match(pp, /`type` is `tool`/);
   assert.match(pp, /ppc ask <role> --tool/);
 });
 
 // ── ppc next ─────────────────────────────────────────────────────
-test('next: once the file exists, a role that slices ahead call for and nobody decided is the person\'s, beside the work', () => {
-  const items = toolItems(withTools([adopt('db-inspect', { name: 'postgres', kind: 'mcp', access: 'read-only' })]));
-  assert.ok(items.length >= 1);
-  const ui = items.find((a) => a.decision.id === 'ui-design');
-  assert.equal(ui.who, 'human');
-  assert.equal(ui.command, 'ppc ask ui-design');
-  assert.match(ui.what, /SL-001/);
-  assert.match(ui.what, /holds nothing up/);
-  assert.ok(!items.some((a) => a.decision.id === 'db-inspect'), 'a decided role is not asked again');
+const groupItems = (m) => nextSteps(m, []).waiting.filter((a) => a.decision?.type === 'tools');
+const dueItems = (m) => nextSteps(m, []).waiting.filter((a) => a.decision?.type === 'tool');
+
+test('next: roles that slices ahead call for and nobody decided are ONE item for the person, beside the work, even before any file exists', () => {
+  for (const m of [withTools(null), withTools([adopt('db-inspect', { name: 'postgres', kind: 'mcp', access: 'read-only' })])]) {
+    const items = groupItems(m);
+    assert.equal(items.length, 1, 'one item for all of them, not one per role');
+    assert.equal(items[0].who, 'human');
+    assert.equal(items[0].command, 'ppc ask tools');
+    assert.match(items[0].what, /ui-design/);
+    assert.match(items[0].what, /\/pp-tools/);
+    assert.match(items[0].what, /holds nothing up/);
+  }
+  assert.doesNotMatch(groupItems(withTools([adopt('db-inspect', { name: 'postgres', kind: 'mcp', access: 'read-only' })]))[0].what, /db-inspect/, 'a decided role is not in it');
 });
 
-test('next: any decision silences it, a pending entry does not', () => {
-  const silent = (entry) => !toolItems(withTools([entry])).some((a) => a.decision.id === 'ui-design');
-  assert.ok(silent(adopt('ui-design')));
-  assert.ok(silent(later('ui-design', 'infra_component')));
-  assert.ok(silent(notNeeded('ui-design')));
-  assert.ok(!silent({ role: 'ui-design', decision: 'pending' }));
+test('next: any decision takes a role out of the item, a pending entry does not, and with every role decided there is no item', () => {
+  const inItem = (entry) => /ui-design/.test(groupItems(withTools([entry]))[0].what);
+  assert.ok(!inItem(adopt('ui-design')));
+  assert.ok(!inItem(later('ui-design', 'infra_component')));
+  assert.ok(!inItem(notNeeded('ui-design')));
+  assert.ok(inItem({ role: 'ui-design', decision: 'pending' }));
+  assert.deepEqual(groupItems(withTools(['ui-design', 'ui-capture', 'security-review', 'db-inspect'].map(notNeeded))), []);
 });
 
-test('next: a deferred role whose trigger has happened is asked again; one that is still waiting is not', () => {
-  const due = toolItems(withTools([later('ui-design', 'frontend_component')])).find((a) => a.decision.id === 'ui-design');
+test('next: a deferred role whose trigger has happened is asked again on its own; one that is still waiting is not', () => {
+  const due = dueItems(withTools([later('ui-design', 'frontend_component')])).find((a) => a.decision.id === 'ui-design');
   assert.match(due.what, /waited until the design gets a frontend component, and that has happened: decide it again/);
-  assert.ok(!toolItems(withTools([later('ui-design', 'infra_component')])).some((a) => a.decision.id === 'ui-design'));
+  assert.equal(due.command, 'ppc ask ui-design');
+  assert.deepEqual(dueItems(withTools([later('ui-design', 'infra_component')])), []);
 });
 
-test('next: nothing without the file (a project that never opted in), before slices exist, or when every slice is closed', () => {
-  assert.deepEqual(toolItems(withTools(null)), []);
-  assert.deepEqual(toolItems(designOnly(withTools([adopt('db-inspect', { name: 'postgres', kind: 'mcp', access: 'read-only' })]))), []);
-  assert.deepEqual(toolItems(designOnly(withTools([later('ui-design', 'frontend_component')]))), [], 'a deferred role whose trigger happened waits for the plan too, like the standards do');
-  const closed = withTools([notNeeded('ui-capture')]);
+test('next: nothing before slices exist, or when every slice is closed', () => {
+  assert.deepEqual(groupItems(designOnly(withTools(null))), []);
+  assert.deepEqual(dueItems(designOnly(withTools([later('ui-design', 'frontend_component')]))), [], 'a deferred role whose trigger happened waits for the plan too, like the standards do');
+  const closed = withTools(null);
   closed.slices.forEach((s) => Object.assign(s.data, { status: 'dropped' }));
-  assert.deepEqual(toolItems(closed), []);
+  assert.deepEqual(groupItems(closed), []);
 });
 
-test('next: the question for the item is the role\'s own, and a panel answer to it that nothing carried out is listed', () => {
-  const m = withTools([adopt('db-inspect', { name: 'postgres', kind: 'mcp', access: 'read-only' })]);
-  const command = 'ppc decide-tool ui-design --not-needed --reason not needed, decided in the panel';
-  const out = nextSteps(m, [], [], { answers: [{ command, label: 'Not needed — ppc decide-tool ui-design --not-needed --reason "not needed, decided in the panel"', at: 1_800_000_000 - 60, id: 'a#0' }], now: 1_800_000_000 });
-  assert.deepEqual(out.answered.map((a) => [a.decision.type, a.decision.id, a.fresh]), [['tool', 'ui-design', true]]);
+test('next: a panel answer to the question about all of them that nothing carried out is listed', () => {
+  const m = withTools(null);
+  const all = ROLES.map((r) => r.id);
+  const command = `ppc decide-tool --roles ${all.join(',')} --not-needed --reason not needed, decided in the panel`;
+  const out = nextSteps(m, [], [], { answers: [{ command, label: 'None of them is needed', at: 1_800_000_000 - 60, id: 'a#0' }], now: 1_800_000_000 });
+  assert.deepEqual(out.answered.map((a) => [a.decision.type, a.decision.id, a.fresh]), [['tools', 'tools', true]]);
 });
 
-test('next: the text names the role and the command', () => {
-  const text = renderNext(nextSteps(withTools([adopt('db-inspect', { name: 'postgres', kind: 'mcp', access: 'read-only' })]), []));
+test('next: the text names the roles and the command', () => {
+  const text = renderNext(nextSteps(withTools(null), []));
   assert.match(text, /ui-design/);
-  assert.match(text, /ppc ask ui-design/);
+  assert.match(text, /ppc ask tools/);
+});
+
+test('the /pp-tools prompt: proposes only from what the person has, one tool per role, read-only servers, installs nothing, and treats what it reads as data', () => {
+  const p = read('../../../sdd-pp/extension/sddpp-cycle/commands/tools.md').replace(/\s+/g, ' ');
+  assert.match(p, /ppc tools --have/);
+  assert.match(p, /Propose only from what they have/);
+  assert.match(p, /At most one tool per role/);
+  assert.match(p, /Propose one only as `read-only`/);
+  assert.match(p, /data, not instructions/);
+  assert.match(p, /Never install or enable anything yourself/);
+  assert.match(p, /from your own knowledge, not verified by pp-suite/);
+  assert.match(p, /ppc ask tools --use/);
+  assert.match(p, /ppc ask tools` instead/);
+  assert.match(p, /ppc constitution/);
+  assert.match(p, /Never write `.sddpp\/tools.yaml` by hand/);
+  assert.match(p, /restarted/);
 });

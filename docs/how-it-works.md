@@ -22,7 +22,7 @@ decides the id named, even when `ppc next` names another. Every other skill that
 building, the debt of an audit, the approval of the slices just planned) asks it the same way, from the same text
 (`sdd-pp/shared/when-the-person-decides.md`); none sends the person to a terminal.
 
-The commands a person can type are short, in the style of Spec Kit's: `/pp-design`, `/pp-standards`, `/pp-experience`, `/pp-plan`, `/pp-build`, `/pp-check`,
+The commands a person can type are short, in the style of Spec Kit's: `/pp-design`, `/pp-standards`, `/pp-tools`, `/pp-experience`, `/pp-plan`, `/pp-build`, `/pp-check`,
 `/pp-audit`, `/pp-change`, and `/pp-red`, `/pp-green`, `/pp-refactor` for the strict cycle. `ppc init` writes them from the extension
 command files and removes the long names Spec Kit gives them (`/speckit-sddpp-cycle-build` and the like). The names follow Spec
 Kit's, so that someone who knows Spec Kit or OpenSpec finds their way:
@@ -32,6 +32,7 @@ Kit's, so that someone who knows Spec Kit or OpenSpec finds their way:
 | `/pp` | — | — |
 | `/pp-design` | `/speckit-specify` | `/openspec-explore` |
 | `/pp-standards` | — | — |
+| `/pp-tools` | — | — |
 | `/pp-experience` | — | — |
 | `/pp-plan` | `/speckit-plan`, `/speckit-tasks` | `/openspec-propose` |
 | `/pp-build` | `/speckit-implement` | `/openspec-apply-change` |

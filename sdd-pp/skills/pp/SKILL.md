@@ -48,11 +48,11 @@ If the person named an id (`$ARGUMENTS`, for example `SL-022`, `CR-0006` or `DEB
    nothing up, so if they say "not yet", leave it waiting. An item whose decision `type` is `review` is a capability that is
    complete: `ppc show CAP-…` says what a review is, `ppc ask CAP-…` asks how the person wants it done; same, it holds
    nothing up. An item whose decision `type` is `outside` is a closed review waiting for someone other than the builder to try it:
-   `ppc show RV-…` has the guide, and the question is `ppc ask RV-…`; it holds nothing up, and skipping it is a fine answer. An item for you (`who` is `agent`) whose command is `/pp-experience RV-…` is an open review: run it. An item whose decision `type` is `tool` is a role that slices call
-   for and nobody decided (or one deferred until a trigger that has happened): `ppc tools` shows it. If the person already has a tool that fits (`ppc init` lists the skills,
-   plugins and MCP servers they have), you may propose it, saying it is your own suggestion and that pp-suite did not verify it: `ppc ask <role> --tool <name> --kind <skill|plugin|mcp>`
-   (an MCP server also needs `--access read-only`, or `read-write` with `--access-reason`). Otherwise ask `ppc ask <role>`. If they choose Other and name a tool, ask again with it.
-   It holds nothing up: "not yet" leaves it waiting.
+   `ppc show RV-…` has the guide, and the question is `ppc ask RV-…`; it holds nothing up, and skipping it is a fine answer. An item for you (`who` is `agent`) whose command is `/pp-experience RV-…` is an open review: run it. An item whose decision `type` is `tools` is the roles that slices call for and nobody decided: run `/pp-tools`, which proposes a tool from
+   what the person has and puts all of them to the person in one question (`ppc ask tools`). It holds nothing up: "not yet" leaves it waiting. An item whose decision `type` is `tool` is one
+   role deferred until a trigger that has happened: `ppc tools` shows it, and `ppc ask <role> --tool <name> --kind <skill|plugin|mcp>` puts a tool you propose from what they have
+   (`ppc tools --have`), saying it is your own suggestion that pp-suite did not verify (an MCP server also needs `--access read-only`, or `read-write` with `--access-reason`); without a
+   tool, `ppc ask <role>` asks whether it is needed. If they choose Other and name a tool, ask again with it.
 6. End with two lines: what was done in this run, and what happens at the next `/pp`.
 
 ## When the person decides

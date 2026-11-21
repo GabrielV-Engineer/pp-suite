@@ -153,6 +153,7 @@ Rara vez necesitas más que `/pp`. Los demás corren una fase a propósito.
 | `/pp` | El siguiente paso, uno tras otro hasta que una decisión es tuya. `/pp SL-022` decide esa |
 | `/pp-design` | Convierte el diseño de The Architect en el diseño verificado; `ui` diseña la interfaz contigo; `cuts` quita lo que cortaste |
 | `/pp-standards` | Decide contigo cómo maneja el proyecto la seguridad, la observabilidad, git y CI: con una recomendación sacada del diseño, y "más adelante" siempre es una respuesta |
+| `/pp-tools` | Propone, entre las skills, plugins y servidores MCP que ya tienes, una herramienta para cada rol que piden los slices (una skill de frontend moderno, un servidor de base de datos), y tú decides todas en una sola pregunta |
 | `/pp-experience` | Hace una revisión de lo que la gente usa, como conjunto, del modo que elegiste (guía, explicación o delegar), y propone cada hallazgo como deuda para que decidas |
 | `/pp-plan` | Rebanadas verticales finas a partir del diseño |
 | `/pp-build` | Construye la rebanada en curso, tests junto al código |

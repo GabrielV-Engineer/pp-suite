@@ -13,7 +13,7 @@ const body = (file) => readFileSync(join(SUITE, file), 'utf8').replace(/^---\n[\
 // The owner's decision (2026-11-12), option A: short names in the style of Spec Kit (/speckit-specify, -plan, -implement), one per
 // phase, instead of /speckit-sddpp-cycle-build and the like.
 test('the short commands are the nine of option A', () => {
-  assert.deepEqual(shortSkills(SUITE).map((s) => s.name), ['pp-design', 'pp-standards', 'pp-experience', 'pp-plan', 'pp-build', 'pp-check', 'pp-audit', 'pp-change', 'pp-red', 'pp-green', 'pp-refactor']);
+  assert.deepEqual(shortSkills(SUITE).map((s) => s.name), ['pp-design', 'pp-standards', 'pp-tools', 'pp-experience', 'pp-plan', 'pp-build', 'pp-check', 'pp-audit', 'pp-change', 'pp-red', 'pp-green', 'pp-refactor']);
 });
 
 test('each short command is a skill whose body is the extension command it stands for, so there is one source', () => {

@@ -4,6 +4,7 @@
 // See docs/tools.md.
 
 import { hasTool } from './inventory.mjs';
+import { isOwnSkill } from './skills.mjs';
 
 /** What asks a deferred role again: the design gets a component of this kind. */
 export const TRIGGERS = {
@@ -144,4 +145,51 @@ export function toolsLine(list = []) {
   if (!adopted.length) return null;
   const words = adopted.map((e) => `${e.role} ${e.tool.name}${e.tool.kind === 'mcp' ? ` (mcp, ${e.tool.access})` : ''}`).join(', ');
   return `- Tools the person chose (\`ppc tools\`; \`ppc show <id>\` says which a slice calls for): ${words}. Use those a slice's card lists; do not pick others.`;
+}
+
+/**
+ * What the agent proposes for several roles at once, as the panel carries it: `role=kind:name[,...]`, with an MCP server's access last
+ * (`db-inspect=mcp:postgres:read-only`). A plugin skill's name may hold colons (`designer:frontend-design`), so only an MCP server's last
+ * part is its access. A server that may change things is not decided here: it needs its reason, so it is decided on its own.
+ */
+export function parseUse(text, fail) {
+  const parts = String(text ?? '').split(',').map((p) => p.trim()).filter(Boolean);
+  if (!parts.length) fail('--use needs at least one role=kind:name, for example ui-design=skill:frontend-design');
+  const seen = new Set();
+  return parts.map((part) => {
+    const m = /^([a-z][a-z0-9-]*)=([a-z]+):(.+)$/.exec(part) ?? fail(`"${part}" is not role=kind:name, for example ui-design=skill:frontend-design`);
+    const [, role, kind, rest] = m;
+    if (!ROLES.some((r) => r.id === role)) fail(`unknown role ${role}; the roles are ${ROLES.map((r) => r.id).join(', ')}`);
+    if (seen.has(role)) fail(`${role} is named twice`);
+    seen.add(role);
+    let name = rest;
+    let access;
+    if (kind === 'mcp') {
+      const i = rest.lastIndexOf(':');
+      if (i < 0) fail(`${role}: an MCP server needs its access, as mcp:<name>:read-only`);
+      name = rest.slice(0, i);
+      access = rest.slice(i + 1);
+      if (access === 'read-write') fail(`${role}: a server that may change things is decided on its own, with its reason: ppc ask ${role} --tool ${name} --kind mcp --access read-write --access-reason "<why>"`);
+      if (access !== 'read-only') fail(`${role}: here an MCP server's access is read-only (found "${access}")`);
+    }
+    return { role, tool: toolFromFlags({ adopt: name, kind, access }, fail) };
+  });
+}
+
+/**
+ * `ppc tools --have`: everything the person has, by name and where it comes from, so an agent can propose a tool from it. Names only
+ * (never a server's command, url or environment), read from this machine and never written to the project. Not cut: the agent needs all of it.
+ */
+export function renderHave(inventory) {
+  const skills = inventory.skills.filter((s) => !isOwnSkill(s.name));
+  const group = (label, items, words) => `${label} (${items.length})${items.length ? `: ${[...items].sort((a, b) => a.name.localeCompare(b.name)).map(words).join(', ')}` : ''}`;
+  return [
+    'What you have (names only, read from this machine; nothing here is written to the project)',
+    '',
+    group('skills', skills, (s) => `${s.name} (${s.from})`),
+    group('plugins', inventory.plugins, (p) => p.name),
+    group('MCP servers', inventory.mcp, (m) => `${m.name} (${m.scope})`),
+    ...inventory.problems.map((p) => `note: ${p}`),
+    '',
+  ].join('\n');
 }

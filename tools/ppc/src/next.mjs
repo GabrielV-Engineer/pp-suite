@@ -153,10 +153,12 @@ function stepsOf(model, subjects, errors, facts) {
     .filter((x) => x.decision === 'later' && triggerFired(x.trigger, model.blueprint?.data, model.facts ?? {}))
     .map((x) => ({ who: 'human', what: `The ${x.id} standard waited until ${TRIGGERS[x.trigger]}, and that has happened: decide it again`, command: `ppc decide-standard ${x.id} ...`, decision: { type: 'standard', id: x.id } }));
   if (slices.length) waiting.push(...(undecidedStandards.length ? [decideStandards] : []), ...dueAgain);
-  // The tools (docs/tools.md): once a project has a tools file, a role that slices ahead call for and nobody decided, and a deferred role
-  // whose trigger happened, wait beside the work. A project with no file never opted in, so it hears nothing. Never a blocker.
-  if (slices.length && model.tools) {
-    waiting.push(...undecidedRoles(model).map(({ role, slices: ids }) => ({ who: 'human', what: `${role.title} (${role.id}) is called for by ${ids.slice(0, 6).join(', ')}${ids.length > 6 ? ` and ${ids.length - 6} more` : ''} and has no tool decided: choose one, or say it is not needed (\`ppc tools\` shows them); it holds nothing up`, command: `ppc ask ${role.id}`, decision: { type: 'tool', id: role.id } })));
+  // The tools (docs/tools.md): the roles that slices ahead call for and nobody decided are ONE item, asked in one question (a project with no
+  // tools file hears it too: nothing else tells it the feature exists, and "none is needed" is one click). A deferred role whose trigger
+  // happened is asked again on its own. Never a blocker.
+  if (slices.length) {
+    const left = undecidedRoles(model);
+    if (left.length) waiting.push({ who: 'human', what: `${left.length === 1 ? 'A role that slices call for has' : `${left.length} roles that slices call for have`} no tool decided (${left.map((x) => x.role.id).join(', ')}): the agent proposes from what you have (\`/pp-tools\`) and you decide ${left.length === 1 ? 'it' : 'them all'} in one question, or say none is needed; it holds nothing up`, command: 'ppc ask tools', decision: { type: 'tools', id: 'tools' } });
     waiting.push(...dueRoles(model).map((role) => ({ who: 'human', what: `The ${role.id} tool waited until ${TOOL_TRIGGERS[model.tools.data.tools.find((e) => e.role === role.id).trigger]}, and that has happened: decide it again (\`ppc tools\` shows them); it holds nothing up`, command: `ppc ask ${role.id}`, decision: { type: 'tool', id: role.id } })));
   }
   // The glance (docs/standards.md, "Experience"): a closed slice nobody has looked at is the person's turn, beside the work. Never a blocker.

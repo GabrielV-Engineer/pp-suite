@@ -22,6 +22,7 @@ export const SHORT_SKILLS = [
     ],
   },
   { name: 'pp-standards', parts: [part(CYCLE, 'standards', 'sddpp-cycle', 'standards')] },
+  { name: 'pp-tools', parts: [part(CYCLE, 'tools', 'sddpp-cycle', 'tools')] },
   { name: 'pp-experience', parts: [part(CYCLE, 'experience', 'sddpp-cycle', 'experience')] },
   { name: 'pp-plan', parts: [part(CYCLE, 'slices', 'sddpp-cycle', 'slices')] },
   {
@@ -47,6 +48,9 @@ export const SHORT_SKILLS = [
   { name: 'pp-green', parts: [part(CYCLE, 'green', 'sddpp-cycle', 'green')] },
   { name: 'pp-refactor', parts: [part(CYCLE, 'refactor', 'sddpp-cycle', 'refactor')] },
 ];
+
+/** pp-suite's own commands (`/pp`, `/pp-*`) and Spec Kit's: not the person's skills, so a list of what they have leaves them out. */
+export const isOwnSkill = (name) => name === 'pp' || SHORT_SKILLS.some((k) => k.name === name) || String(name).startsWith('speckit-');
 
 // Commands that only hooks run (Spec Kit's event dispatcher finds them in extension.yml, not in .claude/skills): no short
 // name, and their long skills are removed too, since a person never types them.

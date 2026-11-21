@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { loadProject } from '../src/load.mjs';
 import { decideTool } from '../src/lifecycle.mjs';
-import { renderTools } from '../src/tools.mjs';
+import { renderTools, renderHave } from '../src/tools.mjs';
 import { CLI, repo } from './helpers.mjs';
 
 // `ppc tools`: the roles, what a person decided for each, which slices not yet closed call for it, and, only when the machine was
@@ -79,4 +79,44 @@ test('CLI: ppc tools prints it, looks in the person\'s home, and needs a design'
   const none = run(bare, home);
   assert.equal(none.status, 1);
   assert.match(none.stderr, /design/);
+});
+
+// ── what the person has: the list the agent proposes from ───────
+test('have: every skill, plugin and MCP server by name, without pp-suite\'s own commands, and nothing else about a server', () => {
+  const text = renderHave({
+    skills: [{ name: 'frontend-design', from: 'user' }, { name: 'pp-build', from: 'project' }, { name: 'speckit-plan', from: 'project' }, { name: 'designer:taste', from: 'plugin' }],
+    plugins: [{ name: 'designer', scope: 'user' }],
+    mcp: [{ name: 'postgres', scope: 'user' }, { name: 'figma', scope: 'project' }],
+    problems: ['the user file ~/.claude.json could not be read as JSON'],
+  });
+  assert.match(text, /skills \(2\)/);
+  assert.match(text, /frontend-design \(user\)/);
+  assert.match(text, /designer:taste \(plugin\)/);
+  assert.doesNotMatch(text, /pp-build|speckit-plan/);
+  assert.match(text, /plugins \(1\): designer/);
+  assert.match(text, /MCP servers \(2\): figma \(project\), postgres \(user\)/);
+  assert.match(text, /could not be read/);
+  assert.match(text, /names only/i);
+});
+
+test('have: an empty machine says so, and a long list is not cut (the agent needs all of it)', () => {
+  assert.match(renderHave({ skills: [], plugins: [], mcp: [], problems: [] }), /skills \(0\)/);
+  const many = Array.from({ length: 25 }, (_, i) => ({ name: `skill-${String(i).padStart(2, '0')}`, from: 'user' }));
+  const text = renderHave({ skills: many, plugins: [], mcp: [], problems: [] });
+  assert.match(text, /skill-24/);
+  assert.doesNotMatch(text, /more\)/);
+});
+
+test('CLI: ppc tools --have lists what the person has, from their home, and writes nothing', (t) => {
+  const r = repo(t);
+  const home = mkdtempSync(join(tmpdir(), 'ppc-home-'));
+  t.after(() => rmSync(home, { recursive: true, force: true }));
+  mkdirSync(join(home, '.claude/skills/frontend-design'), { recursive: true });
+  writeFileSync(join(home, '.claude/skills/frontend-design/SKILL.md'), '---\nname: frontend-design\n---\n');
+  writeFileSync(join(home, '.claude.json'), JSON.stringify({ mcpServers: { postgres: { command: 'x', env: { TOKEN: 'TOKEN-SECRET' } } } }));
+  const out = spawnSync('node', [CLI, 'tools', '--have', r.dir], { encoding: 'utf8', env: { ...process.env, HOME: home } });
+  assert.equal(out.status, 0, out.stderr);
+  assert.match(out.stdout, /frontend-design \(user\)/);
+  assert.match(out.stdout, /postgres/);
+  assert.doesNotMatch(out.stdout, /TOKEN-SECRET/);
 });
