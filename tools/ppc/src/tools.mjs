@@ -109,3 +109,39 @@ export function renderTools(model, inventory) {
   if (missing) out.push('', 'A tool that was not found has to be installed first, and the session restarted to load it: one installed during a session does not load in it.');
   return `${out.join('\n')}\n`;
 }
+
+const LIVE = ['planned', 'ready', 'in_progress'];
+
+/** The roles a slice calls for, each with the decision that stands (or none): what the slice's card shows. Empty when the project has no tools file. */
+export function toolsFor(model, slice) {
+  if (!model.tools || !Array.isArray(model.tools.data?.tools)) return [];
+  return rolesFor(roleFacts(model, slice)).map((role) => {
+    const entry = model.tools.data.tools.find((e) => e.role === role.id);
+    const text = !entry || entry.decision === 'pending' ? 'no decision yet'
+      : entry.decision === 'adopt' ? `use ${entry.tool.name} (${entry.tool.kind}${entry.tool.access ? `, ${entry.tool.access}` : ''})`
+      : entry.decision === 'later' ? `deferred until ${TRIGGERS[entry.trigger]}`
+      : `not needed (${entry.reason})`;
+    return { id: role.id, title: role.title, text };
+  });
+}
+
+/** The roles with no decision (none, or pending) that slices not yet closed call for, each with those slices: `[{ role, slices }]`. */
+export function undecidedRoles(model) {
+  const list = model.tools?.data?.tools ?? [];
+  const decided = new Set(list.filter((e) => e.decision !== 'pending').map((e) => e.role));
+  const ahead = (model.slices ?? []).map((s) => s.data).filter((sl) => LIVE.includes(sl.status));
+  return ROLES.filter((r) => !decided.has(r.id))
+    .map((role) => ({ role, slices: ahead.filter((sl) => rolesFor(roleFacts(model, sl)).some((r) => r.id === role.id)).map((sl) => sl.id) }))
+    .filter((x) => x.slices.length);
+}
+
+/** The roles decided `later` whose trigger has happened: the person decides them again. */
+export const dueRoles = (model) => (model.tools?.data?.tools ?? []).filter((e) => e.decision === 'later' && triggerFired(e.trigger, model.blueprint?.data)).map((e) => ROLES.find((r) => r.id === e.role)).filter(Boolean);
+
+/** The one line of the project rules that names the tools the person adopted, or null. */
+export function toolsLine(list = []) {
+  const adopted = ROLES.map((r) => list.find((e) => e.role === r.id)).filter((e) => e?.decision === 'adopt');
+  if (!adopted.length) return null;
+  const words = adopted.map((e) => `${e.role} ${e.tool.name}${e.tool.kind === 'mcp' ? ` (mcp, ${e.tool.access})` : ''}`).join(', ');
+  return `- Tools the person chose (\`ppc tools\`; \`ppc show <id>\` says which a slice calls for): ${words}. Use those a slice's card lists; do not pick others.`;
+}

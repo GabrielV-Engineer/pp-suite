@@ -4,7 +4,7 @@ import { glanceStandard, lookAt } from './glance.mjs';
 import { openReviews, modesFor, pendingReviews } from './review.mjs';
 import { pendingOutside, renderGuide } from './guide.mjs';
 import { SURFACES, surfacesFor } from './rubric.mjs';
-import { ROLES, TRIGGERS as TOOL_TRIGGERS, toolFromFlags } from './tools.mjs';
+import { ROLES, TRIGGERS as TOOL_TRIGGERS, toolFromFlags, toolsFor } from './tools.mjs';
 import { STANDARDS, BY_ID, CUSTOM, TRIGGERS, recommend, renderStandards, describeAnswer, projectFacts, standardsFor } from './standards.mjs';
 
 // The card of one thing a person decides, in plain words: what it is and what approving it means. `ppc show <id>` prints it and
@@ -48,6 +48,9 @@ function sliceCard(model, entry, { redFiles, auditInput } = {}) {
   const kindOf = new Map((model.blueprint?.data.components ?? []).map((c) => [c.id, c.kind]));
   const applying = standardsFor(model.standards?.data?.standards ?? [], new Set((s.components ?? []).map((c) => kindOf.get(c))));
   if (applying.length) out.push(row('Standards', ''), ...applying.map((a) => `      - ${a.id} ${a.text}`));
+  // the tools the person chose for the roles this slice calls for (docs/tools.md): where the work happens, so nobody has to remember
+  const tooling = toolsFor(model, s);
+  if (tooling.length) out.push(row('Tools', ''), ...tooling.map((a) => `      - ${a.id} ${a.text}`));
   const pays = paidBy(model, s);
   if (pays.length) out.push(row('Pays', ''), ...pays.map((e) => `      - ${e.id} ${e.title}`));
   const open = openHere(model, s);

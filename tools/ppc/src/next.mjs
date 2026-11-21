@@ -9,6 +9,7 @@ import { join } from 'node:path';
 import { modeOf, testPolicy, screenApproved } from './policy.mjs';
 import { askFor } from './decisions.mjs';
 import { STANDARDS, TRIGGERS, triggerFired } from './standards.mjs';
+import { TRIGGERS as TOOL_TRIGGERS, undecidedRoles, dueRoles } from './tools.mjs';
 import { pendingGlances } from './glance.mjs';
 import { openReviews, pendingReviews } from './review.mjs';
 import { pendingOutside } from './guide.mjs';
@@ -152,6 +153,12 @@ function stepsOf(model, subjects, errors, facts) {
     .filter((x) => x.decision === 'later' && triggerFired(x.trigger, model.blueprint?.data, model.facts ?? {}))
     .map((x) => ({ who: 'human', what: `The ${x.id} standard waited until ${TRIGGERS[x.trigger]}, and that has happened: decide it again`, command: `ppc decide-standard ${x.id} ...`, decision: { type: 'standard', id: x.id } }));
   if (slices.length) waiting.push(...(undecidedStandards.length ? [decideStandards] : []), ...dueAgain);
+  // The tools (docs/tools.md): once a project has a tools file, a role that slices ahead call for and nobody decided, and a deferred role
+  // whose trigger happened, wait beside the work. A project with no file never opted in, so it hears nothing. Never a blocker.
+  if (slices.length && model.tools) {
+    waiting.push(...undecidedRoles(model).map(({ role, slices: ids }) => ({ who: 'human', what: `${role.title} (${role.id}) is called for by ${ids.slice(0, 6).join(', ')}${ids.length > 6 ? ` and ${ids.length - 6} more` : ''} and has no tool decided: choose one, or say it is not needed (\`ppc tools\` shows them); it holds nothing up`, command: `ppc ask ${role.id}`, decision: { type: 'tool', id: role.id } })));
+    waiting.push(...dueRoles(model).map((role) => ({ who: 'human', what: `The ${role.id} tool waited until ${TOOL_TRIGGERS[model.tools.data.tools.find((e) => e.role === role.id).trigger]}, and that has happened: decide it again (\`ppc tools\` shows them); it holds nothing up`, command: `ppc ask ${role.id}`, decision: { type: 'tool', id: role.id } })));
+  }
   // The glance (docs/standards.md, "Experience"): a closed slice nobody has looked at is the person's turn, beside the work. Never a blocker.
   // The review of the whole (docs/standards.md, "Experience"): a complete capability is the person's turn to choose how; an open one is the agent's. Neither blocks.
   waiting.push(...pendingReviews(model).map((c) => ({ who: 'human', what: `${c.id} "${c.name}" is complete: review it as a whole, against the rubric, and choose how it is done (\`ppc show ${c.id}\`); it holds nothing up`, command: `ppc review ${c.id} --mode guide|explain|delegate`, decision: { type: 'review', id: c.id } })));

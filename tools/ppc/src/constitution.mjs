@@ -4,6 +4,7 @@ import { loadProject } from './load.mjs';
 import { designFindings, validateModel } from './validate.mjs';
 import { modeOf, testPolicy } from './policy.mjs';
 import { standardsLine } from './standards.mjs';
+import { toolsLine } from './tools.mjs';
 
 // The project's rules, produced from the design by a script and kept in CLAUDE.md, which Claude Code reads at the start
 // of every session. It is one block between markers: what a person wrote in the same file is never touched. It is the
@@ -37,6 +38,8 @@ export function renderConstitution(model) {
     `- Default cycle: ${mode}. Test policy: ${policy}. A slice's hand-written production code stays under ${bp.budgets.max_slice_production_lines} lines.`,
     // the standards the person adopted (`.sddpp/standards.yaml`), so every session and every build knows them
     ...[standardsLine(model.standards?.data?.standards ?? [])].filter(Boolean),
+    // the tools the person adopted (`.sddpp/tools.yaml`), so a session that never opens the card still knows them
+    ...[toolsLine(model.tools?.data?.tools ?? [])].filter(Boolean),
     `**Version**: blueprint revision ${bp.revision}`,
     END,
   ].join('\n');

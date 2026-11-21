@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { basename } from 'node:path';
 import { modeOf, testPolicy, PAYERS, touchesDebt, testsOpen } from './policy.mjs';
 import { STANDARDS, TRIGGERS, triggerFired } from './standards.mjs';
-import { ROLES, TRIGGERS as TOOL_TRIGGERS, rolesFor, roleFacts, triggerFired as toolTriggerFired } from './tools.mjs';
+import { ROLES, TRIGGERS as TOOL_TRIGGERS, undecidedRoles, triggerFired as toolTriggerFired } from './tools.mjs';
 
 const SCHEMA_DIR = new URL('../../../contract/v0.1/schemas/', import.meta.url);
 const SCHEMA_NAMES = ['blueprint', 'slice', 'debt', 'adr', 'evidence', 'change-request', 'active', 'additions', 'ui', 'standards', 'tools', 'review'];
@@ -529,12 +529,8 @@ export function validateModel(model, { now = new Date() } = {}) {
         seen.add(e.role);
         if (e.decision === 'later' && toolTriggerFired(e.trigger, bp)) warn('K02', toolsFile, `${e.role} waited until ${TOOL_TRIGGERS[e.trigger]}, and that has happened; decide it again in ${toolsFile}`);
       }
-      const decided = new Set(list.filter((e) => e.decision !== 'pending').map((e) => e.role));
-      const ahead = slices.filter(({ data: sl }) => ['planned', 'ready', 'in_progress'].includes(sl.status));
-      for (const role of ROLES) {
-        if (decided.has(role.id)) continue;
-        const ids = ahead.filter(({ data: sl }) => rolesFor(roleFacts(model, sl)).some((r) => r.id === role.id)).map(({ data: sl }) => sl.id);
-        if (ids.length) warn('K03', toolsFile, `${role.id} (${role.title}) applies to ${ids.slice(0, 8).join(', ')}${ids.length > 8 ? ` and ${ids.length - 8} more` : ''} because ${role.why}, and has no decision: adopt a tool, decide it later, or say it is not needed`);
+      for (const { role, slices: ids } of undecidedRoles(model)) {
+        warn('K03', toolsFile, `${role.id} (${role.title}) applies to ${ids.slice(0, 8).join(', ')}${ids.length > 8 ? ` and ${ids.length - 8} more` : ''} because ${role.why}, and has no decision: adopt a tool, decide it later, or say it is not needed`);
       }
     }
   }

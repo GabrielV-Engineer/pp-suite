@@ -69,6 +69,11 @@ a command to type in a terminal. Instead:
    **Standards.** `ppc show <id>` lists, under "Standards", the ones the person adopted that apply to this slice
    (`ppc standards` says what each means). Follow them. If `git` is `branch-per-slice` or `branch-per-slice-pr`, work on a
    branch named `slice/<id>`, created from the main branch before the first commit.
+   **Tools.** `ppc show <id>` lists, under "Tools", the roles this slice calls for and the tool the person chose for each (a
+   skill, a plugin or an MCP server). Use the chosen tool where its role applies: invoke a skill, or a plugin's skill, with the
+   Skill tool, and use an MCP server only with the access recorded for it (read-only means it never changes anything). If a role
+   says "no decision yet", do not choose a tool yourself: build without one and say in your report that the role was left
+   undecided. A chosen tool that is not available in this session is a line in your report too, not a reason to stop.
 3. For each acceptance criterion, in small steps: write a test that expresses it, watch it fail for the right
    reason, write the least code that passes it, run all the tests.
 4. Commit in small steps with the message `build(<id>): <what now works>`, keeping a test and the code it checks in

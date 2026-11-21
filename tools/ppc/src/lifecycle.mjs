@@ -973,6 +973,6 @@ export function decideTool(root, role, { by, today = new Date().toISOString().sl
     const problems = validateModel(loadProject(root)).filter((f) => f.file === file && f.severity === 'error');
     if (problems.length) fail(`the decision would leave ${file} invalid:\n${describe(problems)}`);
     const words = answer.decision === 'adopt' ? `${answer.tool.name} (${answer.tool.kind}${answer.tool.access ? `, ${answer.tool.access}` : ''})` : answer.decision === 'later' ? `later, when ${TOOL_TRIGGERS[answer.trigger]}` : `not needed: ${answer.reason}`;
-    return { role, decision: answer.decision, text: `${role}: ${words}\nRecorded in ${file}.` };
+    return { role, decision: answer.decision, text: `${role}: ${words}\nRecorded in ${file}. Next: run \`ppc constitution\` so the project rules in CLAUDE.md name it.` };
   });
 }
