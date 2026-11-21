@@ -1,6 +1,8 @@
 import { execFileSync } from 'node:child_process';
 import { payProblem, screenApproved } from './policy.mjs';
 import { glanceStandard, lookAt } from './glance.mjs';
+import { openReviews, modesFor, pendingReviews } from './review.mjs';
+import { SURFACES, surfacesFor } from './rubric.mjs';
 import { STANDARDS, BY_ID, CUSTOM, TRIGGERS, recommend, renderStandards, describeAnswer, projectFacts, standardsFor } from './standards.mjs';
 
 // The card of one thing a person decides, in plain words: what it is and what approving it means. `ppc show <id>` prints it and
@@ -124,6 +126,47 @@ const factsOf = (model) => model.facts ?? (model.root ? projectFacts(model.root)
 const recommendedOf = (model) => recommend(model.blueprint.data, factsOf(model));
 const undecidedStandards = (model) => STANDARDS.filter((s) => !standardsOf(model).some((x) => x.id === s.id && x.decision !== 'pending'));
 
+// How a review is done: the person's choice, asked each time (docs/standards.md, "Experience")
+const MODE_WORDS = {
+  explain: ['Explain first, then do it', 'The agent tells you what it will check and how, and then checks it'],
+  guide: ['Guide me, I will try it', 'You are told what to try and with which tools, and you try it; nothing is run for you'],
+  delegate: ['Do it for me', 'The agent inspects it by itself and reports; anything it would install is asked about first (the list of tools you allow is planned, not built)'],
+};
+
+/** What a review of a capability (or of the project, with `project`) covers: its closed slices and the surfaces a person meets in them. */
+function reviewScope(model, scope) {
+  const built = model.slices.map((s) => s.data).filter((s) => s.status === 'done' && (scope === 'project' || s.capability === scope));
+  const kindOf = new Map((model.blueprint?.data.components ?? []).map((c) => [c.id, c.kind]));
+  return { built, surfaces: surfacesFor(built.flatMap((s) => (s.components ?? []).map((c) => kindOf.get(c)))) };
+}
+
+function reviewCard(model, scope) {
+  const { built, surfaces } = reviewScope(model, scope);
+  if (!built.length) return null;
+  const cap = model.blueprint.data.capabilities.find((c) => c.id === scope);
+  const start = scope === 'project' ? 'ppc review --project' : `ppc review ${scope}`;
+  return [
+    scope === 'project' ? 'Review of the whole project' : `${scope}  ${cap?.name ?? ''}`.trimEnd(),
+    row('Closed slices', built.map((s) => `${s.id} "${s.title}"`).join(', ')),
+    row('The review covers', surfaces.length ? surfaces.map((s) => SURFACES[s].title).join(', ') : 'nothing a person meets here yet: add a surface with --surface cli or --surface docs'),
+    row('What it is', 'The whole, judged against a short rubric (ppc rubric), where each criterion says its source. A fresh agent session answers it and proposes each finding as technical debt; you decide on that debt as on any other. It holds nothing up.'),
+    row('Ways to do it', ''),
+    ...modesFor(model).map((m) => `      - ${m}: ${MODE_WORDS[m][1]}`),
+    '', `To start it:  ${start} --mode <${modesFor(model).join('|')}>   (ppc ask ${scope === 'project' ? 'review' : scope} puts the choice to you)`,
+  ].join('\n');
+}
+
+function askReview(model, id) {
+  const scope = id === 'review' ? 'project' : id;
+  if (scope === 'project' ? !reviewScope(model, scope).built.length || openReviews(model).some((r) => r.scope.type === 'project') : !pendingReviews(model).some((c) => c.id === scope)) return null;
+  const base = scope === 'project' ? 'ppc review --project' : `ppc review ${scope}`;
+  const what = scope === 'project' ? 'the whole project' : `${scope} "${model.blueprint.data.capabilities.find((c) => c.id === scope)?.name}", now complete,`;
+  return { questions: [{ question: `Review ${what} as a person would meet it? Choose how it is done.`, header: 'Review', multiSelect: false, options: [
+    ...modesFor(model).map((m) => choose(MODE_WORDS[m][0], `${base} --mode ${m}`, MODE_WORDS[m][1])),
+    { label: 'Not yet', description: 'Nothing is decided; it waits for you' },
+  ] }] };
+}
+
 export function renderDecision(model, id, extra = {}) {
   if (id === 'standards' || BY_ID.has(id)) {
     if (!model.blueprint) return null;
@@ -131,6 +174,10 @@ export function renderDecision(model, id, extra = {}) {
   }
   if (id === 'reread') {
     const card = rereadCard(model);
+    return card ? `${card}\n` : null;
+  }
+  if (id === 'review' || (/^CAP-\d{3}$/.test(id) && pendingReviews(model).some((c) => c.id === id))) {
+    const card = reviewCard(model, id === 'review' ? 'project' : id);
     return card ? `${card}\n` : null;
   }
   const slice = model.slices.find((s) => s.data.id === id);
@@ -232,6 +279,7 @@ function askStandards(model, id, details) {
 
 export function askFor(model, id, { redFiles, budgetReason, mutationReason, payIn, addComponent, details } = {}) {
   if (id === 'standards' || BY_ID.has(id)) return askStandards(model, id, details);
+  if (id === 'review' || /^CAP-\d{3}$/.test(id)) return askReview(model, id);
   if (id === 'reread') {
     const behind = model.slices.map((s) => s.data).filter((s) => !['done', 'dropped'].includes(s.status) && s.blueprint_revision < model.blueprint.data.revision);
     if (!behind.length) return null;

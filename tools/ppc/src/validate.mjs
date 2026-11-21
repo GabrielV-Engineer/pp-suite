@@ -6,7 +6,7 @@ import { modeOf, testPolicy, PAYERS, touchesDebt, testsOpen } from './policy.mjs
 import { STANDARDS, TRIGGERS, triggerFired } from './standards.mjs';
 
 const SCHEMA_DIR = new URL('../../../contract/v0.1/schemas/', import.meta.url);
-const SCHEMA_NAMES = ['blueprint', 'slice', 'debt', 'adr', 'evidence', 'change-request', 'active', 'additions', 'ui', 'standards'];
+const SCHEMA_NAMES = ['blueprint', 'slice', 'debt', 'adr', 'evidence', 'change-request', 'active', 'additions', 'ui', 'standards', 'review'];
 const WORK_TYPES = ['skeleton', 'feature', 'fix'];
 /** Heuristic budgets by declared level, a guard against over-engineering. They are defaults, not findings of any study. */
 const LEVEL_LIMITS = {
@@ -74,9 +74,11 @@ export const RULES = {
   U05: 'A screen\'s mockup is not approved, or changed after a person approved it.',
   U06: 'An unfinished work slice on a frontend component names no screen, or names a screen that does not exist.',
   U07: 'Slices build to screens and the interface document names no command that opens the real app (app.check).',
-  S01: 'A standard (security, observability, git, CI) is undecided, or there is no standards file (always a warning).',
+  R01: 'A review is of a capability the design does not have.',
+  R02: 'A finding a review lists is not in the debt register, or that entry does not name this review as its origin.',
+  S01: 'A standard (security, observability, git, CI, experience) is undecided, or there is no standards file (always a warning).',
   S02: 'A standard decided "later" has a trigger that has now happened, so it should be decided again.',
-  S03: 'Security or observability is adopted and the design has no quality attribute of that kind (security, operability).',
+  S03: 'Security, observability or experience is adopted and the design has no quality attribute of that kind (security, operability, usability).',
   X05: 'An addition points at something that does not exist (a design id, or another addition it overlaps), or its id is duplicated.',
 };
 
@@ -137,6 +139,7 @@ export function validateModel(model, { now = new Date() } = {}) {
   const adrs = checked(model.adrs, 'adr');
   const evidence = checked(model.evidence, 'evidence');
   const crs = checked(model.changeRequests, 'change-request');
+  const reviews = checked(model.reviews ?? [], 'review');
   const debtFiles = checked(model.debt, 'debt');
   const active = model.active ? checked([model.active], 'active')[0] : null;
 
@@ -346,7 +349,7 @@ export function validateModel(model, { now = new Date() } = {}) {
   }
 
   // ── debt: T09, L05 ────────────────────────────────────────────
-  const originOk = { slice: (r) => sliceById.has(r), decision: (r) => adrIds.has(r), blueprint: (r) => requirementIds.has(r), audit: () => true };
+  const originOk = { slice: (r) => sliceById.has(r), decision: (r) => adrIds.has(r), blueprint: (r) => requirementIds.has(r), audit: () => true, review: (r) => reviews.some((x) => x.data.id === r) };
   for (const df of debtFiles) {
     for (const e of df.data.entries) {
       const comp = comps.get(e.component);
@@ -453,6 +456,16 @@ export function validateModel(model, { now = new Date() } = {}) {
           for (const id of a.affects ?? []) if (!standing.has(id)) error('X05', file, `${a.id} points at ${id}, which does not exist`);
         }
       }
+    }
+  }
+
+  // ── reviews: R01 and R02 (docs/standards.md, "Experience"). A finding is a debt entry, so the review and the register must agree.
+  for (const { file, data: r } of reviews) {
+    if (r.scope.type === 'capability' && !caps.has(r.scope.ref)) error('R01', file, `${r.id} reviews ${r.scope.ref}, which the design does not have`);
+    for (const f of r.findings ?? []) {
+      const entry = debtById.get(f)?.entry;
+      if (!entry) error('R02', file, `${r.id} lists the finding ${f}, which is not in the debt register`);
+      else if (entry.origin.type !== 'review' || entry.origin.ref !== r.id) error('R02', file, `${r.id} lists the finding ${f}, but that entry's origin is not ${r.id}`);
     }
   }
 

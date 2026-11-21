@@ -45,7 +45,9 @@ If the person named an id (`$ARGUMENTS`, for example `SL-022`, `CR-0006` or `DEB
    whose command is `ppc ask DEBT-… --pay-in <slice>` is debt a closed slice did not pay: pick the next planned slice that
    touches its component (say why), and ask with that slice in place of `<slice>`. An item whose decision `type` is `glance` is
    a closed slice nobody has looked at: `ppc show SL-…` has what to look at, and the question is `ppc ask SL-…`. It holds
-   nothing up, so if they say "not yet", leave it waiting.
+   nothing up, so if they say "not yet", leave it waiting. An item whose decision `type` is `review` is a capability that is
+   complete: `ppc show CAP-…` says what a review is, `ppc ask CAP-…` asks how the person wants it done; same, it holds
+   nothing up. An item for you (`who` is `agent`) whose command is `/pp-experience RV-…` is an open review: run it.
 6. End with two lines: what was done in this run, and what happens at the next `/pp`.
 
 ## When the person decides

@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:pp-suite:contract:0.1:review",
+  "title": "Review (.sddpp/reviews/RV-NNN-*.md frontmatter)",
+  "description": "A review of what people meet, as a whole: a capability when it is complete, or the project when a person asks (the experience standard). The person chooses how it is done; a fresh agent session answers the rubric and proposes each finding as an entry of technical debt, which the person decides on like any other.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "scope", "mode", "mode_chosen_by", "surfaces", "opened_on", "status"],
+  "properties": {
+    "id": { "type": "string", "pattern": "^RV-\\d{3,}$" },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type"],
+      "properties": {
+        "type": { "enum": ["capability", "project"] },
+        "ref": { "type": "string", "pattern": "^CAP-\\d{3}$" }
+      },
+      "allOf": [
+        { "if": { "properties": { "type": { "const": "capability" } }, "required": ["type"] }, "then": { "required": ["ref"] }, "else": { "not": { "required": ["ref"] } } }
+      ]
+    },
+    "mode": { "enum": ["guide", "explain", "delegate"], "description": "How the review is done: guide (the person is told what and how to try), explain (the agent says what it will do, then does it), delegate (the agent inspects by itself)." },
+    "mode_chosen_by": { "type": "string", "minLength": 1, "description": "The person who chose the mode. Written by `ppc review`." },
+    "surfaces": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "enum": ["screen", "api", "cli", "docs"] } },
+    "opened_on": { "type": "string", "format": "date" },
+    "status": { "enum": ["open", "closed"] },
+    "closed_on": { "type": "string", "format": "date" },
+    "findings": { "type": "array", "uniqueItems": true, "items": { "type": "string", "pattern": "^DEBT-[A-Z]{2,5}-\\d{3,}$" }, "description": "The debt entries this review proposed; each one names this review as its origin." }
+  },
+  "allOf": [
+    { "if": { "properties": { "status": { "const": "closed" } }, "required": ["status"] }, "then": { "required": ["closed_on"] }, "else": { "not": { "required": ["closed_on"] } } }
+  ]
+}

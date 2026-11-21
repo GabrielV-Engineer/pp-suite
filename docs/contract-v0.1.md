@@ -20,6 +20,7 @@ Status: **v0.1, unstable.** Expect breaking changes until v1.0.
   slices/SL-001-*.md             one file per slice: the leaves of the WBS
   debt.yaml                      one register of technical debt for the project; each entry names its component
   change-requests/CR-0001-*.md   how SDD.PP asks for a blueprint change
+  reviews/RV-001-*.md            a review of what people meet, as a whole (the experience standard): how it is done, the rubric, the answers
   standards.yaml                 how the project handles security, observability, git, CI and the experience of its users, decided by a person
   active.json                    {slice, phase}: machine state read by the test-lock guard
 ```
@@ -105,7 +106,7 @@ that component's code), and `also_affects` links the others. Status flow: `propo
 - `accepted` needs `accepted_reason`; `scheduled` and `paid` need `paid_by` (a refactor, fix or feature slice that
   touches the debt's component and lists the debt in `pays`; a fix slice pays with a change of behavior, often born from a change
   request; a feature slice pays it as part of its own work, and its audit says whether it did). `dropped` may carry `dropped_reason` (optional, at least 10 characters), the person's reason for discarding it.
-- `origin` says where it came from: a `slice`, a `decision` (ADR), the `blueprint`, or an `audit`.
+- `origin` says where it came from: a `slice`, a `decision` (ADR), the `blueprint`, an `audit`, or a `review` (a finding the review proposed).
 
 ## Standards (`.sddpp/standards.yaml`)
 
@@ -181,9 +182,11 @@ Errors fail validation; warnings fail only with `--strict`. `ppc rules` prints t
 | `X03` | error | A cut addition was applied but the non-goal it becomes is not among the non-goals. |
 | `X04` | warning / error | An addition was decided to be cut but the cut was not applied (a warning while drafting, an error once slices exist). |
 | `X05` | error | An addition points at something that does not exist (a design id, or another addition it overlaps), or its id is duplicated. |
+| `R01` | error | A review is of a capability the design does not have. |
+| `R02` | error | A finding a review lists is not in the debt register, or that entry does not name this review as its origin. |
 | `S01` | warning | A standard (security, observability, git, CI, experience) is undecided, or there is no standards file. Always a warning: `later` is a valid answer. |
 | `S02` | warning | A standard decided `later` has a trigger that has now happened (a remote, a CI configuration, a component of a kind), so it should be decided again. |
-| `S03` | warning | Security or observability is adopted and the design has no quality attribute of that kind (`security`, `operability`); a change request puts it in the design. |
+| `S03` | warning | Security, observability or experience is adopted and the design has no quality attribute of that kind (`security`, `operability`, `usability`); a change request puts it in the design. |
 | `U01` | warning | The design has a frontend component and no interface document (`.architect/ui.md`); `/pp-design ui` writes it. |
 | `U02` | error | A capability the design puts in a frontend component (`justified_by`) has no screen in the interface document. |
 | `U03` | error | The interface document lacks a section a builder reads: Navigation, Flows, States, Visual system, Accessibility, Sizes. |

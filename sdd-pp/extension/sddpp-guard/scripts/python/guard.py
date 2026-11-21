@@ -36,14 +36,14 @@ LOCKED_PHASES = {"green", "refactor"}
 # `ppc decide-addition` is not in it: the owner decided (2026-10-30) that telling the assistant in the conversation what to cut or
 # keep is permission enough. Writing the decision into additions.yaml by hand stays blocked (DECISION_FIELD, CONTRACT_DIR).
 APPROVAL = re.compile(
-    r"\bppc(\.mjs)?\s+(approve|reread|glance|widen|decide(?!-addition))"
+    r"\bppc(\.mjs)?\s+(approve|reread|glance|review|widen|decide(?!-addition))"
     # `ppc finish ... --budget-reason ...` records an exception to a rule: that is a decision too
     r"|\bppc(\.mjs)?\s+finish\b[^\n]*--(budget|mutation)-reason",
     re.IGNORECASE,
 )
 
 # Fields that record a human decision. An agent never writes them: a person does, or `ppc` on a person's behalf.
-DECISION_FIELD = re.compile(r"(approved_by|red_approved_by|decided_by|accepted_reason|dropped_reason|budget_override_reason|mutation_override_reason|glanced_by|glance_skipped)[\"']?\s*:")
+DECISION_FIELD = re.compile(r"(approved_by|red_approved_by|decided_by|accepted_reason|dropped_reason|budget_override_reason|mutation_override_reason|glanced_by|glance_skipped|mode_chosen_by)[\"']?\s*:")
 CONTRACT_DIR = re.compile(r"(^|/)(\.sddpp/|\.architect/additions\.yaml$|\.architect/ui\.md$)")
 
 TEST_PATH = re.compile(

@@ -31,6 +31,7 @@ export function loadProject(root) {
     adrs: [],
     evidence: [],
     changeRequests: [],
+    reviews: [],
     debt: [],
     active: null,
     additions: null,
@@ -64,6 +65,7 @@ export function loadProject(root) {
   };
   markdown('.sddpp/slices', 'slices');
   markdown('.sddpp/change-requests', 'changeRequests');
+  markdown('.sddpp/reviews', 'reviews');
   markdown('.architect/decisions', 'adrs');
   markdown('.architect/evidence', 'evidence');
 

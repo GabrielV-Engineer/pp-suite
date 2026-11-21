@@ -57,7 +57,7 @@ export const STANDARDS = [
     components: ['frontend', 'backend', 'library'],
     choices: {
       glance: 'After a slice, a person looks at what a user would meet (screens, command output, error messages) next to the captures the audit records; it never holds the slice up',
-      review: 'Glance, plus a review of the whole against a short rubric when a capability is complete or when asked, where the person decides which findings become debt (the review itself is planned, not built)',
+      review: 'Glance, plus a review of the whole against a short rubric when a capability is complete or when asked, where a fresh agent session proposes each finding as debt and the person decides on it',
       external: 'Review, plus a guide for someone other than the builder to try it, where the person decides who and whether, and skipping it blocks nothing (the guide is planned, not built)',
     },
   },

@@ -16,9 +16,11 @@ import { homedir } from 'node:os';
 import { applyChange, decideChange, openChange } from '../src/changes.mjs';
 import { sessionContext, gitSubjects, gitUserName, buildFacts, panelAnswers } from '../src/session.mjs';
 import { renderAdditions } from '../src/additions.mjs';
+import { SURFACES, renderRubric } from '../src/rubric.mjs';
 import { BY_ID as STANDARD_IDS, recommend, renderStandards, projectFacts } from '../src/standards.mjs';
 import { renderDecision, askFor, redCommitFiles, DecisionError, AUDIT_INPUT } from '../src/decisions.mjs';
 import { buildPrompts, resolveTarget, writePrompts } from '../src/prompts.mjs';
+import { openReview } from '../src/reviewfile.mjs';
 import { start, stop, widen, approve, reread, glance, approveSlice, approveRed, approveDebt, scheduleDebt, decideAddition, decideStandard, toRefactor, finish, mutate, status, LifecycleError } from '../src/lifecycle.mjs';
 
 const USAGE = `ppc — pp-suite contract tool
@@ -76,6 +78,9 @@ const USAGE = `ppc — pp-suite contract tool
     ppc glance <slice> [--skip] [--by <name>] [dir]
                                          HUMAN ONLY: say you looked at what a closed slice built, as a user would meet it (--skip: you will not);
                                          never holds anything up. --by defaults to the git user.name
+    ppc review (CAP-001 | --project) --mode guide|explain|delegate [--surface cli,docs] [--by <name>] [dir]
+                                         HUMAN ONLY: open a review of a complete capability, or of the whole project: how it is done is your choice;
+                                         the file is .sddpp/reviews/RV-NNN-*.md, and /pp-experience carries it out. --surface adds cli or docs
     ppc reread (--all | SL-001 ...) [dir]
                                          HUMAN ONLY: say you read what changed in the design since the slices were planned (clears W03)
     ppc ask <id> [--budget-reason <why>] [--mutation-reason <why>] [--pay-in <slice>] [--details <text>] [dir]
@@ -86,6 +91,7 @@ const USAGE = `ppc — pp-suite contract tool
     ppc additions [dir]                  the additions in plain words: what needs you, what a recommendation settles
 
   Standards (security, observability, git, CI: decided per project, see docs/standards.md)
+    ppc rubric [screen|api|cli|docs]     the criteria a review of what people meet applies, each with its source and the words it uses, or marked as pp-suite's own
     ppc standards [dir]                  each standard: what was decided, or what is recommended from the design and the repository, and why
     ppc decide-standard <standard> (--adopt <choice> [--details <text>] | --later --trigger <what> | --not-needed --reason <why>) [--by <name>] [dir]
                                          HUMAN ONLY: decide one (security, observability, git or ci); deciding it again keeps the
@@ -120,14 +126,14 @@ const USAGE = `ppc — pp-suite contract tool
     ppc help [<command>]                 this text, or only the lines of one command; \`ppc <command> --help\` does the same and nothing else
 `;
 
-const VALUE_OPTIONS = new Set(['--descriptions', '--by', '--audit', '--files', '--slice', '--accept', '--budget-reason', '--mutation-reason', '--reason', '--task', '--specify', '--title', '--problem', '--proposal', '--component', '--adr', '--qa', '--but-cut', '--but-keep', '--pay-in', '--add-component', '--mockup', '--adopt', '--details', '--trigger']);
+const VALUE_OPTIONS = new Set(['--mode', '--surface', '--descriptions', '--by', '--audit', '--files', '--slice', '--accept', '--budget-reason', '--mutation-reason', '--reason', '--task', '--specify', '--title', '--problem', '--proposal', '--component', '--adr', '--qa', '--but-cut', '--but-keep', '--pay-in', '--add-component', '--mockup', '--adopt', '--details', '--trigger']);
 // What each command accepts. Anything else is refused: an option that is silently ignored can turn a request for help, or a typo,
 // into an approval (`ppc approve --help` once approved the one slice that could be approved).
 const OPTIONS = {
   rules: [], validate: ['--strict', '--design'], 'check-git': [], start: [], stop: [], 'approve-slice': ['--by'], approve: ['--by', '--accept', '--drop', '--reason', '--pay-in', '--mockup'],
-  show: [], ask: ['--budget-reason', '--mutation-reason', '--pay-in', '--add-component', '--details'], touches: [], widen: ['--component'], reread: ['--all'], glance: ['--by', '--skip'], 'approve-debt': ['--by', '--accept', '--drop', '--reason'], 'schedule-debt': ['--slice'],
+  show: [], ask: ['--budget-reason', '--mutation-reason', '--pay-in', '--add-component', '--details'], touches: [], widen: ['--component'], reread: ['--all'], glance: ['--by', '--skip'], review: ['--project', '--mode', '--surface', '--by'], 'approve-debt': ['--by', '--accept', '--drop', '--reason'], 'schedule-debt': ['--slice'],
   'decide-addition': ['--keep', '--cut', '--alone', '--by', '--reason', '--accept-recommended', '--but-cut', '--but-keep'], additions: [],
-  standards: [], 'decide-standard': ['--adopt', '--details', '--later', '--trigger', '--not-needed', '--reason', '--accept-recommended', '--by'],
+  rubric: [], standards: [], 'decide-standard': ['--adopt', '--details', '--later', '--trigger', '--not-needed', '--reason', '--accept-recommended', '--by'],
   'change-request': ['--slice', '--title', '--problem', '--proposal', '--component', '--adr', '--qa', '--budgets'],
   'decide-change': ['--accept', '--reject', '--by', '--reason'], 'apply-change': [], 'approve-red': ['--by'], refactor: [],
   finish: ['--audit', '--budget-reason', '--mutation-reason'], mutation: ['--files', '--slice'], next: ['--json'], overview: [], map: ['--stdout', '--html', '--open', '--on', '--off', '--describe', '--descriptions'],
@@ -262,7 +268,7 @@ switch (command) {
     break;
   }
   case 'show': {
-    const id = positionals.find((p) => (/^([A-Z]+-|reread$|standards$)/.test(p) || STANDARD_IDS.has(p)) && !p.includes('/'));
+    const id = positionals.find((p) => (/^([A-Z]+-|reread$|standards$|review$)/.test(p) || STANDARD_IDS.has(p)) && !p.includes('/'));
     const root = resolve(positionals.find((p) => p !== id) ?? '.');
     const model = loadProject(root);
     const card = id ? renderDecision(model, id, { redFiles: redCommitFiles(root, id), auditInput: existsSync(join(root, AUDIT_INPUT)) }) : null;
@@ -274,7 +280,7 @@ switch (command) {
     break;
   }
   case 'ask': {
-    const id = positionals.find((p) => (/^([A-Z]+-|reread$|standards$)/.test(p) || STANDARD_IDS.has(p)) && !p.includes('/'));
+    const id = positionals.find((p) => (/^([A-Z]+-|reread$|standards$|review$)/.test(p) || STANDARD_IDS.has(p)) && !p.includes('/'));
     const root = resolve(positionals.find((p) => p !== id) ?? '.');
     let question;
     try {
@@ -289,6 +295,12 @@ switch (command) {
       process.exit(1);
     }
     process.stdout.write(`${JSON.stringify(question, null, 2)}\n`);
+    break;
+  }
+  case 'review': {
+    const cap = positionals.find((p) => /^CAP-\d+$/.test(p));
+    const root = resolve(positionals.find((p) => p !== cap) ?? '.');
+    transition(() => openReview(root, { scope: flags.has('--project') ? 'project' : cap, mode: options.get('mode'), by: options.get('by') ?? gitUserName(root), surfaces: (options.get('surface') ?? '').split(',').filter(Boolean) }));
     break;
   }
   case 'glance': {
@@ -332,6 +344,15 @@ switch (command) {
   case 'additions': {
     const list = loadProject(dirAt(0)).additions?.data.additions;
     process.stdout.write(list?.length ? renderAdditions(list) : 'There are no additions to review (no .architect/additions.yaml, or it is empty).\n');
+    break;
+  }
+  case 'rubric': {
+    const wanted = positionals[0];
+    if (wanted && !Object.hasOwn(SURFACES, wanted)) {
+      console.error(`unknown surface ${wanted}; the surfaces are ${Object.keys(SURFACES).join(', ')}`);
+      process.exit(1);
+    }
+    process.stdout.write(renderRubric(wanted ? [wanted] : undefined));
     break;
   }
   case 'standards': {

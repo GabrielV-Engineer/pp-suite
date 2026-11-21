@@ -22,6 +22,7 @@ export const SHORT_SKILLS = [
     ],
   },
   { name: 'pp-standards', parts: [part(CYCLE, 'standards', 'sddpp-cycle', 'standards')] },
+  { name: 'pp-experience', parts: [part(CYCLE, 'experience', 'sddpp-cycle', 'experience')] },
   { name: 'pp-plan', parts: [part(CYCLE, 'slices', 'sddpp-cycle', 'slices')] },
   {
     name: 'pp-build',

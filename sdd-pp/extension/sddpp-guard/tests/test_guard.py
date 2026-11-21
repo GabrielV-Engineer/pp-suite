@@ -137,6 +137,7 @@ class GuardTest(unittest.TestCase):
                         "cd proj && ppc  approve-red", "npx ppc approve-slice SL-003", "ppc approve-debt DEBT-BE-004 --by me",
                         "ppc decide-change CR-0002 --accept --by me", "node tools/ppc/bin/ppc.mjs decide-change CR-0002 --reject --reason x --by me",
                         "ppc reread --all", "ppc reread SL-003", "ppc glance SL-003", "node tools/ppc/bin/ppc.mjs glance SL-003 --skip --by me",
+                        "ppc review CAP-002 --mode delegate", "node tools/ppc/bin/ppc.mjs review --project --mode guide --by me",
                         "ppc decide-standard security --adopt basic --by me", "node tools/ppc/bin/ppc.mjs decide-standard --accept-recommended"):
                 with self.subTest(state=state, cmd=cmd):
                     code, message = guard.decide(payload("Bash", command=cmd), root)
@@ -287,6 +288,7 @@ class GuardTest(unittest.TestCase):
             ("Edit", {"file_path": ".sddpp/change-requests/CR-0001-x.md", "old_string": "a", "new_string": "decided_by: me"}),
             ("Edit", {"file_path": ".sddpp/slices/SL-002-x.md", "old_string": "status: done", "new_string": "status: done\nglanced_by: me\nglanced_on: 2026-11-26"}),
             ("Write", {"file_path": ".sddpp/slices/SL-002-x.md", "content": "---\nid: SL-002\nglance_skipped: true\n---\n"}),
+            ("Write", {"file_path": ".sddpp/reviews/RV-001-project.md", "content": "---\nid: RV-001\nmode: delegate\nmode_chosen_by: me\n---\n"}),
         ):
             with self.subTest(tool=tool, args=args):
                 code, message = guard.decide(payload(tool, **args), root)

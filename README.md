@@ -148,6 +148,7 @@ You rarely need more than `/pp`. The others run one phase on purpose.
 | `/pp` | The next step, on and on until a decision is yours. `/pp SL-022` decides that one |
 | `/pp-design` | Turns The Architect's design into the checked design; `ui` designs the interface with you; `cuts` removes what you cut |
 | `/pp-standards` | Decides with you how the project handles security, observability, git, CI and experience: recommended from the design, and "later" is always an answer |
+| `/pp-experience` | Carries out a review of what people meet, as a whole, in the way you chose (guide, explain or delegate), and proposes each finding as debt for you to decide |
 | `/pp-plan` | Thin vertical slices from the design |
 | `/pp-build` | Builds the slice in progress, tests with the code |
 | `/pp-check` | Reviews: `clarify`, `analyze` or `converge` |

@@ -164,7 +164,30 @@ library) waits for a glance. `custom`, `later` and `not needed` are the person's
 
 It cannot tell whether the person really looked: `glanced_by` is a name, not a signature, like every approval here.
 
+### The review of the whole (level 2)
+
+When `experience` is `review` or `external`, a capability whose every live slice is closed is due a review of the whole, and the
+person can ask for one of the whole project at any time (`ppc ask review`). Only a capability whose last slice closed on or
+after the day the standard was decided is due one, and one that was reviewed is not due again.
+
+| Piece | What it does |
+|---|---|
+| `ppc rubric [surface]` | The criteria, for four surfaces: screens, an API or a library, a command line, documentation. Each cites its source with the words the source uses and the day the page was read, or says it is **pp-suite's own question**. Where a user-interface heuristic is read as a rule for an API's errors, it says **"Changed by pp-suite"**. Sources read on 2026-11-20: Nielsen Norman Group's ten usability heuristics, WCAG 2.2 criterion 1.4.3 and the Command Line Interface Guidelines (clig.dev; only the first part of that page was read) |
+| `ppc show CAP-…` / `ppc ask CAP-…` | The card and the panel question: how the review is done. The mode the person chose last comes first, so repeating it is one click; with none yet, `explain` |
+| `ppc review CAP-… \| --project --mode …` | Human-only. Writes `.sddpp/reviews/RV-NNN-*.md`: the mode and who chose it, the surfaces (from the components of the closed slices; `--surface cli,docs` adds the two no component says), the rubric and an empty list of answers. Refuses when nothing is closed or one is already open for the same scope |
+| `/pp-experience` | A fresh agent session answers the rubric criterion by criterion in that mode: `guide` (the person is told what to try; nothing is run), `explain` (it says what it will do, then does it), `delegate` (it inspects by itself and installs nothing) |
+| `ppc next` | A complete capability waits for the person, and an open review is the agent's turn. Neither is ever the next step of the work |
+| Rules `R01`, `R02` | A review of a capability the design does not have; a finding that is not in the debt register or does not name the review as its origin |
+
+**A finding is a proposed debt entry** (kind `experience`, origin `review`), and the person decides on it with the flow that
+already exists (`ppc approve DEBT-…`: pay it, live with it, or drop it with a reason). A new command to decide findings would
+repeat that. A dropped entry is a finding the person dismissed, with its reason.
+
+What it cannot do: tell whether a finding is right, or whether the agent really looked. A criterion the agent could not check is
+written `not checked: <why>`, and it is told never to write `ok` for it; nothing verifies that it obeyed.
+
 **Status (2026-11-20).** Built and tested: the standard, its recommendation, the schema, rule `S03` for it (a `usability` quality
-attribute), the debt kind `experience`, and the glance (level 1) as described above. **Planned, not built:** the tools the agent
-suggests for looking; the milestone review, its rubric and `.sddpp/reviews/`; the guide for someone else to try it; the measuring
-command and the authorized-tools list. Not measured: whether any of it makes what is built better.
+attribute), the debt kind `experience`, the glance (level 1), and the review of the whole (level 2) as described above, with the
+prompt `/pp-experience` **written and not yet run by an agent on a real project** (it tells the agent to name tools only as its own
+suggestions, which pp-suite did not verify; nothing checks that it does). **Planned, not built:** the guide for someone else to try
+it; the measuring command and the authorized-tools list. Not measured: whether any of it makes what is built better.
