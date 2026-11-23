@@ -163,7 +163,7 @@ Errors fail validation; warnings fail only with `--strict`. `ppc rules` prints t
 | `R00` | error | A required file is missing. |
 | `D01` | error | Components depend on each other in a circle. |
 | `D02` | error | A dependency between components points the wrong way for their kind (a frontend reaching the database, or a database depending on the layers above it). |
-| `D03` | warning | The design is larger than the complexity budget of its declared level (lite: 4 components, 8 capabilities, 5 quality attributes; standard: 8, 20, 8). The limits are heuristics I chose, not the result of a study. |
+| `D03` | warning | The design is larger than the complexity budget of its declared level (lite: 4 components, 8 capabilities, 5 quality attributes; standard: 8, 20, 8). The quality attribute that each adopted standard calls for (`S03`) is not counted, so following `S03` never trips this one. The limits are heuristics I chose, not the result of a study. |
 | `T01` | error | The plan references something that does not exist: a slice or a change request naming a capability, component, quality attribute, slice or ADR. |
 | `T05` | error | Slice dependencies contain a cycle. |
 | `T06` | error | A capability has no slice (no requirement without a slice). A spike only learns, so it does not count. |

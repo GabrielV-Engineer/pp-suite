@@ -101,6 +101,37 @@ test('S03: adopted security is satisfied by a security quality attribute (the ex
   assert.ok(has(run(m), 'S03', 'warning'));
 });
 
+// ── D03 and the standards: what a person adopted is not scope the design chose ──
+const observing = { id: 'observability', decision: 'adopt', choice: 'errors', decided_by: 'o', decided_on: '2026-11-19' };
+/** The example as a standard project (limit 8 quality attributes) with `extra` more of its own, on top of the three a standard asks for. */
+const crowded = (extra, list = all({ observability: observing })) => {
+  const m = withStandards(list);
+  m.blueprint.data.project.level = 'standard';
+  const base = m.blueprint.data.quality_attributes;
+  m.blueprint.data.quality_attributes = [...base, { ...base[0], id: 'QA-006', attribute: 'operability' }, ...Array.from({ length: extra }, (_, i) => ({ ...base[0], id: `QA-${String(7 + i).padStart(3, "0")}`, attribute: 'reliability' }))];
+  return m;
+};
+
+test('D03: the quality attribute an adopted standard calls for does not count against the limit of the level', () => {
+  // security, usability and operability are what three adopted standards ask for; QA-001 to QA-003 and the three added are the design's own
+  const m = crowded(3);
+  assert.equal(m.blueprint.data.quality_attributes.length, 9);
+  assert.ok(!has(run(m), 'D03'), 'following S03 must not trip D03');
+});
+
+test('D03: it still fires when the design\'s own quality attributes pass the limit, and says what it left out', () => {
+  const found = run(crowded(6)).filter((f) => f.rule === 'D03');
+  assert.equal(found.length, 1);
+  assert.match(found[0].message, /9 quality attributes \(limit 8\)/);
+  assert.match(found[0].message, /not counting the 3 that adopted standards ask for/);
+});
+
+test('D03: a standard that is not adopted exempts nothing', () => {
+  const found = run(crowded(3, all({ observability: { ...observing, decision: 'not_needed', choice: undefined, reason: 'A local app for one person' }, security: { ...decided.security, decision: 'not_needed', choice: undefined, reason: 'Nothing is stored' }, experience: { ...decided.experience, decision: 'not_needed', choice: undefined, reason: 'Nobody uses it' } }))).filter((f) => f.rule === 'D03');
+  assert.equal(found.length, 1);
+  assert.match(found[0].message, /9 quality attributes \(limit 8\)/);
+});
+
 // ── experience: the fifth standard (docs/standards.md) ───────────
 const schemaBad = (over) => has(run(withStandards(all(over))), 'SCHEMA', 'error');
 const exp = (more) => ({ ...decided.experience, ...more });
