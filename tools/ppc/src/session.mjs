@@ -7,6 +7,7 @@ import { designState, nextSteps, noDesignNext, renderNext } from './next.mjs';
 import { isTestPath } from './testpaths.mjs';
 import { GUARD_SCRIPT, HOOK_NAME } from './install.mjs';
 import { sessionMapLine } from './mapflow.mjs';
+import { skillsWarning, skillCommands } from './skills.mjs';
 
 // What a session is told when it starts: whose turn it is. A hook runs `ppc session` and Claude Code adds the output to the
 // conversation, so an agent starts oriented without anyone typing a command. It is silent outside a pp-suite project, never
@@ -91,6 +92,12 @@ export function guardWarning(root) {
   return `pp-suite WARNING: the guard is registered but its script is missing (${GUARD_SCRIPT}). Until it is restored the test lock and the human-only approvals are not enforced (the hook fails open). Run \`ppc init --apply --update\`.\n\n`;
 }
 
+/** What the project's installed commands lack of what this pp-suite names, as the first lines of a session; empty when there is nothing to say. */
+const skillsLine = (root, next) => {
+  const warning = skillsWarning(root, skillCommands(next), { all: true });
+  return warning ? `${warning}\n\n` : '';
+};
+
 export function sessionContext(root, options = {}) {
   return guardWarning(root) + stateContext(root, options);
 }
@@ -98,15 +105,18 @@ export function sessionContext(root, options = {}) {
 function stateContext(root, options = {}) {
   if (!existsSync(join(root, '.architect/blueprint.yaml'))) {
     // set up but not designed yet: the first step, not silence; anywhere else the hook stays silent
-    return designState(root) === 'no-design' ? `pp-suite: set up, no design yet. State from \`ppc next\`:\n\n${renderNext(noDesignNext())}` : '';
+    if (designState(root) !== 'no-design') return '';
+    const first = noDesignNext();
+    return `${skillsLine(root, first)}pp-suite: set up, no design yet. State from \`ppc next\`:\n\n${renderNext(first)}`;
   }
   try {
     const model = loadProject(root);
     if (!model.blueprint) return 'pp-suite: this project has a design file that could not be read. `ppc validate` says why.\n';
     const findings = validateModel(model);
-    const body = renderNext(nextSteps(model, gitSubjects(root), findings.filter((f) => f.severity === 'error'), { ...buildFacts(root), answers: panelAnswers(root) }));
+    const next = nextSteps(model, gitSubjects(root), findings.filter((f) => f.severity === 'error'), { ...buildFacts(root), answers: panelAnswers(root) });
+    const body = renderNext(next);
     const text = `pp-suite: ${model.blueprint.data.project.name} (blueprint revision ${model.blueprint.data.revision}). State from \`ppc next\`:\n\n${body}${(() => { const line = sessionMapLine(root, model, options); return line ? `\n${line}` : ''; })()}`;
-    return text.length > CAP ? `${text.slice(0, CAP).replace(/\n[^\n]*$/, '')}\n... (shortened; run \`ppc next\` for the rest)\n` : text;
+    return skillsLine(root, next) + (text.length > CAP ? `${text.slice(0, CAP).replace(/\n[^\n]*$/, '')}\n... (shortened; run \`ppc next\` for the rest)\n` : text);
   } catch {
     return 'pp-suite: the state of this project could not be read. Run `ppc validate`.\n';
   }

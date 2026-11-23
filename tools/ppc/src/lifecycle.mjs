@@ -3,7 +3,7 @@ import { dirname, join } from 'node:path';
 import { Document, parseDocument, stringify } from 'yaml';
 import { loadProject } from './load.mjs';
 import { validateModel, designFindings } from './validate.mjs';
-import { checkGit, dirtyPaths, measure } from './gitcheck.mjs';
+import { checkGit, dirtyPaths, isInstalledPath, measure } from './gitcheck.mjs';
 import { runMutation, sliceProductionFiles } from './mutation.mjs';
 import { modeOf, testPolicy, PAYERS, payProblem, testsOpen } from './policy.mjs';
 import { generatedGlobs } from './testpaths.mjs';
@@ -107,7 +107,8 @@ function requireCommitted(root) {
   } catch {
     fail('this directory is not inside a git repository');
   }
-  if (dirty.length) fail(`there are uncommitted changes outside .sddpp/ and .architect/; commit them first:\n  ${dirty.slice(0, 8).join('\n  ')}`);
+  const fromInstall = dirty.length > 0 && dirty.every(isInstalledPath);
+  if (dirty.length) fail(`there are uncommitted changes outside .sddpp/ and .architect/; commit them first:\n  ${dirty.slice(0, 8).join('\n  ')}${fromInstall ? '\nThese come from installing or updating pp-suite (ppc init --apply): commit them as their own chore(pp-suite) commit, then run this again.' : ''}`);
 }
 
 // ── transitions ───────────────────────────────────────────────────────────────────

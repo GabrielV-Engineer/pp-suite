@@ -4,6 +4,7 @@ import { stringify } from 'yaml';
 import { LifecycleError, editFrontmatter, loadValid, transact } from './lifecycle.mjs';
 import { MODES } from './review.mjs';
 import { SURFACES, renderRubric, surfacesFor } from './rubric.mjs';
+import { skillsWarning } from './skills.mjs';
 
 // Opening a review (docs/standards.md, "Experience"). The file is the record: how it is done and who chose that, the surfaces, the
 // rubric, and, as the agent fills it in, the answers and the debt it proposed. Writes `.sddpp/reviews/` and nothing else.
@@ -59,7 +60,7 @@ export function openReview(root, { scope, mode, by, surfaces: extra = [], today 
     mkdirSync(join(root, DIR), { recursive: true });
     writeFileSync(join(root, file), `---\n${front}---\n${body}`);
     loadValid(root);
-    return { review: id, file, mode, surfaces, text: `Opened ${id} (${mode} mode) for ${scope === 'project' ? 'the project' : scope}: ${surfaces.join(', ')}. ${file}\nNext: /pp-experience ${id}` };
+    return { review: id, file, mode, surfaces, text: `Opened ${id} (${mode} mode) for ${scope === 'project' ? 'the project' : scope}: ${surfaces.join(', ')}. ${file}\nNext: /pp-experience ${id}${(() => { const w = skillsWarning(root, [`/pp-experience ${id}`]); return w ? `\n${w}` : ''; })()}` };
   });
 }
 

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { sessionContext, CAP } from '../src/session.mjs';
@@ -149,4 +149,36 @@ test('session: a guard warning does not push the state past the cap', (t) => {
   const { dir } = repo(t);
   registerGuard(dir);
   assert.ok(sessionContext(dir).length <= CAP + 400);
+});
+
+// ── the install and this pp-suite agree (found in the first real project: a skill added since the last update was named and absent) ───
+const installPp = (dir) => {
+  mkdirSync(join(dir, '.claude/skills/pp'), { recursive: true });
+  writeFileSync(join(dir, '.claude/skills/pp/SKILL.md'), readFileSync(new URL('../../../sdd-pp/skills/pp/SKILL.md', import.meta.url), 'utf8'));
+};
+
+test('session: where /pp is installed and the other commands are not, the start says so, then the usual text', (t) => {
+  const { dir } = repo(t);
+  installPp(dir);
+  const out = sessionContext(dir);
+  assert.match(out.split('\n')[0], /^pp-suite WARNING: the installed commands do not match this pp-suite \(missing: \/pp-design, /);
+  assert.match(out, /\n\npp-suite: Todo App \(blueprint revision 1\)/);
+  assert.match(out, /ppc start SL-001/);
+});
+
+test('session: it says nothing of the install where pp-suite is not installed, so existing projects and other repositories hear nothing new', (t) => {
+  const { dir } = repo(t);
+  assert.doesNotMatch(sessionContext(dir), /WARNING/);
+});
+
+test('next --json: when the next step names a command this project lacks, the warning travels with the data the /pp skill reads', (t) => {
+  const { dir } = repo(t);
+  installPp(dir);
+  const ppc = (...args) => spawnSync(process.execPath, [CLI, ...args, dir], { encoding: 'utf8' });
+  assert.equal(JSON.parse(ppc('next', '--json').stdout).warnings, undefined, 'the next step is `ppc start`, which needs no skill: the session said the rest');
+  assert.equal(ppc('start', 'SL-001').status, 0);
+  const data = JSON.parse(ppc('next', '--json').stdout);
+  assert.equal(data.skill, 'pp-red');
+  assert.match(data.warnings[0], /^pp-suite WARNING: \/pp-red is named by the next step but is not installed/);
+  assert.match(ppc('next').stdout, /^pp-suite WARNING: \/pp-red is named/);
 });

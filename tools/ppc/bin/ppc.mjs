@@ -4,6 +4,7 @@ import { join, resolve } from 'node:path';
 import { loadProject } from '../src/load.mjs';
 import { validateModel, designFindings, RULES } from '../src/validate.mjs';
 import { checkGit, touches } from '../src/gitcheck.mjs';
+import { skillsWarning, skillCommands } from '../src/skills.mjs';
 import { mapModel, renderMermaid, writeMap } from '../src/map.mjs';
 import { describeFloorplan, DESCRIPTIONS_GUIDE, shareDescriptions, SHARED_DESCRIPTIONS } from '../src/floorplan.mjs';
 import { DESCRIPTION_PLACES, drawMap, mapLine, mapStatus, openPage, readMapSettings, recommendedDescriptions, redrawAfterClose, writeMapSettings } from '../src/mapflow.mjs';
@@ -510,7 +511,8 @@ switch (command) {
     // not a git repository: the phase alone decides, as if no commit had been made yet
     const subjects = gitSubjects(root);
     const next = nextSteps(model, subjects, findings.filter((f) => f.severity === 'error'), { ...buildFacts(root), answers: panelAnswers(root) });
-    process.stdout.write(flags.has('--json') ? `${JSON.stringify({ ...nextJson(next), map: mapStatus(root, model) }, null, 2)}\n` : renderNext(next) + (mapLine(root, model) ? `\n${mapLine(root, model)}` : ''));
+    const warning = skillsWarning(root, skillCommands(next));
+    process.stdout.write(flags.has('--json') ? `${JSON.stringify({ ...nextJson(next), map: mapStatus(root, model), ...(warning ? { warnings: [warning] } : {}) }, null, 2)}\n` : (warning ? `${warning}\n\n` : '') + renderNext(next) + (mapLine(root, model) ? `\n${mapLine(root, model)}` : ''));
     break;
   }
   case 'map': {

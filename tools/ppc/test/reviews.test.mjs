@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { readFileSync, readdirSync } from 'node:fs';
+import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { loadProject } from '../src/load.mjs';
 import { validateModel, RULES } from '../src/validate.mjs';
@@ -262,4 +262,16 @@ test('CLI: ppc show and ppc ask take a capability and the word review', (t) => {
   assert.match(show.stdout, /ppc review --project/);
   const ask = JSON.parse(spawnSync('node', [CLI, 'ask', 'review', r.dir], { encoding: 'utf8' }).stdout);
   assert.match(ask.questions[0].question, /review/i);
+});
+
+test('openReview: names the skill that carries it out, and says when this project does not have it (the checkout is ahead of the install)', (t) => {
+  const r = closedRepo(t);
+  assert.doesNotMatch(openReview(r.dir, { scope: 'CAP-001', mode: 'explain', by: 'owner', today: '2026-11-26' }).text, /WARNING/, 'pp-suite is not installed here: ppc init says so, not every command');
+  const dir = closedRepo(t).dir;
+  mkdirSync(join(dir, '.claude/skills/pp'), { recursive: true });
+  writeFileSync(join(dir, '.claude/skills/pp/SKILL.md'), readFileSync(new URL('../../../sdd-pp/skills/pp/SKILL.md', import.meta.url), 'utf8'));
+  const { text } = openReview(dir, { scope: 'project', mode: 'explain', by: 'owner', today: '2026-11-26' });
+  assert.match(text, /Next: \/pp-experience RV-001/);
+  assert.match(text, /WARNING: \/pp-experience is named by the next step but is not installed/);
+  assert.match(text, /ppc init --apply --update/);
 });

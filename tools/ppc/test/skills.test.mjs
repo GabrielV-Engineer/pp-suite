@@ -1,10 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parse } from 'yaml';
-import { SHORT_SKILLS, HOOKS, shortSkills, longSkillNames } from '../src/skills.mjs';
+import { SHORT_SKILLS, HOOKS, shortSkills, longSkillNames, skillDrift, skillsWarning, skillCommands } from '../src/skills.mjs';
 
 const SUITE = fileURLToPath(new URL('../../../', import.meta.url)).replace(/\/$/, '');
 const frontmatter = (text) => parse(text.match(/^---\n([\s\S]*?)\n---\n/)[1]);
@@ -60,4 +61,56 @@ test('next --json names the skill without the slash, and passes the words after 
   assert.deepEqual([step('/pp-change CR-0006').skill, step('/pp-change CR-0006').args], ['pp-change', 'CR-0006']);
   const names = shortSkills(SUITE).map((s) => s.name);
   for (const command of ['/pp-build', '/pp-audit', '/pp-red', '/pp-green', '/pp-refactor', '/pp-plan', '/pp-design', '/pp-change']) assert.ok(names.includes(step(command).skill), command);
+});
+
+// ── a command that ppc prints must be one the project can run (found in the first real project, RV-001 and RV-002) ───
+// `ppc` is the checkout, the skills are a copy made at the last `ppc init --apply --update`: a skill added since is named by `ppc` and missing there.
+const installed = (t, { except = [], edit = [] } = {}) => {
+  const dir = mkdtempSync(join(tmpdir(), 'ppc-skills-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const all = [{ name: 'pp', content: readFileSync(join(SUITE, 'sdd-pp/skills/pp/SKILL.md'), 'utf8') }, ...shortSkills(SUITE)];
+  for (const sk of all.filter((x) => !except.includes(x.name))) {
+    mkdirSync(join(dir, '.claude/skills', sk.name), { recursive: true });
+    writeFileSync(join(dir, '.claude/skills', sk.name, 'SKILL.md'), edit.includes(sk.name) ? `${sk.content}\nedited by hand\n` : sk.content);
+  }
+  return dir;
+};
+
+test('skill drift: nothing to say where pp-suite is not installed at all, or where every command is what this pp-suite writes', (t) => {
+  const bare = mkdtempSync(join(tmpdir(), 'ppc-bare-'));
+  t.after(() => rmSync(bare, { recursive: true, force: true }));
+  assert.deepEqual(skillDrift(bare, SUITE), { installed: false, missing: [], differs: [] });
+  assert.equal(skillsWarning(bare, ['/pp-experience RV-001'], { all: true, suite: SUITE }), '');
+  const dir = installed(t);
+  assert.deepEqual(skillDrift(dir, SUITE), { installed: true, missing: [], differs: [] });
+  assert.equal(skillsWarning(dir, ['/pp-experience RV-001'], { all: true, suite: SUITE }), '');
+});
+
+test('skill warning: a command the next step names that is not installed is said, with how to install it', (t) => {
+  const dir = installed(t, { except: ['pp-experience'] });
+  const text = skillsWarning(dir, ['ppc start SL-001', '/pp-experience RV-001'], { suite: SUITE });
+  assert.match(text, /^pp-suite WARNING: \/pp-experience is named by the next step but is not installed/);
+  assert.match(text, /ppc init --apply --update/);
+  assert.match(text, /chore commit/);
+  assert.equal(skillsWarning(dir, ['/pp-plan'], { suite: SUITE }), '', 'a missing skill nobody names is not said at every `ppc next`');
+});
+
+test('skill warning: at the start of a session, any missing or different command is said by name', (t) => {
+  const dir = installed(t, { except: ['pp-experience', 'pp-tools'], edit: ['pp-build'] });
+  assert.deepEqual(skillDrift(dir, SUITE), { installed: true, missing: ['pp-tools', 'pp-experience'], differs: ['pp-build'] });
+  const text = skillsWarning(dir, [], { all: true, suite: SUITE });
+  assert.match(text, /missing: \/pp-tools, \/pp-experience; different: \/pp-build/);
+  assert.match(text, /ppc init --apply --update/);
+});
+
+test('skill warning: the commands of a next step are read from its actions, what waits and the design changes', () => {
+  const next = { actions: [{ command: '/pp-plan CAP-001' }], waiting: [{ command: 'ppc approve SL-001' }, { command: '/pp-experience RV-001' }], changes: [{ what: 'no command' }] };
+  assert.deepEqual(skillCommands(next), ['/pp-plan CAP-001', 'ppc approve SL-001', '/pp-experience RV-001']);
+});
+
+test('every /pp-… command that ppc prints is one of the short commands it installs', () => {
+  const names = new Set(SHORT_SKILLS.map((k) => k.name));
+  const src = fileURLToPath(new URL('../src/', import.meta.url));
+  const texts = [...readdirSync(src).map((f) => join(src, f)), fileURLToPath(new URL('../bin/ppc.mjs', import.meta.url))].filter((f) => f.endsWith('.mjs'));
+  for (const file of texts) for (const [, name] of readFileSync(file, 'utf8').matchAll(/\/(pp-[a-z]+)\b/g)) assert.ok(names.has(name), `${file} names /${name}, which no short command installs`);
 });

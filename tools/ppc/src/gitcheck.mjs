@@ -11,6 +11,10 @@ const TESTS_LOCKED_KINDS = ['green', 'refactor', 'structural'];
 
 export const isBookkeeping = (path) => BOOKKEEPING.test(path);
 
+// What `ppc init --apply` writes into a project: Spec Kit's folder, the skills and the hooks. They are the tool's, not the slice's.
+const INSTALLED = /^(\.specify\/|\.claude\/skills\/|\.claude\/settings\.json$)/;
+export const isInstalledPath = (path) => INSTALLED.test(path);
+
 /**
  * The files a slice would change that belong to components it does not list (rule C09). Only components that declare `paths`
  * take part; tests, bookkeeping, generated files and files no component claims are free. `noPaths` when no component declares any.
