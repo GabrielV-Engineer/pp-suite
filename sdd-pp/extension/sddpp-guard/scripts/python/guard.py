@@ -98,9 +98,27 @@ INERT_HEREDOC = re.compile(
 )
 
 
+# The words of a commit message are text for git, not commands, when nothing in them can be expanded: single quotes never expand, and a
+# double-quoted message with no `$`, backtick or backslash cannot either. A message that has one of those is left as it is. A `git commit`
+# command ends at the first `;`, `&`, `|` or newline outside quotes, so `git commit -m "ok" && ppc approve SL-001` still shows its approval.
+GIT_COMMIT = re.compile(r"""\bgit\s+commit\b(?:[^\n;&|'"]|'[^']*'|"(?:[^"\\]|\\.)*")*""")
+SAFE_MESSAGE = re.compile(r"""(?P<flag>\s-[a-zA-Z]*m\s*)(?:'[^']*'|"[^"$`\\]*")""")
+
+
 def without_inert_text(command) -> str:
-    """The command line without the text `cat` copies from quoted heredocs, so that a mention of an approval in it is not mistaken for one."""
-    return INERT_HEREDOC.sub(lambda m: m.group("head") + m.group("end"), str(command))
+    """The command line without the text `cat` copies from quoted heredocs and the words of a commit message that nothing expands, so that a
+    mention of an approval in them is not mistaken for one."""
+    text = INERT_HEREDOC.sub(lambda m: m.group("head") + m.group("end"), str(command))
+    return GIT_COMMIT.sub(lambda c: SAFE_MESSAGE.sub(lambda m: m.group("flag") + '""', c.group(0)), text)
+
+
+# A redirection to a plain path (letters, digits, `.`, `/`, `_`, `-`) other than the file asked about writes something else. A target that is
+# not a plain literal (`"$F"`, `$F`, a glob) is never set aside: the guard does not guess where it points.
+OTHER_REDIRECT = re.compile(r"(?<![<>&\w])(?:\d*|&)>>?[ \t]*(?P<target>[\w./-]+)(?=\s|$|[;&|)])")
+
+
+def without_other_redirects(command, name) -> str:
+    return OTHER_REDIRECT.sub(lambda m: m.group(0) if name in m.group("target") else " ", str(command))
 
 
 # What `npm test` runs is part of the proof: changing it makes tests pass without touching a test file.
@@ -219,8 +237,12 @@ def _written_record(payload):
     for name in ("answers.jsonl", "uses.jsonl"):
         if tool in FILE_TOOLS and str(args.get("file_path") or args.get("notebook_path") or "").replace("\\", "/").endswith(name):
             return name
-        if tool == "Bash" and name in str(args.get("command", "")) and writes(str(args.get("command", ""))):
-            return name
+        if tool == "Bash":
+            # Only a command that writes the file counts, not one that names it in text (a heredoc for cat, a commit message) or reads it and
+            # sends the output to another plain path. Every other way of writing is still seen.
+            command = without_other_redirects(without_inert_text(args.get("command", "")), name)
+            if name in command and writes(command):
+                return name
     return None
 
 
