@@ -26,7 +26,7 @@ function project(t, { git = true, specify = false, pp = specify } = {}) {
         mkdirSync(join(dir, '.claude/skills', skill.name), { recursive: true });
         writeFileSync(join(dir, '.claude/skills', skill.name, 'SKILL.md'), skill.content);
       }
-      writeFileSync(join(dir, '.gitignore'), 'node_modules/\n.sddpp/uses.jsonl\n');
+      writeFileSync(join(dir, '.gitignore'), 'node_modules/\n.sddpp/uses.jsonl\n.sddpp/answers.jsonl\n');
     }
     spawnSync('git', ['add', '-A'], { cwd: dir });
     spawnSync('git', ['commit', '-q', '-m', 'base'], { cwd: dir });
@@ -121,7 +121,7 @@ test('plan: a directory that is not a git repository blocks, since ppc reads git
 test('plan: a fresh project gets specify init, the three extensions and the removal of the Spec Kit skills this flow does not use, in that order, none done', (t) => {
   const p = plan(project(t), env(machine()));
   const ids = p.steps.filter((s) => !s.done).map((s) => s.id);
-  assert.deepEqual(ids.filter((id) => id !== 'npm-ci'), ['specify-init', 'extension-architect-pp', 'extension-sddpp-guard', 'extension-sddpp-cycle', ...DROPPED_SKILLS.map((n) => `drop-${n}`), ...longSkillNames(SUITE).map((n) => `drop-long-${n}`), 'pp-skill', ...shortSkills(SUITE).map((x) => `short-${x.name}`), 'ignore-uses']);
+  assert.deepEqual(ids.filter((id) => id !== 'npm-ci'), ['specify-init', 'extension-architect-pp', 'extension-sddpp-guard', 'extension-sddpp-cycle', ...DROPPED_SKILLS.map((n) => `drop-${n}`), ...longSkillNames(SUITE).map((n) => `drop-long-${n}`), 'pp-skill', ...shortSkills(SUITE).map((x) => `short-${x.name}`), 'ignore-uses', 'ignore-answers']);
   const init = p.steps.find((s) => s.id === 'specify-init');
   assert.deepEqual(init.command.slice(0, 2), ['specify', 'init']);
   for (const flag of ['--here', '--force', '--non-interactive']) assert.ok(init.command.includes(flag), flag);
@@ -152,13 +152,35 @@ test('plan: the record of which tools were used is kept out of git, because it n
   assert.equal(step(bare).done, true, 'the anchored form counts');
 });
 
+// Found in the first real project (2026-11-23): `.sddpp/answers.jsonl` was in git for 100 commits. It holds each panel question, the
+// option chosen and the Claude Code session id; the guard reads it only on this machine, for 30 minutes, so nothing needs it in git.
+test('plan: the panel answers are kept out of git too, and a file already in git is named with the command that stops tracking it', (t) => {
+  const dir = project(t, { specify: true });
+  const step = (d) => plan(d, env(machine(installed))).steps.find((s) => s.id === 'ignore-answers');
+  assert.equal(step(dir).done, true, 'a project that already ignores it has nothing to do');
+  const bare = project(t, { specify: true });
+  writeFileSync(join(bare, '.gitignore'), 'node_modules/\n.sddpp/uses.jsonl\n');
+  assert.equal(step(bare).done, false);
+  assert.equal(step(bare).content, 'node_modules/\n.sddpp/uses.jsonl\n.sddpp/answers.jsonl\n');
+  assert.match(step(bare).title, /\.sddpp\/answers\.jsonl/);
+  assert.doesNotMatch(step(bare).title, /git rm/, 'not tracked: nothing more to say');
+  mkdirSync(join(bare, '.sddpp'), { recursive: true });
+  writeFileSync(join(bare, '.sddpp/answers.jsonl'), '{}\n');
+  spawnSync('git', ['add', '.sddpp/answers.jsonl'], { cwd: bare });
+  spawnSync('git', ['commit', '-q', '-m', 'track it'], { cwd: bare });
+  assert.match(step(bare).title, /already in git.*git rm --cached \.sddpp\/answers\.jsonl/);
+  assert.match(renderPlan(plan(bare, env(machine(installed)))), /note: \.sddpp\/answers\.jsonl is already in git.*git rm --cached/, 'the report says it, not only the title');
+  writeFileSync(join(bare, '.gitignore'), 'node_modules/\n.sddpp/uses.jsonl\n.sddpp/answers.jsonl\n');
+  assert.equal(step(bare).done, false, 'ignored but still tracked: git keeps tracking it, so the step is not done');
+});
+
 test('apply: the line is written into .gitignore and what was there stays', (t) => {
   const dir = project(t, { specify: true });
   writeFileSync(join(dir, '.gitignore'), 'node_modules/\n');
   spawnSync('git', ['add', '-A'], { cwd: dir });
   spawnSync('git', ['commit', '-q', '-m', 'ignore'], { cwd: dir });
   apply(dir, env(machine(installed)), { run: runner([]) });
-  assert.equal(readFileSync(join(dir, '.gitignore'), 'utf8'), 'node_modules/\n.sddpp/uses.jsonl\n');
+  assert.equal(readFileSync(join(dir, '.gitignore'), 'utf8'), 'node_modules/\n.sddpp/uses.jsonl\n.sddpp/answers.jsonl\n');
   assert.equal(plan(dir, env(machine(installed))).steps.find((s) => s.id === 'ignore-uses').done, true);
 });
 
@@ -294,7 +316,7 @@ test('apply: runs the steps that are not done, in order, inside the project', (t
   const fresh = project(t);
   const log2 = [];
   const r2 = apply(fresh, env(machine()), { run: runner(log2) });
-  assert.deepEqual(r2.ran.filter((id) => id !== 'npm-ci'), ['specify-init', 'extension-architect-pp', 'extension-sddpp-guard', 'extension-sddpp-cycle', ...DROPPED_SKILLS.map((n) => `drop-${n}`), ...longSkillNames(SUITE).map((n) => `drop-long-${n}`), 'pp-skill', ...shortSkills(SUITE).map((x) => `short-${x.name}`), 'ignore-uses']);
+  assert.deepEqual(r2.ran.filter((id) => id !== 'npm-ci'), ['specify-init', 'extension-architect-pp', 'extension-sddpp-guard', 'extension-sddpp-cycle', ...DROPPED_SKILLS.map((n) => `drop-${n}`), ...longSkillNames(SUITE).map((n) => `drop-long-${n}`), 'pp-skill', ...shortSkills(SUITE).map((x) => `short-${x.name}`), 'ignore-uses', 'ignore-answers']);
   assert.ok(log2.every((l) => l.cwd === fresh || l.command[0] === 'npm'));
 });
 

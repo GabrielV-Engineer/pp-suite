@@ -201,7 +201,23 @@ export function plan(root, env, { shim = false, allowUntested = false, update = 
   const gitignore = join(root, '.gitignore');
   const ignoreText = existsSync(gitignore) ? readFileSync(gitignore, 'utf8') : '';
   const ignored = ignoreText.split(/\r?\n/).some((l) => ['.sddpp/uses.jsonl', '/.sddpp/uses.jsonl'].includes(l.trim()));
-  steps.push({ id: 'ignore-uses', title: 'Keep the record of which tools were used (.sddpp/uses.jsonl) out of git: it names the MCP servers a person uses', target: gitignore, content: `${ignoreText}${ignoreText && !ignoreText.endsWith('\n') ? '\n' : ''}.sddpp/uses.jsonl\n`, mode: 0o644, done: ignored });
+  const withUses = ignored ? ignoreText : `${ignoreText}${ignoreText && !ignoreText.endsWith('\n') ? '\n' : ''}.sddpp/uses.jsonl\n`;
+  steps.push({ id: 'ignore-uses', title: 'Keep the record of which tools were used (.sddpp/uses.jsonl) out of git: it names the MCP servers a person uses', target: gitignore, content: withUses, mode: 0o644, done: ignored });
+  // `.sddpp/answers.jsonl` holds each panel question, the option chosen and the Claude Code session id. The guard reads it on this machine
+  // only, for 30 minutes, so nothing needs it in git; the first real project had it there for 100 commits. Ignoring a file git already
+  // tracks does nothing, so the step says how to stop tracking it (the file stays on disk) and is not done until that happened.
+  const ANSWERS = '.sddpp/answers.jsonl';
+  const answersIgnored = withUses.split(/\r?\n/).some((l) => [ANSWERS, `/${ANSWERS}`].includes(l.trim()));
+  const answersTracked = probe('git', ['ls-files', '--error-unmatch', ANSWERS], { cwd: root })?.status === 0;
+  steps.push({
+    id: 'ignore-answers',
+    title: `Keep the panel answers (${ANSWERS}) out of git: they hold each question, the option chosen and the session id${answersTracked ? `. It is already in git: also run git rm --cached ${ANSWERS} and commit (the file stays on disk; the history keeps what was committed)` : ''}`,
+    ...(answersTracked ? { note: `${ANSWERS} is already in git, and ignoring it does not stop that: run git rm --cached ${ANSWERS} and commit (the file stays on disk; the history keeps what was committed)` } : {}),
+    target: gitignore,
+    content: answersIgnored ? withUses : `${withUses}${withUses && !withUses.endsWith('\n') ? '\n' : ''}${ANSWERS}\n`,
+    mode: 0o644,
+    done: answersIgnored && !answersTracked,
+  });
   if (shim) {
     const dir = pathDirs.find((d) => d === join(home, '.local/bin'));
     const status = checks.find((c) => c.id === 'ppc-on-path').status;
@@ -255,7 +271,10 @@ export function renderPlan(p, { applied = false } = {}) {
   const pending = p.steps.filter((s) => !s.done);
   out.push('', applied ? 'Steps still pending:' : 'Steps:');
   if (!pending.length) out.push('  none: the project is set up');
-  for (const s of pending) out.push(`  ${applied ? 'pending' : 'would run'}: ${s.remove ? `remove ${s.remove}` : s.target ? `write ${s.target}` : s.command.join(' ')}${s.cwd ? `   (in ${s.cwd})` : ''}`);
+  for (const s of pending) {
+    out.push(`  ${applied ? 'pending' : 'would run'}: ${s.remove ? `remove ${s.remove}` : s.target ? `write ${s.target}` : s.command.join(' ')}${s.cwd ? `   (in ${s.cwd})` : ''}`);
+    if (s.note) out.push(`           note: ${s.note}`);
+  }
   if (!applied && pending.length && !p.blocked.length) out.push('', 'Nothing was changed. `ppc init --apply` runs the steps above (`--shim` also writes ~/.local/bin/ppc).');
   return `${out.join('\n')}\n`;
 }
