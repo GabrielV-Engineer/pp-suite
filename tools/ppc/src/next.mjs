@@ -27,6 +27,26 @@ const INSTALLED = '.specify/extensions/architect-pp/extension.yml';
 
 const unfinished = (s, byId) => (s.depends_on ?? []).filter((d) => byId.get(d)?.status !== 'done');
 const committed = (subjects, kind, id) => subjects.some((line) => line.startsWith(`${kind}(${id})`));
+// the day a complete capability's last slice closed: how long its review has waited
+const capabilityClosedOn = (model, cap) => model.slices.map((s) => s.data).filter((s) => s.capability === cap && s.closed_on).map((s) => String(s.closed_on)).sort().at(-1);
+
+// The inbox (found in the first real project): what waits for a person's look and holds nothing up. `ppc next` says it in one line
+// and `ppc inbox` lists it, so it does not bury the decisions that do hold the work up.
+const INBOX_WORDS = { glance: ['glance', 'glances'], review: ['review', 'reviews'], outside: ['outside test', 'outside tests'], tools: ['tool decision', 'tool decisions'], tool: ['tool decision', 'tool decisions'] };
+
+/** The inbox items of a next step, oldest first (an item with no date last, in the order it came). */
+export const inboxOf = (next) => next.waiting.filter((a) => a.inbox).map((a, i) => [a, i])
+  .sort(([a, i], [b, j]) => (a.since && b.since ? a.since.localeCompare(b.since) : a.since ? -1 : b.since ? 1 : 0) || i - j).map(([a]) => a);
+
+/** "7 glances, 1 review": how many of each kind, in the order the kinds first appear. */
+export function inboxSummary(items) {
+  const counts = new Map();
+  for (const a of items) {
+    const words = INBOX_WORDS[a.decision.type];
+    counts.set(words, (counts.get(words) ?? 0) + 1);
+  }
+  return [...counts].map(([[one, many], n]) => `${n} ${n === 1 ? one : many}`).join(', ');
+}
 
 function inProgressActions(s, subjects, facts, blueprint) {
   const id = s.id;
@@ -167,15 +187,15 @@ function stepsOf(model, subjects, errors, facts) {
   // happened is asked again on its own. Never a blocker.
   if (slices.length) {
     const left = undecidedRoles(model);
-    if (left.length) waiting.push({ who: 'human', what: `${left.length === 1 ? 'A role that slices call for has' : `${left.length} roles that slices call for have`} no tool decided (${left.map((x) => x.role.id).join(', ')}): the agent proposes from what you have (\`/pp-tools\`) and you decide ${left.length === 1 ? 'it' : 'them all'} in one question, or say none is needed; it holds nothing up`, command: 'ppc ask tools', decision: { type: 'tools', id: 'tools' } });
-    waiting.push(...dueRoles(model).map((role) => ({ who: 'human', what: `The ${role.id} tool waited until ${TOOL_TRIGGERS[model.tools.data.tools.find((e) => e.role === role.id).trigger]}, and that has happened: decide it again (\`ppc tools\` shows them); it holds nothing up`, command: `ppc ask ${role.id}`, decision: { type: 'tool', id: role.id } })));
+    if (left.length) waiting.push({ who: 'human', what: `${left.length === 1 ? 'A role that slices call for has' : `${left.length} roles that slices call for have`} no tool decided (${left.map((x) => x.role.id).join(', ')}): the agent proposes from what you have (\`/pp-tools\`) and you decide ${left.length === 1 ? 'it' : 'them all'} in one question, or say none is needed; it holds nothing up`, command: 'ppc ask tools', decision: { type: 'tools', id: 'tools' }, inbox: true, roles: left.map((x) => x.role.id) });
+    waiting.push(...dueRoles(model).map((role) => ({ who: 'human', what: `The ${role.id} tool waited until ${TOOL_TRIGGERS[model.tools.data.tools.find((e) => e.role === role.id).trigger]}, and that has happened: decide it again (\`ppc tools\` shows them); it holds nothing up`, command: `ppc ask ${role.id}`, decision: { type: 'tool', id: role.id }, inbox: true })));
   }
   // The glance (docs/standards.md, "Experience"): a closed slice nobody has looked at is the person's turn, beside the work. Never a blocker.
   // The review of the whole (docs/standards.md, "Experience"): a complete capability is the person's turn to choose how; an open one is the agent's. Neither blocks.
-  waiting.push(...pendingReviews(model).map((c) => ({ who: 'human', what: `${c.id} "${c.name}" is complete: review it as a whole, against the rubric, and choose how it is done (\`ppc show ${c.id}\`); it holds nothing up`, command: `ppc review ${c.id} --mode guide|explain|delegate`, decision: { type: 'review', id: c.id } })));
-  waiting.push(...pendingOutside(model).map((r) => ({ who: 'human', what: `${r.id} is reviewed: have someone other than you try it, or skip it (\`ppc show ${r.id}\` has the guide); it holds nothing up`, command: `ppc outside ${r.id}`, decision: { type: 'outside', id: r.id } })));
+  waiting.push(...pendingReviews(model).map((c) => ({ who: 'human', what: `${c.id} "${c.name}" is complete: review it as a whole, against the rubric, and choose how it is done (\`ppc show ${c.id}\`); it holds nothing up`, command: `ppc review ${c.id} --mode guide|explain|delegate`, decision: { type: 'review', id: c.id }, inbox: true, since: capabilityClosedOn(model, c.id) })));
+  waiting.push(...pendingOutside(model).map((r) => ({ who: 'human', what: `${r.id} is reviewed: have someone other than you try it, or skip it (\`ppc show ${r.id}\` has the guide); it holds nothing up`, command: `ppc outside ${r.id}`, decision: { type: 'outside', id: r.id }, inbox: true, since: r.closed_on ? String(r.closed_on) : undefined })));
   waiting.push(...openReviews(model).map((r) => ({ who: 'agent', what: `Carry out review ${r.id} (${r.mode} mode): answer the rubric and propose each finding as debt`, command: `/pp-experience ${r.id}` })));
-  waiting.push(...pendingGlances(model).map((s) => ({ who: 'human', what: `Look at what ${s.id} "${s.title}" built, as a user would meet it, and say so (\`ppc show ${s.id}\`); it holds nothing up`, command: `ppc glance ${s.id}`, decision: { type: 'glance', id: s.id } })));
+  waiting.push(...pendingGlances(model).map((s) => ({ who: 'human', what: `Look at what ${s.id} "${s.title}" built, as a user would meet it, and say so (\`ppc show ${s.id}\`); it holds nothing up`, command: `ppc glance ${s.id}`, decision: { type: 'glance', id: s.id }, inbox: true, since: String(s.closed_on) })));
 
   const blocked = live
     .filter((s) => ['planned', 'ready'].includes(s.status) && unfinished(s, byId).length)
@@ -269,7 +289,10 @@ export function renderNext(next) {
   const line = (a) => `  [${a.who}${a.optional ? ', optional' : ''}] ${a.what}\n      ${a.command}`;
   const out = [next.headline, ''];
   if (next.actions.length) out.push('Next:', ...next.actions.map(line), '');
-  if (next.waiting.length) out.push('Also waiting for a person:', ...next.waiting.map(line), '');
+  const waiting = next.waiting.filter((a) => !a.inbox);
+  if (waiting.length) out.push('Also waiting for a person:', ...waiting.map(line), '');
+  const inbox = inboxOf(next);
+  if (inbox.length) out.push(`${inbox.length} ${inbox.length === 1 ? 'thing waits' : 'things wait'} for your look (${inboxSummary(inbox)}); none holds the work up. See them, oldest first:`, '      ppc inbox', '');
   if (next.changes.length) out.push('Design changes:', ...next.changes.map((a) => (a.command ? line(a) : `  ${a.what}`)), '');
   if (next.blocked.length) out.push('Blocked:', ...next.blocked.map((b) => `  ${b.slice} waits for ${b.waits_for.join(', ')}`), '');
   if (next.answered?.length) {
@@ -357,7 +380,11 @@ export function nextJson(next) {
     args: kind === 'agent-step' ? first.command.split(' ').slice(1).join(' ') || null : null,
     decision: first?.decision ?? null,
     optional: next.actions.slice(1).map(slim),
-    waiting: next.waiting.map(slim),
+    waiting: next.waiting.filter((a) => !a.inbox).map(slim),
+    inbox: (() => {
+      const items = inboxOf(next);
+      return { count: items.length, summary: inboxSummary(items), items: items.map((a) => ({ ...slim(a), since: a.since ?? null })) };
+    })(),
     changes: next.changes.map(slim),
     blocked: next.blocked,
     answered: (next.answered ?? []).map((a) => ({ decision: a.decision, command: a.command, label: a.label, at: a.at, fresh: a.fresh })),

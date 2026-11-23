@@ -160,9 +160,15 @@ library) waits for a glance. `custom`, `later` and `not needed` are the person's
 | `ppc show SL-…` | On a closed slice nobody has looked at, a **Look at** list written from the slice: its screens against the approved mockups, what it was checked by (try those), the quality targets it names, the captures and console errors the audit saved. The same text every time. A criterion marked `audience: system` (CI, the build: nobody who uses the thing could see it) is left out, and a line says which; without the field a criterion is shown, because pp-suite does not guess from the words |
 | `ppc ask SL-…` | Looked, will not look, or not yet. The first two end with the exact command |
 | `ppc glance SL-… [--skip]` | Records `glanced_by` and `glanced_on` (and `glance_skipped`) in the slice. Human-only: the guard asks the person, and refuses the three fields written by hand |
-| `ppc next` | The slice waits under "Also waiting for a person", one line each, with the command. It is never the next step of the work |
+| `ppc next` | The slice is counted in one line, with everything else that waits for the person's look and holds nothing up (reviews of the whole, outside tests, tool roles): "11 things wait for your look (8 glances, 2 reviews, 1 tool decision)". It is never the next step of the work. In `--json` they are in `inbox`, not in `waiting` |
+| `ppc inbox` | That list, oldest first, each with how long it has waited and where to read it (`ppc show …`) |
+| `ppc ask inbox` | Up to four of them in one question panel, oldest first, each with the options of its own question; `remaining` says how many are left. A tool role is not in it: `/pp-tools` proposes first |
 
 It cannot tell whether the person really looked: `glanced_by` is a name, not a signature, like every approval here.
+
+The inbox was found in the first real project: six slices were glanced at as they closed (SL-041 to SL-046); from SL-047 on, none
+was, and by 2026-11-23 eight glances and two reviews stood beside the work, one line each, every one saying it held nothing up.
+Whether the one-line count gets them answered is not measured yet.
 
 ### The review of the whole (level 2)
 

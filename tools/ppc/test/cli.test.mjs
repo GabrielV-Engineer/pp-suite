@@ -16,7 +16,7 @@ function planSl001({ write, dir, git }) {
 }
 
 const COMMANDS = ['validate', 'check-git', 'start', 'stop', 'touches', 'widen', 'approve-slice', 'approve', 'show', 'ask', 'reread', 'glance', 'review', 'rubric', 'guide', 'outside', 'approve-debt', 'schedule-debt', 'decide-addition', 'additions', 'decide-tool', 'tools',
-  'change-request', 'decide-change', 'apply-change', 'approve-red', 'refactor', 'finish', 'mutation', 'next', 'overview', 'map', 'constitution', 'session', 'init', 'prompt', 'status'];
+  'change-request', 'decide-change', 'apply-change', 'approve-red', 'refactor', 'finish', 'mutation', 'next', 'inbox', 'overview', 'map', 'constitution', 'session', 'init', 'prompt', 'status'];
 
 // Found in the first real project's fourth review: `ppc approve --help` approved the one approvable slice, in the person's name,
 // because a flag ppc did not know was ignored and `approve` with no id picks the only candidate.

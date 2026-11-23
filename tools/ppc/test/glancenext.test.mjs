@@ -40,10 +40,10 @@ test('next: nothing waits when no slice is closed', () => {
   assert.deepEqual(glances(nextSteps(structuredClone(loadProject(EXAMPLE)), [], [])), []);
 });
 
-test('next: the line is printed and is in the JSON', () => {
+test('next: it is counted in the inbox line, and its command is in the inbox of the JSON (test/inbox.test.mjs)', () => {
   const r = nextSteps(closedOn('2026-11-25'), [], []);
-  assert.match(renderNext(r), /ppc glance SL-003/);
-  assert.ok(nextJson(r).waiting.some((a) => a.command === 'ppc glance SL-003'));
+  assert.match(renderNext(r), /1 glance/);
+  assert.ok(nextJson(r).inbox.items.some((a) => a.command === 'ppc glance SL-003'));
 });
 
 test('next: a panel answer that looked, not yet carried out, is reported', () => {

@@ -8,7 +8,7 @@ import { skillsWarning, skillCommands } from '../src/skills.mjs';
 import { mapModel, renderMermaid, writeMap } from '../src/map.mjs';
 import { describeFloorplan, DESCRIPTIONS_GUIDE, shareDescriptions, SHARED_DESCRIPTIONS } from '../src/floorplan.mjs';
 import { DESCRIPTION_PLACES, drawMap, mapLine, mapStatus, openPage, readMapSettings, recommendedDescriptions, redrawAfterClose, writeMapSettings } from '../src/mapflow.mjs';
-import { designState, nextSteps, nextJson, noDesignNext, overview, renderNext } from '../src/next.mjs';
+import { designState, inboxOf, nextSteps, nextJson, noDesignNext, overview, renderNext } from '../src/next.mjs';
 import { execFileSync } from 'node:child_process';
 import { checkConstitution, writeConstitution, ConstitutionError } from '../src/constitution.mjs';
 import { apply, plan as installPlan, renderPlan, InstallError } from '../src/install.mjs';
@@ -25,6 +25,7 @@ import { renderDecision, askFor, redCommitFiles, DecisionError, AUDIT_INPUT } fr
 import { buildPrompts, resolveTarget, writePrompts } from '../src/prompts.mjs';
 import { openReview, recordOutside } from '../src/reviewfile.mjs';
 import { renderGuide } from '../src/guide.mjs';
+import { renderInbox, askInbox } from '../src/inbox.mjs';
 import { start, stop, widen, approve, reread, glance, approveSlice, approveRed, approveDebt, scheduleDebt, decideAddition, decideStandard, decideTool, decideTools, toRefactor, finish, mutate, status, LifecycleError } from '../src/lifecycle.mjs';
 
 const USAGE = `ppc — pp-suite contract tool
@@ -134,6 +135,8 @@ const USAGE = `ppc — pp-suite contract tool
                                          under .sddpp/prompts/; without a slice or task, the one in progress
     ppc status [dir]                     what is in progress
     ppc next [dir] [--json]              whose turn it is and the exact command to run (--json: the same, for the /pp skill)
+    ppc inbox [dir]                      what waits for your look and holds nothing up (glances, reviews, outside tests, tool roles), oldest first
+    ppc ask inbox [dir]                  up to four of those in one question panel, oldest first, each with the options of its own question
     ppc overview [dir]                   where the project stands: slices, capabilities, debt, contract
     ppc map [dir] [--stdout | --html [--open]]
                                          the project as a picture: components, capabilities and screens, read from the design and the slices.
@@ -156,7 +159,7 @@ const VALUE_OPTIONS = new Set(['--standard', '--roles', '--use', '--measure', '-
 // into an approval (`ppc approve --help` once approved the one slice that could be approved).
 const OPTIONS = {
   rules: [], validate: ['--strict', '--design'], 'check-git': [], start: [], stop: [], 'approve-slice': ['--by'], approve: ['--by', '--accept', '--drop', '--reason', '--pay-in', '--mockup'],
-  show: [], ask: ['--no-measure', '--budget-reason', '--mutation-reason', '--pay-in', '--add-component', '--details', '--measure', '--tools', '--add-tool', '--tool', '--kind', '--source', '--pinned', '--access', '--access-reason', '--use'], touches: [], widen: ['--component'], reread: ['--all'], guide: [], outside: ['--by', '--skip', '--note'], glance: ['--by', '--skip'], review: ['--project', '--mode', '--surface', '--by'], 'approve-debt': ['--by', '--accept', '--drop', '--reason'], 'schedule-debt': ['--slice'],
+  show: [], inbox: [], ask: ['--no-measure', '--budget-reason', '--mutation-reason', '--pay-in', '--add-component', '--details', '--measure', '--tools', '--add-tool', '--tool', '--kind', '--source', '--pinned', '--access', '--access-reason', '--use'], touches: [], widen: ['--component'], reread: ['--all'], guide: [], outside: ['--by', '--skip', '--note'], glance: ['--by', '--skip'], review: ['--project', '--mode', '--surface', '--by'], 'approve-debt': ['--by', '--accept', '--drop', '--reason'], 'schedule-debt': ['--slice'],
   'decide-addition': ['--keep', '--cut', '--alone', '--by', '--reason', '--accept-recommended', '--but-cut', '--but-keep'], additions: [],
   'decide-tool': ['--roles', '--use', '--adopt', '--kind', '--source', '--pinned', '--access', '--access-reason', '--later', '--trigger', '--not-needed', '--reason', '--by'],
   rubric: [], standards: [], tools: ['--have'], 'decide-standard': ['--measure', '--measure-none', '--tools', '--add-tool', '--adopt', '--details', '--later', '--trigger', '--not-needed', '--reason', '--accept-recommended', '--by'],
@@ -307,7 +310,7 @@ switch (command) {
   }
   case 'ask': {
     const roleIds = new Set(ROLES.map((r) => r.id));
-    const id = positionals.find((p) => (/^([A-Z]+-|reread$|standards$|review$|tools$)/.test(p) || STANDARD_IDS.has(p) || roleIds.has(p)) && !p.includes('/'));
+    const id = positionals.find((p) => (/^([A-Z]+-|reread$|standards$|review$|tools$|inbox$)/.test(p) || STANDARD_IDS.has(p) || roleIds.has(p)) && !p.includes('/'));
     const root = resolve(positionals.find((p) => p !== id) ?? '.');
     // a tool the agent names is looked for in the person's home, so the question can say whether pp-suite found it (it never claims it did without looking)
     const named = options.get('tool');
@@ -315,7 +318,7 @@ switch (command) {
     const inventory = options.get('use') !== undefined ? readInventory({ home: homedir(), root }) : undefined;
     let question;
     try {
-      question = id ? askFor(loadProject(root), id, { noMeasure: flags.has('--no-measure'), redFiles: redCommitFiles(root, id), budgetReason: options.get('budget-reason'), mutationReason: options.get('mutation-reason'), payIn: options.get('pay-in'), addComponent: options.get('add-component'), details: options.get('details'), measure: options.get('measure'), tools: options.get('tools'), addTool: options.get('add-tool'), tool: named, kind: options.get('kind'), source: options.get('source'), pinned: options.get('pinned'), access: options.get('access'), accessReason: options.get('access-reason'), installed, use: options.get('use'), inventory }) : null;
+      question = id === 'inbox' ? askInbox(loadProject(root)) : id ? askFor(loadProject(root), id, { noMeasure: flags.has('--no-measure'), redFiles: redCommitFiles(root, id), budgetReason: options.get('budget-reason'), mutationReason: options.get('mutation-reason'), payIn: options.get('pay-in'), addComponent: options.get('add-component'), details: options.get('details'), measure: options.get('measure'), tools: options.get('tools'), addTool: options.get('add-tool'), tool: named, kind: options.get('kind'), source: options.get('source'), pinned: options.get('pinned'), access: options.get('access'), accessReason: options.get('access-reason'), installed, use: options.get('use'), inventory }) : null;
     } catch (error) {
       if (!(error instanceof DecisionError)) throw error;
       console.error(error.message);
@@ -326,6 +329,16 @@ switch (command) {
       process.exit(1);
     }
     process.stdout.write(`${JSON.stringify(question, null, 2)}\n`);
+    break;
+  }
+  case 'inbox': {
+    const root = dirAt(0);
+    const model = loadProject(root);
+    if (!model.blueprint) {
+      process.stdout.write('Nothing waits for your look: there is no design yet.\n');
+      break;
+    }
+    process.stdout.write(renderInbox(inboxOf(nextSteps(model, [], []))));
     break;
   }
   case 'guide': {

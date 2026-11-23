@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { loadProject } from '../src/load.mjs';
-import { nextSteps, renderNext } from '../src/next.mjs';
+import { nextSteps, renderNext, inboxOf } from '../src/next.mjs';
+import { renderInbox } from '../src/inbox.mjs';
 import { renderDecision } from '../src/decisions.mjs';
 import { renderConstitution, writeConstitution, checkConstitution } from '../src/constitution.mjs';
 import { decideTool } from '../src/lifecycle.mjs';
@@ -145,8 +146,10 @@ test('next: a panel answer to the question about all of them that nothing carrie
   assert.deepEqual(out.answered.map((a) => [a.decision.type, a.decision.id, a.fresh]), [['tools', 'tools', true]]);
 });
 
-test('next: the text names the roles and the command', () => {
-  const text = renderNext(nextSteps(withTools(null), []));
+test('next: the text counts it in the inbox line; the inbox names the roles and the command', () => {
+  const next = nextSteps(withTools(null), []);
+  assert.match(renderNext(next), /1 tool decision/);
+  const text = renderInbox(inboxOf(next), { today: '2026-11-23' });
   assert.match(text, /ui-design/);
   assert.match(text, /ppc ask tools/);
 });

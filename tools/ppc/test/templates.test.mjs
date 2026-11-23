@@ -132,3 +132,14 @@ test('both real hand-off runs kept their risks in architecture.md under "## Risk
     assert.match(text(`${SUITE}architect-pp/fixtures/${run}/.architect/architecture.md`), /^## Risks$/m, run);
   }
 });
+
+// The inbox (found in the first real project, 2026-11-23): what holds nothing up is said once, as one line, and asked several at a time.
+test('the /pp skill says the inbox once per run and asks it in one panel, never one item at a time beside the work', () => {
+  const text = PP().replace(/\s+/g, ' ');
+  assert.match(text, /`inbox`/);
+  assert.match(text, /once per run/i);
+  assert.match(text, /ppc inbox/);
+  assert.match(text, /ppc ask inbox/);
+  assert.match(text, /several questions in one (AskUserQuestion|panel) call/i);
+  assert.doesNotMatch(text, /An item whose decision `type` is `glance`/, 'the one-by-one wording is gone');
+});

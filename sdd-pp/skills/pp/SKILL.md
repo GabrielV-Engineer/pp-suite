@@ -2,7 +2,7 @@
 name: pp
 description: "PP: do the next step of this pp-suite project, or put the next decision to the person here in the chat. Use it whenever the person asks what to do next or says to continue."
 argument-hint: "[nothing, or an id such as SL-002]"
-allowed-tools: Bash(ppc next *) Bash(ppc show *) Bash(ppc ask *) Bash(ppc additions *) Bash(ppc start *)
+allowed-tools: Bash(ppc next *) Bash(ppc inbox *) Bash(ppc show *) Bash(ppc ask *) Bash(ppc additions *) Bash(ppc start *)
 ---
 
 State of the project, from `ppc next --json` (if this block is empty or says it failed, run `ppc next --json` yourself):
@@ -46,16 +46,19 @@ If the person named an id (`$ARGUMENTS`, for example `SL-022`, `CR-0006` or `DEB
 5. Before you stop, put to the person the decisions that wait in `waiting` (debt) and `changes`, one question each. An item
    whose command is `ppc ask DEBT-… --pay-in <slice>` is debt a closed slice did not pay: pick the next planned slice that
    touches its component (say why), and ask with that slice in place of `<slice>`. An item whose command is `/pp-plan DEBT-…` is open debt no slice could pay: run `/pp-plan` with those ids
-   (it holds nothing up, so do it when the person is ready to plan, not in the middle of a slice). An item whose decision `type` is `glance` is
-   a closed slice nobody has looked at: `ppc show SL-…` has what to look at, and the question is `ppc ask SL-…`. It holds
-   nothing up, so if they say "not yet", leave it waiting. An item whose decision `type` is `review` is a capability that is
-   complete: `ppc show CAP-…` says what a review is, `ppc ask CAP-…` asks how the person wants it done; same, it holds
-   nothing up. An item whose decision `type` is `outside` is a closed review waiting for someone other than the builder to try it:
-   `ppc show RV-…` has the guide, and the question is `ppc ask RV-…`; it holds nothing up, and skipping it is a fine answer. An item for you (`who` is `agent`) whose command is `/pp-experience RV-…` is an open review: run it. An item whose decision `type` is `tools` is the roles that slices call for and nobody decided: run `/pp-tools`, which proposes a tool from
-   what the person has and puts all of them to the person in one question (`ppc ask tools`). It holds nothing up: "not yet" leaves it waiting. An item whose decision `type` is `tool` is one
-   role deferred until a trigger that has happened: `ppc tools` shows it, and `ppc ask <role> --tool <name> --kind <skill|plugin|mcp>` puts a tool you propose from what they have
-   (`ppc tools --have`), saying it is your own suggestion that pp-suite did not verify (an MCP server also needs `--access read-only`, or `read-write` with `--access-reason`); without a
-   tool, `ppc ask <role>` asks whether it is needed. If they choose Other and name a tool, ask again with it.
+   (it holds nothing up, so do it when the person is ready to plan, not in the middle of a slice). An item for you (`who` is `agent`) whose command is `/pp-experience RV-…` is an open review: run it.
+   **The inbox.** What waits for the person's look and holds nothing up (glances at closed slices, reviews of a complete capability,
+   outside tests, tool roles) is in `inbox`, not in `waiting`. Say `inbox.summary` once per run, in one line, when `inbox.count` is
+   above 0, and offer it; do not put its items to the person one by one beside the work. If they want to answer it now: run
+   `ppc inbox` and say in a line each what it lists (oldest first); then run `ppc ask inbox` and put its `questions` to them as
+   several questions in one AskUserQuestion call, as printed (the same options, the same order; only the words may be in their
+   language). Run the command of each option they picked, as in **When the person decides**. "Not yet" leaves an item waiting. If
+   `remaining` is above 0, say how many are left and offer the next panel. Before a glance, `ppc show SL-…` has what to look at.
+   A tool role is not in that panel. For the item whose decision `type` is `tools` (the roles slices call for that nobody decided), run `/pp-tools`, which proposes a tool from what the person has and puts all of them to the
+   person in one question (`ppc ask tools`). For an item whose decision `type` is `tool` (one role deferred until a trigger that has happened), `ppc tools` shows it, and
+   `ppc ask <role> --tool <name> --kind <skill|plugin|mcp>` puts a tool you propose from what they have (`ppc tools --have`),
+   saying it is your own suggestion that pp-suite did not verify (an MCP server also needs `--access read-only`, or `read-write`
+   with `--access-reason`); without a tool, `ppc ask <role>` asks whether it is needed. If they choose Other and name a tool, ask again with it.
 6. End with two lines: what was done in this run, and what happens at the next `/pp`.
 
 ## When the person decides
