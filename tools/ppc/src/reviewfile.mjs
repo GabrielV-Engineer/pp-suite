@@ -60,7 +60,7 @@ export function openReview(root, { scope, mode, by, surfaces: extra = [], today 
     mkdirSync(join(root, DIR), { recursive: true });
     writeFileSync(join(root, file), `---\n${front}---\n${body}`);
     loadValid(root);
-    return { review: id, file, mode, surfaces, text: `Opened ${id} (${mode} mode) for ${scope === 'project' ? 'the project' : scope}: ${surfaces.join(', ')}. ${file}\nNext: /pp-experience ${id}${(() => { const w = skillsWarning(root, [`/pp-experience ${id}`]); return w ? `\n${w}` : ''; })()}` };
+    return { review: id, file, mode, surfaces, text: `Opened ${id} (${mode} mode) for ${scope === 'project' ? 'the project' : scope}: ${surfaces.join(', ')}. ${file}\nNext: /pp-experience ${id}\nCarrying it out is the agent's step, and closing the file is part of it; you decide on each finding it proposes as debt.${(() => { const w = skillsWarning(root, [`/pp-experience ${id}`]); return w ? `\n${w}` : ''; })()}` };
   });
 }
 
