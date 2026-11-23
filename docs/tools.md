@@ -37,12 +37,16 @@ What the inventory promises, and tests:
 
 How a role applies to a slice (`src/tools.mjs`, from facts the project already records, never from a model's reading of text):
 
-| Role | Applies to a slice when |
-|---|---|
-| `ui-design` | it touches a `frontend` component or names screens |
-| `ui-capture` | it names screens |
-| `security-review` | the security standard is **adopted** and it touches a `backend` or `database` component |
-| `db-inspect` | it touches a `database` component |
+| Role | A tool in it is (`for`, said in the panel question) | Applies to a slice when |
+|---|---|---|
+| `ui-design` | a skill that guides layout, type, colour and polish while the screens are built | it touches a `frontend` component or names screens |
+| `ui-capture` | something that opens the real app and saves screenshots, so the audit and your glance see what was built | it names screens |
+| `security-review` | a reviewer that reads the changed code for security flaws before the slice closes | the security standard is **adopted** and it touches a `backend` or `database` component |
+| `db-inspect` | something that reads the stored data directly, to check what a slice wrote | it touches a `database` component |
+
+The question about a role ends with "Why:", what a tool in it is for and the slices that call for it. Found in the first real project:
+asked whether `db-inspect` needed a tool, the owner answered twice with a question of their own ("justify why, in which cases it
+would be needed, and what it would be for").
 
 These four are a first guess from one project and one person. A role with no signal that could be checked (documentation lookup was
 considered) is left out until one exists.

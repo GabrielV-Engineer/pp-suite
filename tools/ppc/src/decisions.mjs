@@ -419,7 +419,57 @@ function askTools(model, { use, inventory }) {
     No] }] };
 }
 
-export function askFor(model, id, { noMeasure, redFiles, budgetReason, mutationReason, payIn, addComponent, details, measure, tools, addTool, tool, kind, source, pinned, access, accessReason, installed, use, inventory } = {}) {
+// Why a question is asked, said in the question itself: the person may see only the panel. Found in the first real project: a tool
+// role asked with no word on what it was for got a question back instead of an answer, twice, and three debts were scheduled into a
+// slice that could not pay them, because when they fell due was in the entries and not in the question. Built from the model only.
+const sentence = (text) => {
+  const one = oneLine(String(text ?? '')).trim();
+  return one && !/[.!?]$/.test(one) ? `${one}.` : one;
+};
+const firstSentence = (text) => sentence(/^(.*?[.!?])(\s|$)/.exec(oneLine(text ?? '').trim())?.[1] ?? text);
+const roleWhy = (role, slices) => `${role.id} is for ${role.for}. ${slices.length ? `It is asked because of ${slices.slice(0, 3).join(', ')}${slices.length > 3 ? ` and ${slices.length - 3} more` : ''}: ${role.why}.` : `It applies when ${role.why.replace(/^it /, 'a slice ')}.`}`;
+const debtWhy = (e) => [e.cost_of_delay ? `Waiting costs ${e.cost_of_delay.level}: ${sentence(e.cost_of_delay.rationale)}` : '', e.trigger ? `It falls due: ${sentence(e.trigger)}` : ''].filter(Boolean).join(' ');
+
+function whyOf(model, id, header, { budgetReason, mutationReason, payIn, addComponent }) {
+  const role = ROLES.find((r) => r.id === id);
+  if (id === 'tools') return undecidedRoles(model).map(({ role: r, slices }) => roleWhy(r, slices)).join(' ');
+  if (role) return roleWhy(role, undecidedRoles(model).find((x) => x.role.id === id)?.slices ?? []);
+  if (header === 'Review') return 'A review looks at the whole as a person meets it, against a rubric, and proposes what it finds as debt for you to decide; it holds nothing up.';
+  if (header === 'Outside test') return 'Someone who did not build it meets it without knowing how it should work, and finds what the builder no longer sees.';
+  if (id === 'reread') {
+    const behind = model.slices.map((s) => s.data).filter((s) => !['done', 'dropped'].includes(s.status) && s.blueprint_revision < model.blueprint.data.revision);
+    return `${behind.map((s) => `${s.id} was planned against revision ${s.blueprint_revision}`).join(', ')}; the design is now revision ${model.blueprint.data.revision}. A slice planned against an older design may build what the design no longer says.`;
+  }
+  if (budgetReason !== undefined || mutationReason !== undefined) return 'Without it the slice does not close; with it, the slice closes whole and the reason stays in its audit for whoever reads it later.';
+  if (addComponent !== undefined) return `A slice may change only the files of the components it lists, and this work needs ${addComponent}.`;
+  const slice = model.slices.find((s) => s.data.id === id)?.data;
+  if (header === 'Slice') return `Approving it lets the build start, and it is built to what its card says it does and does not do (ppc show ${id}).`;
+  if (header === 'Glance') {
+    const n = lookAt(model, slice).length;
+    return `You are the first person to meet what was built, the way a user will; ppc show ${id} lists ${n} thing${n === 1 ? '' : 's'} to look at.`;
+  }
+  if (header === 'Red tests') return 'Once approved, the tests are locked: the code is written to pass them, and they cannot change while it is.';
+  const debt = debtEntries(model).find((e) => e.id === id);
+  if (debt && payIn !== undefined) return `${debtWhy(debt)} ${payIn} can pay it only if that can be met while it is built; if it needs another machine or a design change, choose Not yet.`.trim();
+  if (debt) return debtWhy(debt) || null;
+  if (header === 'Screen') return 'Once approved, it is the reference every slice on this screen is built and checked against.';
+  const change = model.changeRequests.find((c) => c.data.id === id);
+  if (change) {
+    const problem = section(change.body, 'Problem');
+    return problem ? `The problem it answers: ${firstSentence(problem)}` : null;
+  }
+  return null;
+}
+
+export function askFor(model, id, options = {}) {
+  const asked = questionFor(model, id, options);
+  const first = asked?.questions?.[0];
+  if (!first) return asked;
+  const why = whyOf(model, id, first.header, options);
+  return why ? { ...asked, questions: [{ ...first, question: `${first.question} Why: ${why}` }, ...asked.questions.slice(1)] } : asked;
+}
+
+function questionFor(model, id, { noMeasure, redFiles, budgetReason, mutationReason, payIn, addComponent, details, measure, tools, addTool, tool, kind, source, pinned, access, accessReason, installed, use, inventory } = {}) {
   if (id === 'tools') return askTools(model, { use, inventory });
   if (ROLES.some((r) => r.id === id)) return askTool(model, id, { tool, kind, source, pinned, access, accessReason, installed });
   if (id === 'standards' || BY_ID.has(id)) return askStandards(model, id, details, { measure, tools, addTool, noMeasure: noMeasure || undefined });

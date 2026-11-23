@@ -17,31 +17,35 @@ export const TRIGGERS = {
 const adopted = (standards, id) => standards.some((s) => s.id === id && s.decision === 'adopt');
 
 /**
- * The fixed list. `applies` reads the facts of one slice: the kinds of the components it touches, its screens and the standards
+ * The fixed list. `for` says what a tool in the role does, in the words the panel question uses. `applies` reads the facts of one slice: the kinds of the components it touches, its screens and the standards
  * of the project. A first guess from one project and one person: short on purpose, and revised when a second project asks.
  */
 export const ROLES = [
   {
     id: 'ui-design',
     title: 'Interface design',
+    for: 'a skill that guides layout, type, colour and polish while the screens are built',
     why: 'it touches a frontend component or builds screens',
     applies: (f) => f.kinds.has('frontend') || f.screens.length > 0,
   },
   {
     id: 'ui-capture',
     title: 'Capture the real interface',
+    for: 'something that opens the real app and saves screenshots, so the audit and your glance see what was built',
     why: 'it builds screens, and the real app has to be seen',
     applies: (f) => f.screens.length > 0,
   },
   {
     id: 'security-review',
     title: 'Security review',
+    for: 'a reviewer that reads the changed code for security flaws before the slice closes',
     why: 'the security standard is adopted and it touches a backend or a database',
     applies: (f) => adopted(f.standards, 'security') && (f.kinds.has('backend') || f.kinds.has('database')),
   },
   {
     id: 'db-inspect',
     title: 'Look at the database',
+    for: 'something that reads the stored data directly, to check what a slice wrote',
     why: 'it touches a database',
     applies: (f) => f.kinds.has('database'),
   },
