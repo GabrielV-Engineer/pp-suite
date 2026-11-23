@@ -213,3 +213,24 @@ test('next: with no design yet, the person runs the interview and the agent then
   assert.match(text, /\[human\]/);
   assert.match(text, /ppc validate --design/);
 });
+
+// ── a design change that adds a capability (found in the first real project, CR-0021 and SL-035) ───
+test('next: when the only errors are capabilities with no slice, it names /pp-plan for them instead of "fix the errors"', () => {
+  const m = base();
+  const extra = (n) => ({ id: `CAP-0${n}`, name: `Later thing ${n}`, description: 'A person can do one more thing later.', priority: 'could' });
+  m.blueprint.data.capabilities.push(extra(90), extra(91));
+  const errors = errorsOf(m);
+  assert.deepEqual([...new Set(errors.map((e) => e.rule))], ['T06'], 'the only fault is a capability with no slice');
+  const r = nextSteps(m, [], errors);
+  assert.equal(first(r).who, 'agent');
+  assert.equal(first(r).command, '/pp-plan CAP-090,CAP-091');
+  assert.match(r.headline, /2 capabilities have no slice/);
+  assert.match(renderNext(r), /\/pp-plan CAP-090,CAP-091/);
+});
+
+test('next: any other error next to a missing slice is still "fix the errors"', () => {
+  const m = base();
+  m.blueprint.data.capabilities.push({ id: 'CAP-090', name: 'Later thing', description: 'A person can do one more thing later.', priority: 'could' });
+  const errors = [...errorsOf(m), { rule: 'T01', severity: 'error', file: 'x', message: 'something else' }];
+  assert.match(first(nextSteps(m, [], errors)).command, /ppc validate/);
+});

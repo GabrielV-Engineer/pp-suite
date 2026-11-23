@@ -30,7 +30,7 @@ person can run it again at any time.
 - **Once slices exist, a change to the interface is a change to the design.** If `.sddpp/slices/` has any slice and
   `ui.md` exists, do not edit `ui.md` or an approved mockup directly. Run the interview, then open a change request with
   `ppc change-request --slice <the slice in progress, or the first planned slice on that screen> --component <the frontend
-  component> --title ... --problem ... --proposal ...` that states the screens and sections to change, and put it to the
+  component> --title ... --problem ... --proposal ...` (`--design` in place of `--slice` when no slice is on that screen) that states the screens and sections to change, and put it to the
   person (see **When the person decides**). If they accept it, `/pp-change` revises the design, which includes this step's
   files, and the mockups it changes are approved again.
 - Follow pp-suite's design guide: run `ppc contract` and read the file it names as `design guide`. If design skills are

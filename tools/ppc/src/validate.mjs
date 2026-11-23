@@ -397,7 +397,9 @@ export function validateModel(model, { now = new Date() } = {}) {
   // ── change requests: T11 ──────────────────────────────────────
   for (const { file, data: c } of crs) {
     if (c.status === 'applied' && c.blueprint_revision !== undefined && bp.revision <= c.blueprint_revision) error('T17', file, `${c.id} is applied, but the design is still at revision ${bp.revision}, where it was opened`);
-    if (!sliceById.has(c.raised_by)) error('T01', file, `${c.id} raised by unknown slice ${c.raised_by}`);
+    if (c.raised_by.startsWith('standard:')) {
+      if (!STANDARDS.some((x) => `standard:${x.id}` === c.raised_by)) error('T01', file, `${c.id} raised by unknown standard ${c.raised_by.slice(9)}`);
+    } else if (c.raised_by !== 'design' && !sliceById.has(c.raised_by)) error('T01', file, `${c.id} raised by unknown slice ${c.raised_by}`);
     for (const x of c.affects.components ?? []) if (!comps.has(x)) error('T01', file, `${c.id} affects unknown component ${x}`);
     for (const x of c.affects.adrs ?? []) if (!adrIds.has(x)) error('T01', file, `${c.id} affects unknown ${x}`);
     for (const x of c.affects.quality_attributes ?? []) if (!qas.has(x)) error('T01', file, `${c.id} affects unknown quality attribute ${x}`);
@@ -513,7 +515,7 @@ export function validateModel(model, { now = new Date() } = {}) {
             }
           }
         }
-        if (s.decision === 'adopt' && spec.product && !attributes.has(spec.attribute)) warn('S03', standardsFile, `${s.id} is adopted but the design has no ${spec.attribute} quality attribute; open a change request so the design carries it (\`ppc change-request\`)`);
+        if (s.decision === 'adopt' && spec.product && !attributes.has(spec.attribute)) warn('S03', standardsFile, `${s.id} is adopted but the design has no ${spec.attribute} quality attribute; open a change request so the design carries it (\`ppc change-request --standard ${s.id}\`; it needs no slice)`);
       }
     }
   }

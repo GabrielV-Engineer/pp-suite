@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { stringify } from 'yaml';
 import { checkConstitution, hasConstitution } from './constitution.mjs';
 import { LifecycleError, editFrontmatter, loadValid, transact } from './lifecycle.mjs';
+import { STANDARDS } from './standards.mjs';
 
 // The way a slice asks the design to change. SDD.PP never edits `.architect/`: a slice that finds the design wrong or
 // silent opens a change request; a person accepts or rejects it; Architect.PP revises the design and raises its
@@ -16,16 +17,24 @@ const slug = (title) => title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(
 
 const find = (model, id) => model.changeRequests.find((c) => c.data.id === id) ?? fail(`unknown change request ${id}`);
 
-/** Any agent may open one: it only asks. The ids it names must exist, and it must say what it affects. */
-export function openChange(root, { slice, title, problem, proposal, components = [], adrs = [], qas = [], budgets = false } = {}) {
+/**
+ * Any agent may open one: it only asks. The ids it names must exist, and it must say what it affects. Something raises it: a slice that
+ * found the design wrong, an adopted standard whose gap the design must close (nothing to name yet: the quality attribute it asks for does
+ * not exist), or the design itself when nobody was building. A change to the design never needs a slice invented to raise it.
+ */
+export function openChange(root, { slice, standard, design = false, title, problem, proposal, components = [], adrs = [], qas = [], budgets = false } = {}) {
   return transact(root, () => {
     const model = loadValid(root);
     const bp = model.blueprint.data;
-    if (!model.slices.some((s) => s.data.id === slice)) fail(`unknown slice ${slice}`);
+    const raisers = [slice !== undefined, standard !== undefined, design].filter(Boolean).length;
+    if (!raisers) fail('say what raises it: --slice, --standard or --design (a slice that found the design wrong, an adopted standard that shows a gap, or nobody was building)');
+    if (raisers > 1) fail('only one of --slice, --standard or --design raises it');
+    if (slice !== undefined && !model.slices.some((s) => s.data.id === slice)) fail(`unknown slice ${slice}`);
+    if (standard !== undefined && !STANDARDS.some((x) => x.id === standard)) fail(`unknown standard ${standard} (${STANDARDS.map((x) => x.id).join(', ')})`);
     if (!title || title.trim().length < 5) fail('the title needs at least 5 characters');
     if (!problem || problem.trim().length < 15) fail('the problem needs at least 15 characters: what the slice found');
     if (!proposal || proposal.trim().length < 15) fail('the proposal needs at least 15 characters: what should change in the design');
-    if (!components.length && !adrs.length && !qas.length && !budgets) fail('say what it affects: at least one component, decision or quality attribute (--component, --adr, --qa), or the blueprint\'s budgets (--budgets)');
+    if (!components.length && !adrs.length && !qas.length && !budgets && standard === undefined) fail('say what it affects: at least one component, decision or quality attribute (--component, --adr, --qa), or the blueprint\'s budgets (--budgets)');
     for (const c of components) if (!bp.components.some((x) => x.id === c)) fail(`the design has no component ${c}`);
     for (const q of qas) if (!bp.quality_attributes.some((x) => x.id === q)) fail(`the design has no quality attribute ${q}`);
     for (const a of adrs) if (!model.adrs.some((x) => x.data.id === a)) fail(`the design has no decision ${a}`);
@@ -33,7 +42,7 @@ export function openChange(root, { slice, title, problem, proposal, components =
     const numbers = model.changeRequests.map((c) => Number(c.data.id.slice(3)));
     const id = `CR-${String(Math.max(0, ...numbers) + 1).padStart(4, '0')}`;
     const affects = { ...(components.length ? { components } : {}), ...(adrs.length ? { adrs } : {}), ...(qas.length ? { quality_attributes: qas } : {}), ...(budgets ? { budgets: true } : {}) };
-    const front = stringify({ id, title: title.trim(), status: 'open', raised_by: slice, blueprint_revision: bp.revision, affects }, { lineWidth: 0, flowCollectionPadding: false });
+    const front = stringify({ id, title: title.trim(), status: 'open', raised_by: slice ?? (standard !== undefined ? `standard:${standard}` : 'design'), blueprint_revision: bp.revision, affects }, { lineWidth: 0, flowCollectionPadding: false });
     const file = `${DIR}/${id}-${slug(title)}.md`;
     mkdirSync(join(root, DIR), { recursive: true });
     writeFileSync(join(root, file), `---\n${front}---\n\n## Problem\n\n${problem.trim()}\n\n## Proposal\n\n${proposal.trim()}\n`);

@@ -211,3 +211,72 @@ test('CLI: change-request --budgets opens one', (t) => {
   assert.equal(out.status, 0, out.stderr);
   assert.match(out.stdout, /CR-\d{4}/);
 });
+
+// ── a design change needs no slice to raise it ───────────────────
+// Found in the first real project (SL-031, SL-039): a gap a standard shows (observability adopted, no operability quality attribute) or a
+// design problem the person reports has no slice, and the command used to refuse with "unknown slice undefined", so a slice was invented.
+const asks = (dir, over = {}) => openChange(dir, { title: 'The design carries operability', problem: PROBLEM, proposal: PROPOSAL, components: ['backend'], ...over });
+
+test('open: a standard\'s gap is raised by the standard, with no slice', (t) => {
+  const { dir } = repo(t);
+  const { change } = asks(dir, { standard: 'observability' });
+  assert.equal(cr(dir, change).raised_by, 'standard:observability');
+  assert.deepEqual(errors(dir), []);
+});
+
+test('open: a design problem nobody found while building is raised by the design, with no slice', (t) => {
+  const { dir } = repo(t);
+  const { change } = asks(dir, { design: true });
+  assert.equal(cr(dir, change).raised_by, 'design');
+  assert.deepEqual(errors(dir), []);
+});
+
+test('open: says who raises it when nobody does, and refuses two at once or an unknown standard', (t) => {
+  const { dir } = repo(t);
+  const before = crs(dir).length;
+  fails(() => asks(dir), /--slice, --standard or --design/);
+  fails(() => asks(dir, { slice: 'SL-004', standard: 'observability' }), /only one of/);
+  fails(() => asks(dir, { standard: 'observability', design: true }), /only one of/);
+  fails(() => asks(dir, { standard: 'nope' }), /unknown standard nope/);
+  assert.equal(crs(dir).length, before, 'nothing was written');
+});
+
+test('open: a request raised by a standard may name no component, because the quality attribute it asks for does not exist yet', (t) => {
+  const { dir } = repo(t);
+  const { change } = openChange(dir, { standard: 'observability', title: 'The design carries operability', problem: PROBLEM, proposal: PROPOSAL });
+  assert.deepEqual(cr(dir, change).affects, {});
+  assert.deepEqual(errors(dir), []);
+});
+
+test('T01: a request raised by a standard the contract does not know is an error, and so is one by an unknown slice', (t) => {
+  const { dir } = repo(t);
+  const { change } = asks(dir, { design: true });
+  const file = join(dir, loadProject(dir).changeRequests.find((c) => c.data.id === change).file);
+  writeFileSync(file, readFileSync(file, 'utf8').replace('raised_by: design', 'raised_by: standard:nope'));
+  assert.ok(validateModel(loadProject(dir)).some((f) => f.rule === 'T01' && /unknown standard nope/.test(f.message)));
+  writeFileSync(file, readFileSync(file, 'utf8').replace('raised_by: standard:nope', 'raised_by: SL-099'));
+  assert.ok(validateModel(loadProject(dir)).some((f) => f.rule === 'T01' && /unknown slice SL-099/.test(f.message)));
+});
+
+test('CLI: change-request --standard and --design open one without a slice', (t) => {
+  const r = repo(t);
+  const run = (...args) => spawnSync(process.execPath, [CLI, 'change-request', '--title', 'The design carries operability', '--problem', PROBLEM, '--proposal', PROPOSAL, ...args, r.dir], { encoding: 'utf8' });
+  const one = run('--standard', 'observability');
+  assert.equal(one.status, 0, one.stderr);
+  const two = run('--design', '--component', 'backend');
+  assert.equal(two.status, 0, two.stderr);
+  assert.deepEqual(crs(r.dir).map((c) => c.raised_by).slice(-2), ['standard:observability', 'design']);
+  const none = run('--component', 'backend');
+  assert.equal(none.status, 1);
+  assert.match(none.stderr, /--slice, --standard or --design/);
+});
+
+test('apply: a change that added a capability is refused for its missing slice, and says to plan it first', (t) => {
+  const r = repo(t);
+  open(r.dir);
+  decideChange(r.dir, 'CR-0002', { decision: 'accept', by: 'owner' });
+  const bp = read(r.dir, '.architect/blueprint.yaml').replace(/^revision: 1/m, 'revision: 2').replace(/^capabilities:\n/m, 'capabilities:\n  - id: CAP-090\n    name: Later thing\n    description: A person can do one more thing later.\n    priority: could\n');
+  r.write({ '.architect/blueprint.yaml': bp });
+  fails(() => applyChange(r.dir, 'CR-0002'), /CAP-090 has no slice[\s\S]*\/pp-plan CAP-090/);
+  assert.equal(cr(r.dir, 'CR-0002').status, 'accepted', 'nothing changed');
+});

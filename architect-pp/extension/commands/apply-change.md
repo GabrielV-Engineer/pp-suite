@@ -58,7 +58,9 @@ a command to type in a terminal. Instead:
 3. Run `ppc validate . --design` (the argument is the project directory) and fix every error your edit caused.
 4. Run `ppc constitution` so the project rules in `CLAUDE.md` carry the new revision.
 5. Run `ppc apply-change <id> .`. It checks that the revision rose and that the project rules are current, then marks the
-   request applied. If it refuses, fix the cause; never edit the request by hand.
+   request applied. If it refuses, fix the cause; never edit the request by hand. If the cause is `T06` (the change added capabilities
+   and none has a slice yet), you may not write slices: tell the person that `/pp-plan <those capability ids>` comes next (the output names them;
+   `ppc next` says the same), and run this step again once the slices are written.
 6. Run `ppc next` and copy the slices it lists as planned against an older design.
 7. Report: what you changed, file by file; what you left alone on purpose; and what you decided on your own. Write each file
    you changed as a link, `[path](path)`: the diff of `.architect/` is what the person should read.

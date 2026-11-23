@@ -45,9 +45,11 @@ const USAGE = `ppc — pp-suite contract tool
                                          extensions whose files differ from this repository
 
   Design changes (a slice asks, a person decides, Architect.PP revises)
-    ppc change-request --slice <id> --title <t> --problem <what it found> --proposal <what should change>
+    ppc change-request (--slice <id> | --standard <id> | --design) --title <t> --problem <what it found> --proposal <what should change>
                        [--component a,b] [--adr ADR-0001] [--qa QA-001] [--budgets] [dir]
-                                         open a change request: the design is wrong or silent about something a slice needs
+                                         open a change request: the design is wrong or silent about something. A slice that needs it raises
+                                         it (--slice); so does an adopted standard whose gap the design must close (--standard observability,
+                                         with nothing else to name yet), or the design itself when nobody was building (--design)
     ppc decide-change <CR-ID> (--accept | --reject --reason <why>) --by <name> [dir]
                                          HUMAN ONLY: accept or reject it
     ppc apply-change <CR-ID> [dir]       mark it applied, once the design revision has risen and the constitution follows it
@@ -145,7 +147,7 @@ const USAGE = `ppc — pp-suite contract tool
     ppc help [<command>]                 this text, or only the lines of one command; \`ppc <command> --help\` does the same and nothing else
 `;
 
-const VALUE_OPTIONS = new Set(['--roles', '--use', '--measure', '--tools', '--add-tool', '--tool', '--note', '--mode', '--surface', '--descriptions', '--by', '--audit', '--files', '--slice', '--accept', '--budget-reason', '--mutation-reason', '--reason', '--task', '--specify', '--title', '--problem', '--proposal', '--component', '--adr', '--qa', '--but-cut', '--but-keep', '--pay-in', '--add-component', '--mockup', '--adopt', '--details', '--trigger', '--kind', '--source', '--pinned', '--access', '--access-reason']);
+const VALUE_OPTIONS = new Set(['--standard', '--roles', '--use', '--measure', '--tools', '--add-tool', '--tool', '--note', '--mode', '--surface', '--descriptions', '--by', '--audit', '--files', '--slice', '--accept', '--budget-reason', '--mutation-reason', '--reason', '--task', '--specify', '--title', '--problem', '--proposal', '--component', '--adr', '--qa', '--but-cut', '--but-keep', '--pay-in', '--add-component', '--mockup', '--adopt', '--details', '--trigger', '--kind', '--source', '--pinned', '--access', '--access-reason']);
 // What each command accepts. Anything else is refused: an option that is silently ignored can turn a request for help, or a typo,
 // into an approval (`ppc approve --help` once approved the one slice that could be approved).
 const OPTIONS = {
@@ -154,7 +156,7 @@ const OPTIONS = {
   'decide-addition': ['--keep', '--cut', '--alone', '--by', '--reason', '--accept-recommended', '--but-cut', '--but-keep'], additions: [],
   'decide-tool': ['--roles', '--use', '--adopt', '--kind', '--source', '--pinned', '--access', '--access-reason', '--later', '--trigger', '--not-needed', '--reason', '--by'],
   rubric: [], standards: [], tools: ['--have'], 'decide-standard': ['--measure', '--tools', '--add-tool', '--adopt', '--details', '--later', '--trigger', '--not-needed', '--reason', '--accept-recommended', '--by'],
-  'change-request': ['--slice', '--title', '--problem', '--proposal', '--component', '--adr', '--qa', '--budgets'],
+  'change-request': ['--slice', '--standard', '--design', '--title', '--problem', '--proposal', '--component', '--adr', '--qa', '--budgets'],
   'decide-change': ['--accept', '--reject', '--by', '--reason'], 'apply-change': [], 'approve-red': ['--by'], refactor: [],
   finish: ['--audit', '--budget-reason', '--mutation-reason'], mutation: ['--files', '--slice'], next: ['--json'], overview: [], map: ['--stdout', '--html', '--open', '--on', '--off', '--describe', '--descriptions'],
   constitution: ['--check'], session: [], contract: [], init: ['--apply', '--shim', '--update', '--allow-untested', '--specify'],
@@ -445,7 +447,7 @@ switch (command) {
     break;
   case 'change-request': {
     const list = (v) => (v ? v.split(',').map((x) => x.trim()).filter(Boolean) : []);
-    transition(() => openChange(dirAt(0), { slice: options.get('slice'), title: options.get('title'), problem: options.get('problem'), proposal: options.get('proposal'), components: list(options.get('component')), adrs: list(options.get('adr')), qas: list(options.get('qa')), budgets: flags.has('--budgets') }));
+    transition(() => openChange(dirAt(0), { slice: options.get('slice'), standard: options.get('standard'), design: flags.has('--design'), title: options.get('title'), problem: options.get('problem'), proposal: options.get('proposal'), components: list(options.get('component')), adrs: list(options.get('adr')), qas: list(options.get('qa')), budgets: flags.has('--budgets') }));
     break;
   }
   case 'decide-change':
