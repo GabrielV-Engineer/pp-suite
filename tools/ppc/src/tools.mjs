@@ -76,7 +76,7 @@ export const TOOL_KINDS = ['skill', 'plugin', 'mcp'];
  * alone answers "must not be valid"). Shared by `ppc decide-tool` and by the panel question, so the person is never offered an option
  * that would fail. `fail` throws whatever error type the caller uses.
  */
-export function toolFromFlags({ adopt, kind, source, pinned, access, accessReason }, fail) {
+export function toolFromFlags({ adopt, kind, source, pinned, access, accessReason, check }, fail) {
   if (!kind) fail(`--adopt needs --kind: skill, plugin or mcp (what is ${adopt}?)`);
   if (!TOOL_KINDS.includes(kind)) fail(`${kind} is not a kind of tool; the kinds are ${TOOL_KINDS.join(', ')}`);
   if (!TOOL_NAME.test(adopt)) fail(`${adopt} is not a name a tool can have here: letters, digits and _ . : @ / -, 2 to 80 characters, no spaces`);
@@ -84,7 +84,8 @@ export function toolFromFlags({ adopt, kind, source, pinned, access, accessReaso
   if (kind !== 'mcp' && access) fail('--access is for an MCP server only');
   if (access === 'read-write' && !accessReason?.trim()) fail('--access read-write needs --access-reason <why the server has to change things>');
   if (access && access !== 'read-write' && accessReason) fail('--access-reason goes with --access read-write only');
-  return { name: adopt, kind, ...(source ? { source } : {}), ...(pinned ? { pinned } : {}), ...(access ? { access } : {}), ...(accessReason ? { access_reason: accessReason } : {}) };
+  if (check !== undefined && (!/^[^\r\n"]{3,300}$/.test(String(check).trim()))) fail('--check-command is one line of 3 to 300 characters, without a double quote: the command that shows the tool can do its job here');
+  return { name: adopt, kind, ...(source ? { source } : {}), ...(pinned ? { pinned } : {}), ...(access ? { access } : {}), ...(accessReason ? { access_reason: accessReason } : {}), ...(check !== undefined ? { check: String(check).trim() } : {}) };
 }
 
 const decisionWords = (e) => (e.decision === 'adopt' ? `${e.tool.name} (${e.tool.kind}${e.tool.access ? `, ${e.tool.access}` : ''})` : e.decision === 'later' ? `later, when ${TRIGGERS[e.trigger]}` : e.decision === 'not_needed' ? `not needed: ${e.reason}` : 'no decision');
@@ -107,12 +108,37 @@ export function renderTools(model, inventory) {
     if (inventory && entry?.decision === 'adopt') {
       const found = hasTool(inventory, entry.tool.kind, entry.tool.name);
       missing ||= !found;
-      there = found ? ' — on this machine' : ' — not found on this machine';
+      there = `${found ? ' — on this machine' : ' — not found on this machine'}${entry.tool.check ? `, checked by \`${entry.tool.check}\` (ppc tools --run-checks)` : ', no check recorded'}`;
     }
     out.push(`${role.id.padEnd(16)}${role.title}: ${entry ? decisionWords(entry) : 'no decision'}${there} — ${where}`);
   }
   if (missing) out.push('', 'A tool that was not found has to be installed first, and the session restarted to load it: one installed during a session does not load in it.');
   return `${out.join('\n')}\n`;
+}
+
+/**
+ * Run the check of each adopted tool (`run(command)` returns `{ status, stderr }`, or null when it could not start), so a tool that is
+ * installed but cannot do its job shows before a slice needs it (first real project, F-T16). A tool with no check is said to have none.
+ */
+export function checkTools(model, run) {
+  const list = model.tools?.data?.tools ?? [];
+  return ROLES.map((role) => list.find((e) => e.role === role.id)).filter((e) => e?.decision === 'adopt').map((e) => {
+    if (!e.tool.check) return { role: e.role, tool: e.tool.name, state: 'no-check' };
+    const r = run(e.tool.check);
+    if (r && r.status === 0) return { role: e.role, tool: e.tool.name, state: 'works', command: e.tool.check };
+    const lines = String(r?.stderr ?? r?.stdout ?? '').split('\n').map((l) => l.trim()).filter(Boolean);
+    return { role: e.role, tool: e.tool.name, state: 'failed', command: e.tool.check, status: r?.status ?? null, detail: lines.at(-1) ?? (r ? '' : 'it could not be started') };
+  });
+}
+
+/** What `ppc tools --run-checks` prints. */
+export function renderChecks(results) {
+  if (!results.length) return 'No tool is adopted, so there is nothing to check.\n';
+  const line = (x) => `${x.role.padEnd(16)}${x.tool}: ${x.state === 'works' ? `works (${x.command})`
+    : x.state === 'no-check' ? 'no check recorded: nothing shows it can do its job here (decide it again with --check-command "<command>")'
+    : `failed (${x.status === null ? 'did not start' : `exit ${x.status}`}): ${x.detail || 'no message'}  [${x.command}]`}`;
+  const failed = results.filter((x) => x.state === 'failed').length;
+  return `${results.map(line).join('\n')}\n${failed ? '\nA tool whose check fails cannot do its job here yet: fix what the message says, or decide the role again.\n' : ''}`;
 }
 
 const LIVE = ['planned', 'ready', 'in_progress'];
@@ -185,7 +211,7 @@ export function parseUse(text, fail) {
  * (never a server's command, url or environment), read from this machine and never written to the project. Not cut: the agent needs all of it.
  */
 export function renderHave(inventory) {
-  const skills = inventory.skills.filter((s) => !isOwnSkill(s.name));
+  const skills = [...inventory.skills.filter((s) => !isOwnSkill(s.name)), ...(inventory.builtIn ?? [])];
   const group = (label, items, words) => `${label} (${items.length})${items.length ? `: ${[...items].sort((a, b) => a.name.localeCompare(b.name)).map(words).join(', ')}` : ''}`;
   return [
     'What you have (names only, read from this machine; nothing here is written to the project)',

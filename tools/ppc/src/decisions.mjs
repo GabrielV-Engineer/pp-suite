@@ -372,7 +372,7 @@ const toolWords = (e) => (e.decision === 'adopt' ? `${e.tool.name} (${e.tool.kin
  * Other, and the agent comes back with it. With one, a confirmation that carries the exact command and what pp-suite found on this
  * machine (`installed`: true, false, or undefined when nobody looked). The name the agent brings is its own suggestion, never verified.
  */
-function askTool(model, id, { tool, kind, source, pinned, access, accessReason, installed }) {
+function askTool(model, id, { tool, kind, source, pinned, access, accessReason, installed, check }) {
   if (!model.blueprint) return null;
   const role = ROLES.find((r) => r.id === id);
   const stands = (model.tools?.data.tools ?? []).find((e) => e.role === id && e.decision !== 'pending');
@@ -384,17 +384,18 @@ function askTool(model, id, { tool, kind, source, pinned, access, accessReason, 
       choose('Not needed', `ppc decide-tool ${id} --not-needed --reason "${NOT_NEEDED_REASON}"`, `Recorded as not needed for ${role.title.toLowerCase()}, with your name and the date; you can decide again later`),
       { label: 'Not yet', description: 'Nothing is decided; it waits for you' }] }] };
   }
-  const named = toolFromFlags({ adopt: tool, kind, source, pinned, access, accessReason }, (message) => {
+  const named = toolFromFlags({ adopt: tool, kind, source, pinned, access, accessReason, check }, (message) => {
     throw new DecisionError(message);
   });
   if (named.source) named.source = carriedValue('--source', named.source, { min: 3, max: 300 });
   if (named.access_reason) named.access_reason = carriedValue('--access-reason', named.access_reason, { min: 5, max: 200 });
   if (stands?.decision === 'adopt' && JSON.stringify(stands.tool) === JSON.stringify(named)) return null;
-  const command = ['ppc decide-tool', id, '--adopt', named.name, '--kind', named.kind, named.source && `--source "${named.source}"`, named.pinned && `--pinned ${named.pinned}`, named.access && `--access ${named.access}`, named.access_reason && `--access-reason "${named.access_reason}"`].filter(Boolean).join(' ');
+  const command = ['ppc decide-tool', id, '--adopt', named.name, '--kind', named.kind, named.source && `--source "${named.source}"`, named.pinned && `--pinned ${named.pinned}`, named.access && `--access ${named.access}`, named.access_reason && `--access-reason "${named.access_reason}"`, named.check && `--check-command "${named.check}"`].filter(Boolean).join(' ');
   const facts = [
     installed === true ? `It is on this machine.` : installed === false ? `pp-suite did not find it on this machine: the agent named it from its own knowledge, which pp-suite did not verify. You would install it first, then restart the session.` : '',
     named.source ? `Source: ${named.source}${named.pinned ? `, ${named.pinned}` : ''}.` : named.pinned ? `Pinned: ${named.pinned}.` : '',
     named.access === 'read-only' ? 'It may only read.' : named.access === 'read-write' ? `It may change things: ${named.access_reason}.` : '',
+    named.check ? `Checked by: ${named.check} (ppc tools --run-checks runs it).` : 'No check: nothing will show it can do its job here.',
   ].filter(Boolean).join(' ');
   const now = stands ? ` Now: ${toolWords(stands)} (changing it keeps this in its history).` : '';
   return { questions: [{ question: `Use ${named.name} (${named.kind}) for ${role.title.toLowerCase()} in this project?${now} ${facts}`.trim(), header, multiSelect: false, options: [
@@ -483,9 +484,9 @@ export function askFor(model, id, options = {}) {
   return why ? { ...asked, questions: [{ ...first, question: `${first.question} Why: ${why}` }, ...asked.questions.slice(1)] } : asked;
 }
 
-function questionFor(model, id, { noMeasure, redFiles, budgetReason, mutationReason, payIn, addComponent, details, measure, tools, addTool, tool, kind, source, pinned, access, accessReason, installed, use, inventory } = {}) {
+function questionFor(model, id, { noMeasure, redFiles, budgetReason, mutationReason, payIn, addComponent, details, measure, tools, addTool, tool, kind, source, pinned, access, accessReason, installed, use, inventory, check } = {}) {
   if (id === 'tools') return askTools(model, { use, inventory });
-  if (ROLES.some((r) => r.id === id)) return askTool(model, id, { tool, kind, source, pinned, access, accessReason, installed });
+  if (ROLES.some((r) => r.id === id)) return askTool(model, id, { tool, kind, source, pinned, access, accessReason, installed, check });
   if (id === 'standards' || BY_ID.has(id)) return askStandards(model, id, details, { measure, tools, addTool, noMeasure: noMeasure || undefined });
   if (id === 'review' || /^CAP-\d{3}$/.test(id)) return askReview(model, id);
   if (/^RV-\d{3,}$/.test(id)) {

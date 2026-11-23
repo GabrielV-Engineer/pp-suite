@@ -128,7 +128,7 @@ server) a person chose for each **role** (`ui-design`, `ui-capture`, `security-r
 [`tools.mjs`](../tools/ppc/src/tools.mjs) and `K01` rejects any other) (`tools.schema.json`; see [tools](tools.md)). Each role is
 `adopt`ed with a `tool` (`name`, `kind`, and optionally `source` and `pinned`), deferred (`later`) until a `trigger` happens, or
 `not_needed` with a `reason`; each decision says who made it and when. An MCP server also says its `access` (`read-only`, or
-`read-write` with an `access_reason`). A role applies to a slice by what the slice touches (the kinds of its components, its
+`read-write` with an `access_reason`). A tool may carry a `check`: a one-line command that shows it can do its job in this project, on this machine (`ppc decide-tool --check-command "<command>"`); `ppc tools --run-checks` runs it, never `ppc validate`. A role applies to a slice by what the slice touches (the kinds of its components, its
 screens, the standards adopted), and `K03` asks for a decision when it applies to a slice not yet closed.
 
 The file holds only what a person chose: the project may be public, and what a machine has installed (`ppc init` lists it) never

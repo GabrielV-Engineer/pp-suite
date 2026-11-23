@@ -106,7 +106,7 @@ test('nothing sensitive comes back: no command, url, arguments or environment of
 
 test('missing or broken files never throw: they give an empty list and, when broken, a problem that quotes nothing', (t) => {
   const { home, root } = scratch(t);
-  assert.deepEqual(readInventory({ home, root }), { skills: [], plugins: [], mcp: [], problems: [] });
+  assert.deepEqual(readInventory({ home, root }), { skills: [], plugins: [], mcp: [], builtIn: [{ name: 'security-review', from: 'built-in' }], problems: [] }, 'what Claude Code brings is listed apart, with nothing read');
   put(join(home, '.claude.json'), '{ not json SECRET-TEXT');
   put(join(home, '.claude/plugins/installed_plugins.json'), 'also broken SECRET-TEXT');
   put(join(root, '.mcp.json'), '[1, 2');

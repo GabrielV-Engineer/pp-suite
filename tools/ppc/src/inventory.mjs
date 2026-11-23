@@ -53,6 +53,13 @@ export const bareName = (name) => String(name).slice(String(name).lastIndexOf(':
  * @param {{ home: string, root: string }} where `home` is the person's home directory ('' to read only the project) and `root` the project.
  * @returns {{ skills: {name: string, from: 'user'|'project'|'plugin'}[], plugins: {name: string, scope: string}[], mcp: {name: string, scope: 'user'|'local'|'project'}[], problems: string[] }}
  */
+/**
+ * Skills that come with Claude Code itself, with no file on disk to read: listed apart (`builtIn`) so a role one fills can be proposed
+ * (first real project, F-T8: `security-review` could only be "none"). Seen in Claude Code 2.1.327's skill list on 2026-11-23; a version
+ * without one would still list it here.
+ */
+export const BUILT_IN_SKILLS = ['security-review'];
+
 export function readInventory({ home = '', root }) {
   const problems = [];
   const inHome = (...parts) => (home ? join(home, ...parts) : null);
@@ -89,12 +96,12 @@ export function readInventory({ home = '', root }) {
   const shared = readJson(join(root, '.mcp.json'), 'the project file .mcp.json', problems);
   Object.keys(isObject(shared.mcpServers) ? shared.mcpServers : {}).filter((name) => !disabled.has(name)).forEach((name) => mcp.push({ name, scope: 'project' }));
 
-  return { skills: skills.sort(byName), plugins: plugins.sort(byName), mcp: mcp.sort(byName), problems };
+  return { skills: skills.sort(byName), plugins: plugins.sort(byName), mcp: mcp.sort(byName), builtIn: BUILT_IN_SKILLS.map((name) => ({ name, from: 'built-in' })), problems };
 }
 
 /** Whether the machine has a tool of this kind with this name; a skill is found by its full name (`plugin:skill`) or its bare one. */
 export function hasTool(inventory, kind, name) {
-  if (kind === 'skill') return inventory.skills.some((s) => s.name === name || bareName(s.name) === name);
+  if (kind === 'skill') return [...inventory.skills, ...(inventory.builtIn ?? [])].some((s) => s.name === name || bareName(s.name) === name);
   if (kind === 'plugin') return inventory.plugins.some((p) => p.name === name);
   if (kind === 'mcp') return inventory.mcp.some((m) => m.name === name);
   return false;

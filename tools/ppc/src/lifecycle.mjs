@@ -971,7 +971,7 @@ const toolAnswerOf = (item) => Object.fromEntries(TOOL_FIELDS.filter((k) => item
  * the guard lets the command through only when they picked it in the question panel. Nothing is written when the result would be
  * invalid, and an earlier decision of the same role goes to its `history`.
  */
-export function decideTool(root, role, { by, today = new Date().toISOString().slice(0, 10), adopt, kind, source, pinned, access, accessReason, later, trigger, notNeeded, reason } = {}) {
+export function decideTool(root, role, { by, today = new Date().toISOString().slice(0, 10), adopt, kind, source, pinned, access, accessReason, check, later, trigger, notNeeded, reason } = {}) {
   if (!by || !by.trim()) fail('--by <name> is required (or set git config user.name): a person decides which tool a project uses');
   const roles = ROLES.map((r) => r.id);
   if (!role) fail(`name the role to decide (ppc decide-tool <role> ...); the roles are ${roles.join(', ')}`);
@@ -980,7 +980,7 @@ export function decideTool(root, role, { by, today = new Date().toISOString().sl
   if (asked !== 1) fail(`say one answer for ${role}: --adopt <tool> --kind <skill|plugin|mcp>, --later --trigger <what>, or --not-needed --reason <why>`);
   let answer;
   if (adopt !== undefined) {
-    answer = { decision: 'adopt', tool: toolFromFlags({ adopt, kind, source, pinned, access, accessReason }, fail) };
+    answer = { decision: 'adopt', tool: toolFromFlags({ adopt, kind, source, pinned, access, accessReason, check }, fail) };
   } else if (later) {
     if (!Object.hasOwn(TOOL_TRIGGERS, trigger ?? '')) fail(`--later needs --trigger, one of ${Object.keys(TOOL_TRIGGERS).join(', ')}: what asks again`);
     answer = { decision: 'later', trigger };

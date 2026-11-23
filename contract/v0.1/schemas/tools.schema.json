@@ -24,7 +24,8 @@
         "source": { "type": "string", "minLength": 3, "maxLength": 300, "pattern": "^[^\\r\\n]+$", "description": "Where it comes from: a repository or a marketplace. Optional for a person's own skill." },
         "pinned": { "type": "string", "minLength": 1, "maxLength": 80, "pattern": "^[^\\s]+$", "description": "The commit or version that was read and chosen." },
         "access": { "enum": ["read-only", "read-write"], "description": "MCP only: whether the server may change anything (data, files, a remote service). Read-write is a person's decision with its reason." },
-        "access_reason": { "type": "string", "minLength": 5, "description": "MCP with read-write access only: why the server has to change things." }
+        "access_reason": { "type": "string", "minLength": 5, "description": "MCP with read-write access only: why the server has to change things." },
+        "check": { "type": "string", "minLength": 3, "maxLength": 300, "pattern": "^[^\\r\\n\"]+$", "description": "A one-line command that shows the tool can do its job in this project, on this machine (for a capture tool, capturing one real screen). `ppc tools --check` runs it; being installed is not being able to do the job." }
       },
       "allOf": [
         { "if": { "properties": { "kind": { "const": "mcp" } }, "required": ["kind"] }, "then": { "required": ["access"] }, "else": { "not": { "required": ["access"] } } },

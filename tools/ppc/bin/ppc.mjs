@@ -18,7 +18,7 @@ import { applyChange, decideChange, openChange } from '../src/changes.mjs';
 import { sessionContext, gitSubjects, gitUserName, buildFacts, panelAnswers } from '../src/session.mjs';
 import { renderAdditions } from '../src/additions.mjs';
 import { SURFACES, renderRubric } from '../src/rubric.mjs';
-import { ROLES, renderTools, renderHave } from '../src/tools.mjs';
+import { ROLES, renderTools, renderHave, checkTools, renderChecks } from '../src/tools.mjs';
 import { readInventory, hasTool } from '../src/inventory.mjs';
 import { BY_ID as STANDARD_IDS, recommend, renderStandards, projectFacts } from '../src/standards.mjs';
 import { renderDecision, askFor, redCommitFiles, DecisionError, AUDIT_INPUT } from '../src/decisions.mjs';
@@ -117,11 +117,12 @@ const USAGE = `ppc — pp-suite contract tool
                                          HUMAN ONLY: decide that no command measures the quality targets, so S04 stops saying so (a command given later replaces it)
     ppc decide-standard --accept-recommended [--by <name>] [dir]
                                          HUMAN ONLY: take the recommendation for every standard still undecided
+    ppc tools --run-checks [dir]         run the check recorded with each adopted tool (decide-tool --check-command "<command>"): works, failed with its error, or no check
     ppc tools [--have] [dir]             with --have, everything you have (skills, plugins, MCP servers) by name, for proposing a tool; otherwise each role (ui-design, ui-capture, security-review, db-inspect): the tool chosen for it, the slices not yet closed that call for it, and whether a chosen tool is on this machine
     ppc decide-tool --roles <a,b,...> --not-needed --reason <why> | --use "<role>=<kind>:<name>[:read-only],..." [--by <name>] [dir]
                                          HUMAN ONLY: several roles at once, as ppc ask tools offers them: all not needed, or the tool proposed for each
                                          (a server that may change things is decided on its own)
-    ppc decide-tool <role> (--adopt <tool> --kind <skill|plugin|mcp> [--source <where>] [--pinned <commit|version>] [--access <read-only|read-write> [--access-reason <why>]] | --later --trigger <what> | --not-needed --reason <why>) [--by <name>] [dir]
+    ppc decide-tool <role> (--adopt <tool> --kind <skill|plugin|mcp> [--source <where>] [--pinned <commit|version>] [--access <read-only|read-write> [--access-reason <why>]] [--check-command "<command>"] | --later --trigger <what> | --not-needed --reason <why>) [--by <name>] [dir]
                                          HUMAN ONLY: record the skill, plugin or MCP server this project uses for a role (ui-design, ui-capture,
                                          security-review, db-inspect); an MCP server says its access; deciding again keeps the earlier answer in history
     ppc refactor [dir]                   green -> refactor
@@ -154,15 +155,15 @@ const USAGE = `ppc — pp-suite contract tool
     ppc help [<command>]                 this text, or only the lines of one command; \`ppc <command> --help\` does the same and nothing else
 `;
 
-const VALUE_OPTIONS = new Set(['--standard', '--roles', '--use', '--measure', '--tools', '--add-tool', '--tool', '--note', '--mode', '--surface', '--descriptions', '--by', '--audit', '--files', '--slice', '--accept', '--budget-reason', '--mutation-reason', '--reason', '--task', '--specify', '--title', '--problem', '--proposal', '--component', '--adr', '--qa', '--but-cut', '--but-keep', '--pay-in', '--add-component', '--mockup', '--adopt', '--details', '--trigger', '--kind', '--source', '--pinned', '--access', '--access-reason']);
+const VALUE_OPTIONS = new Set(['--check-command', '--standard', '--roles', '--use', '--measure', '--tools', '--add-tool', '--tool', '--note', '--mode', '--surface', '--descriptions', '--by', '--audit', '--files', '--slice', '--accept', '--budget-reason', '--mutation-reason', '--reason', '--task', '--specify', '--title', '--problem', '--proposal', '--component', '--adr', '--qa', '--but-cut', '--but-keep', '--pay-in', '--add-component', '--mockup', '--adopt', '--details', '--trigger', '--kind', '--source', '--pinned', '--access', '--access-reason']);
 // What each command accepts. Anything else is refused: an option that is silently ignored can turn a request for help, or a typo,
 // into an approval (`ppc approve --help` once approved the one slice that could be approved).
 const OPTIONS = {
   rules: [], validate: ['--strict', '--design'], 'check-git': [], start: [], stop: [], 'approve-slice': ['--by'], approve: ['--by', '--accept', '--drop', '--reason', '--pay-in', '--mockup'],
-  show: [], inbox: [], ask: ['--no-measure', '--budget-reason', '--mutation-reason', '--pay-in', '--add-component', '--details', '--measure', '--tools', '--add-tool', '--tool', '--kind', '--source', '--pinned', '--access', '--access-reason', '--use'], touches: [], widen: ['--component'], reread: ['--all'], guide: [], outside: ['--by', '--skip', '--note'], glance: ['--by', '--skip'], review: ['--project', '--mode', '--surface', '--by'], 'approve-debt': ['--by', '--accept', '--drop', '--reason'], 'schedule-debt': ['--slice'],
+  show: [], inbox: [], ask: ['--no-measure', '--budget-reason', '--mutation-reason', '--pay-in', '--add-component', '--details', '--measure', '--tools', '--add-tool', '--tool', '--kind', '--source', '--pinned', '--access', '--access-reason', '--use', '--check-command'], touches: [], widen: ['--component'], reread: ['--all'], guide: [], outside: ['--by', '--skip', '--note'], glance: ['--by', '--skip'], review: ['--project', '--mode', '--surface', '--by'], 'approve-debt': ['--by', '--accept', '--drop', '--reason'], 'schedule-debt': ['--slice'],
   'decide-addition': ['--keep', '--cut', '--alone', '--by', '--reason', '--accept-recommended', '--but-cut', '--but-keep'], additions: [],
-  'decide-tool': ['--roles', '--use', '--adopt', '--kind', '--source', '--pinned', '--access', '--access-reason', '--later', '--trigger', '--not-needed', '--reason', '--by'],
-  rubric: [], standards: [], tools: ['--have'], 'decide-standard': ['--measure', '--measure-none', '--tools', '--add-tool', '--adopt', '--details', '--later', '--trigger', '--not-needed', '--reason', '--accept-recommended', '--by'],
+  'decide-tool': ['--roles', '--use', '--adopt', '--kind', '--source', '--pinned', '--access', '--access-reason', '--later', '--trigger', '--not-needed', '--reason', '--by', '--check-command'],
+  rubric: [], standards: [], tools: ['--have', '--run-checks'], 'decide-standard': ['--measure', '--measure-none', '--tools', '--add-tool', '--adopt', '--details', '--later', '--trigger', '--not-needed', '--reason', '--accept-recommended', '--by'],
   'change-request': ['--slice', '--standard', '--design', '--title', '--problem', '--proposal', '--component', '--adr', '--qa', '--budgets'],
   'decide-change': ['--accept', '--reject', '--by', '--reason'], 'apply-change': [], 'approve-red': ['--by'], refactor: [],
   finish: ['--audit', '--budget-reason', '--mutation-reason'], mutation: ['--files', '--slice'], next: ['--json'], overview: [], map: ['--stdout', '--html', '--open', '--on', '--off', '--describe', '--descriptions'],
@@ -320,7 +321,7 @@ switch (command) {
     const inventory = options.get('use') !== undefined ? readInventory({ home: homedir(), root }) : undefined;
     let question;
     try {
-      question = id === 'inbox' ? askInbox(loadProject(root)) : id ? askFor(loadProject(root), id, { noMeasure: flags.has('--no-measure'), redFiles: redCommitFiles(root, id), budgetReason: options.get('budget-reason'), mutationReason: options.get('mutation-reason'), payIn: options.get('pay-in'), addComponent: options.get('add-component'), details: options.get('details'), measure: options.get('measure'), tools: options.get('tools'), addTool: options.get('add-tool'), tool: named, kind: options.get('kind'), source: options.get('source'), pinned: options.get('pinned'), access: options.get('access'), accessReason: options.get('access-reason'), installed, use: options.get('use'), inventory }) : null;
+      question = id === 'inbox' ? askInbox(loadProject(root)) : id ? askFor(loadProject(root), id, { noMeasure: flags.has('--no-measure'), redFiles: redCommitFiles(root, id), budgetReason: options.get('budget-reason'), mutationReason: options.get('mutation-reason'), payIn: options.get('pay-in'), addComponent: options.get('add-component'), details: options.get('details'), measure: options.get('measure'), tools: options.get('tools'), addTool: options.get('add-tool'), tool: named, kind: options.get('kind'), source: options.get('source'), pinned: options.get('pinned'), access: options.get('access'), accessReason: options.get('access-reason'), installed, use: options.get('use'), inventory, check: options.get('check-command') }) : null;
     } catch (error) {
       if (!(error instanceof DecisionError)) throw error;
       console.error(error.message);
@@ -445,6 +446,16 @@ switch (command) {
       console.error('there is no design yet (.architect/blueprint.yaml); the tools are decided after it');
       process.exit(1);
     }
+    if (flags.has('--run-checks')) {
+      // each check is a command the person recorded with the tool; run in the project, two minutes at most
+      const results = checkTools(model, (command) => {
+        const r = spawnSync('sh', ['-c', command], { cwd: root, encoding: 'utf8', timeout: 120000 });
+        return r.error && r.status === null ? null : r;
+      });
+      process.stdout.write(renderChecks(results));
+      if (results.some((x) => x.state === 'failed')) process.exit(1);
+      break;
+    }
     process.stdout.write(flags.has('--have') ? renderHave(readInventory({ home: homedir(), root })) : renderTools(model, readInventory({ home: homedir(), root })));
     break;
   }
@@ -461,7 +472,7 @@ switch (command) {
       const other = positionals.find((p) => p !== role);
       if (other && !existsSync(resolve(other))) throw new LifecycleError(`unknown role ${other}; the roles are ${[...roles].join(', ')}`);
       const root = resolve(other ?? '.');
-      return decideTool(root, role, { by: options.get('by') ?? gitUserName(root), adopt: options.get('adopt'), kind: options.get('kind'), source: options.get('source'), pinned: options.get('pinned'), access: options.get('access'), accessReason: options.get('access-reason'), later: flags.has('--later'), trigger: options.get('trigger'), notNeeded: flags.has('--not-needed'), reason: options.get('reason') });
+      return decideTool(root, role, { by: options.get('by') ?? gitUserName(root), adopt: options.get('adopt'), kind: options.get('kind'), source: options.get('source'), pinned: options.get('pinned'), access: options.get('access'), accessReason: options.get('access-reason'), check: options.get('check-command'), later: flags.has('--later'), trigger: options.get('trigger'), notNeeded: flags.has('--not-needed'), reason: options.get('reason') });
     });
     break;
   case 'change-request': {
