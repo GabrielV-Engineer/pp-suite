@@ -52,6 +52,14 @@ than half an hour old, and marks it used. Without such an answer the guard behav
 modes where that was tried, a block in the others). The agent cannot write the ledger or send the panel a question that already
 has its answers. Several approvals in one command need one answer each.
 
+**A mention is not an approval, and not a write.** The guard looks at what a command does, and sets aside only text that nothing can run:
+what `cat` copies from a quoted heredoc, the words of a `git commit -m` message with no `$`, backtick or backslash, and, for the ledger,
+a redirection to another plain path (`grep x .sddpp/answers.jsonl > /tmp/out`). Everything else is still read as it was: a pipe, `sh -c`,
+a second command after `&&` or `;`, a target that is a variable or a glob, an interpreter that opens the file. Text that merely
+names an approval inside `echo`, `grep` or a `sh -c` string is still refused (a person runs it, or writes the note with the editor's file
+tool), because from the words alone a note and a command cannot be told apart. Each exception has a test that fails without it and a test
+for the ways round it.
+
 Status: the recorder, the guard and `ppc ask` are tested, including that the label commands `ppc ask` prints are exactly what the
 guard accepts, and the recorder and guard were run through Spec Kit's real event dispatcher. In the first real project the owner
 clicked through the whole flow: six panel answers in its ledger were consumed by the exact command they named, with no second prompt

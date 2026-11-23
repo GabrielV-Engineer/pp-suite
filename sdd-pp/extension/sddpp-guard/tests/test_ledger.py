@@ -247,6 +247,57 @@ class LedgerTest(unittest.TestCase):
             with self.subTest(command=command):
                 self.assertEqual(self.decide(root, command)[0], 2)
 
+    # ── a mention is not a write (found in the first real project, SL-037: two retries and a whole command lost) ───
+    def test_text_that_only_names_the_answers_file_is_not_a_write_to_it(self):
+        root = self.project()
+        for command in (
+            # the audit input, written by cat from a quoted heredoc, whose deviation sentence names the file
+            "cat > .sddpp/audit-input.json <<'EOF'\n{\"deviations\": [\"the guard blocked a command naming .sddpp/answers.jsonl\"]}\nEOF\nppc finish SL-037 --audit .sddpp/audit-input.json",
+            # reading the file, with the output going to another plain path
+            "grep claude .sddpp/answers.jsonl > /tmp/matches.txt",
+            "wc -l .sddpp/answers.jsonl 1> /tmp/count.txt 2>&1",
+        ):
+            with self.subTest(command=command):
+                self.assertEqual(self.decide(root, command)[0], 0)
+
+    def test_every_way_of_writing_the_answers_file_is_still_blocked(self):
+        root = self.project()
+        for command in (
+            "echo '{}' >> .sddpp/answers.jsonl",
+            "echo '{}' > .sddpp/answers.jsonl",
+            "cat >> .sddpp/answers.jsonl <<'EOF'\n{}\nEOF",           # the target is in the head of the heredoc
+            "cat <<'EOF' > .sddpp/answers.jsonl\n{}\nEOF",
+            "grep x .sddpp/answers.jsonl > /tmp/o; echo '{}' >> .sddpp/answers.jsonl",
+            "grep x .sddpp/answers.jsonl > /tmp/o && sed -i s/a/b/ .sddpp/answers.jsonl",
+            "grep x .sddpp/answers.jsonl > /tmp/o; python3 -c \"open('.sddpp/answers.jsonl','a').write('x')\"",
+            "F=.sddpp/answers.jsonl; echo '{}' > \"$F\"",              # the target is not literal: do not guess
+            "F=.sddpp/answers.jsonl; echo '{}' > $F",
+            "echo '{}' | tee .sddpp/answers.jsonl",
+            "cat x > /tmp/o && rm .sddpp/answers.jsonl",
+            "cp /tmp/forged .sddpp/answers.jsonl",
+            "cat > .sddpp/audit-input.json <<'EOF'\nx\nEOF\necho '{}' >> .sddpp/answers.jsonl",   # a real write after the text
+        ):
+            with self.subTest(command=command):
+                self.assertEqual(self.decide(root, command)[0], 2)
+
+    def test_the_message_of_a_commit_may_name_an_approval(self):
+        root = self.project()
+        for command in ('git commit -m "docs: ppc approve is the person\'s, not the agent\'s"',
+                        "git commit -q -m 'say that ppc approve SL-001 is human only'",
+                        'git add -A && git commit -am "mention ppc decide-standard in the guide"'):
+            with self.subTest(command=command):
+                self.assertEqual(self.decide(root, command)[0], 0)
+
+    def test_a_commit_message_that_can_run_something_is_still_an_approval(self):
+        root = self.project()
+        for command in ('git commit -m "x $(ppc approve SL-001)"',
+                        'git commit -m "x `ppc approve SL-001`"',
+                        "git commit -m 'x' && ppc approve SL-001",
+                        'git commit -m "ok"; ppc approve SL-001',
+                        'echo "ppc approve SL-001" | sh'):
+            with self.subTest(command=command):
+                self.assertIn(self.decide(root, command)[0], (2, guard.ASK))
+
     # ── the agent cannot make the proof itself ───────────────────
     def test_the_agent_cannot_write_the_ledger(self):
         root = self.project()
