@@ -10,7 +10,7 @@
     "id": { "type": "string", "pattern": "^CR-\\d{4}$" },
     "title": { "type": "string", "minLength": 5 },
     "status": { "enum": ["open", "accepted", "rejected", "applied"] },
-    "raised_by": { "type": "string", "pattern": "^SL-\\d{3,}$" },
+    "raised_by": { "type": "string", "pattern": "^(SL-\\d{3,}|design|standard:[a-z]+)$", "description": "What asked for the change: the slice that found the design wrong, an adopted standard (standard:<id>) whose gap the design must close, or the design itself (design) when nobody was building." },
     "affects": {
       "type": "object",
       "additionalProperties": false,

@@ -187,6 +187,15 @@ function stepsOf(model, subjects, errors, facts) {
   // the next step. Everything else is still an error.
   const unplanned = slices.length === 0;
   const blocking = unplanned ? errors.filter((e) => e.rule !== 'T06') : errors;
+  // Once slices exist, a capability with none is the next step too, not a fault to hunt down: a design change that added capabilities
+  // (found in the first real project, CR-0021) leaves exactly this, and `/pp-change` may not write slices.
+  const unplannedCaps = blocking.map((e) => (e.rule === 'T06' ? /capability (CAP-\d+) has no slice/.exec(e.message)?.[1] : undefined));
+  if (blocking.length && unplannedCaps.every(Boolean)) {
+    const n = unplannedCaps.length;
+    return result(`${n} ${n === 1 ? 'capability has' : 'capabilities have'} no slice (${unplannedCaps.join(', ')}); plan ${n === 1 ? 'it' : 'them'} before anything that checks the whole project, such as applying a design change.`, [
+      { who: 'agent', what: `Plan the slices of ${unplannedCaps.join(', ')}, and show the person the list before writing it`, command: `/pp-plan ${unplannedCaps.join(',')}` },
+    ]);
+  }
   if (blocking.length) {
     return result(`The contract has ${blocking.length} error(s); fix them first, because every other step assumes a valid project.`, [
       { who: 'anyone', what: 'See the errors', command: 'ppc validate' },

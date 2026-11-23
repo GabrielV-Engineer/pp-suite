@@ -64,8 +64,14 @@ const describe = (findings) => findings.map((f) => `  ${f.rule} ${f.file}: ${f.m
 export function loadValid(root, { allow = () => false } = {}) {
   const model = loadProject(root);
   const errors = validateModel(model).filter((f) => f.severity === 'error' && !allow(f));
-  if (errors.length) fail(`the project is invalid, fix it first:\n${describe(errors)}`);
+  if (errors.length) fail(`the project is invalid, fix it first:\n${describe(errors)}${planFirst(errors)}`);
   return model;
+}
+
+/** When the only errors are capabilities with no slice (a design change added them), the way out is the plan, not a hunt for the fault. */
+function planFirst(errors) {
+  const ids = errors.map((e) => (e.rule === 'T06' ? /capability (CAP-\d+) has no slice/.exec(e.message)?.[1] : undefined));
+  return ids.length && ids.every(Boolean) ? `\nPlan them first: /pp-plan ${ids.join(',')} (a design change that adds a capability is followed by its slices, then it is applied)` : '';
 }
 
 /** Edit one slice's frontmatter in place, keeping the body and the other fields as they were. */

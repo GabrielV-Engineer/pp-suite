@@ -51,7 +51,8 @@ constitution, the slice cards, the build and the audit). See `docs/standards.md`
 4. After any decision, run `ppc constitution`, so `CLAUDE.md` lists the adopted standards.
 5. Run `ppc validate` and report what it says about the standards:
    - `S03` means security, observability or experience was adopted and the design has no quality attribute for it (`security`, `operability`, `usability`). Offer to open a
-     change request (`ppc change-request`) so the design carries it. That change goes through the person like any other.
+     change request (`ppc change-request --standard <id> --title ... --problem ... --proposal ...`) so the design carries it; it needs no slice,
+     so do not plan one only to raise it. That change goes through the person like any other.
 6. Say what follows from what they chose, in one line each. Do not do it now:
    - `ci` adopted on GitHub or GitLab: setting up the pipeline is work; `/pp-plan` gives it a slice.
    - `git` with a branch per slice: `/pp-build` works on a branch named `slice/<id>` from the next slice on.
