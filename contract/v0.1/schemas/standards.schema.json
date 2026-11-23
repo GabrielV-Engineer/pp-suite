@@ -23,6 +23,7 @@
         "trigger": { "$ref": "#/$defs/trigger" },
         "reason": { "type": "string", "minLength": 5, "description": "Why it is not needed, or why it waits." },
         "measure_command": { "type": "string", "minLength": 3, "maxLength": 300, "pattern": "^[^\\r\\n]+$", "description": "Experience only: the one-line command that measures the quality targets and prints the numbers. The audit of a slice runs it, so a person decides it. Written by `ppc decide-standard`." },
+        "measure_declined": { "type": "string", "minLength": 5, "description": "Experience only: why a person decided that no command measures the quality targets. S04 stops saying so; a command decided later replaces it. Written by `ppc decide-standard --measure-none`." },
         "measure_on": { "type": "string", "format": "date", "description": "Experience only: the day the measuring command was decided. A change of tools or of command does not move `decided_on`, the day the terms of the standard were decided, which says which closed slices wait for a glance or a review." },
         "allowed_tools": { "type": "array", "uniqueItems": true, "items": { "type": "string", "pattern": "^[^,\\r\\n\"]{2,80}$" }, "description": "Experience only: the tools the agent may run to look at or measure what was built, authorized once by a person. Run temporarily, outside the repository; never added to its dependencies." },
         "decided_by": { "type": "string", "minLength": 1 },
@@ -48,6 +49,7 @@
         "trigger": true,
         "reason": true,
         "measure_command": true,
+        "measure_declined": true,
         "measure_on": true,
         "allowed_tools": true,
         "decided_by": true,
@@ -67,7 +69,7 @@
         { "$ref": "#/$defs/answer" },
         { "if": { "properties": { "id": { "const": "security" } } }, "then": { "properties": { "choice": { "enum": ["basic", "strict", "custom"] } } } },
         { "if": { "properties": { "id": { "const": "observability" } } }, "then": { "properties": { "choice": { "enum": ["errors", "logs-metrics", "custom"] } } } },
-        { "if": { "properties": { "id": { "const": "experience" } } }, "then": { "properties": { "choice": { "enum": ["glance", "review", "external", "custom"] } } }, "else": { "not": { "anyOf": [{ "required": ["measure_command"] }, { "required": ["measure_on"] }, { "required": ["allowed_tools"] }] } } },
+        { "if": { "properties": { "id": { "const": "experience" } } }, "then": { "properties": { "choice": { "enum": ["glance", "review", "external", "custom"] } } }, "else": { "not": { "anyOf": [{ "required": ["measure_command"] }, { "required": ["measure_declined"] }, { "required": ["measure_on"] }, { "required": ["allowed_tools"] }] } } },
         { "if": { "properties": { "id": { "const": "git" } } }, "then": { "properties": { "choice": { "enum": ["trunk", "branch-per-slice", "branch-per-slice-pr", "custom"] }, "decision": { "not": { "const": "not_needed" } } } } },
         { "if": { "properties": { "id": { "const": "ci" } } }, "then": { "properties": { "choice": { "enum": ["local", "github", "gitlab", "custom"] }, "decision": { "not": { "const": "not_needed" } } } } }
       ]

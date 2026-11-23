@@ -250,3 +250,41 @@ test('CLI: decide-standard takes --measure, --tools and --add-tool; ask takes th
   assert.match(ask.questions[0].question, /k6/);
   assert.equal(run('ask', 'experience', '--add-tool', 'axe').status, 1, 'already on the list');
 });
+
+// ── "no command measures it, and that is decided": S04 stops saying it (found in the first real project: S04 on every /pp since SL-042) ───
+test('S04: a person who decides that nothing measures the targets is not told again, and says why', () => {
+  const closed = { 'SL-002': {} };
+  assert.deepEqual(found(model({ measure_declined: 'A tool for one person: the owner looks at it' }, closed), 'S04'), []);
+  assert.ok(!schemaBad(model({ measure_declined: 'A tool for one person: the owner looks at it' })));
+  assert.ok(schemaBad(model({ measure_declined: 'no' })), 'a reason, not a flag');
+  const other = model();
+  other.standards.data.standards = other.standards.data.standards.map((x) => (x.id === 'security' ? { ...x, measure_declined: 'because I say so' } : x));
+  assert.ok(schemaBad(other), 'only experience measures anything');
+});
+
+test('decideStandard: --measure-none records the reason, keeps the choice, and a command given later replaces it', (t) => {
+  const { dir } = repo(t);
+  decideStandard(dir, 'experience', { measureNone: true, reason: 'The owner looks at it, nobody else uses it', by: 'owner', today: '2026-11-22' });
+  let e = stored(dir);
+  assert.deepEqual([e.choice, e.measure_declined, e.measure_command], ['review', 'The owner looks at it, nobody else uses it', undefined]);
+  assert.equal(e.decided_on, '2026-10-24', 'the terms of the standard did not change');
+  decideStandard(dir, 'experience', { measure: 'npm run perf', by: 'owner', today: '2026-11-23' });
+  e = stored(dir);
+  assert.deepEqual([e.measure_command, e.measure_declined], ['npm run perf', undefined]);
+  fails(() => decideStandard(dir, 'experience', { measureNone: true, by: 'owner' }), /--reason/);
+  fails(() => decideStandard(dir, 'experience', { measureNone: true, measure: 'npm run perf', reason: 'both at once', by: 'owner' }), /not both/);
+});
+
+test('ppc ask experience --no-measure: one question that says what stops, and names the command that records it', () => {
+  const q = askFor(model(), 'experience', { noMeasure: true }).questions[0];
+  assert.match(q.question, /S04/);
+  assert.match(q.options[0].label, /ppc decide-standard experience --measure-none --reason "[^"]{5,}"/);
+  assert.equal(askFor(structuredClone(loadProject(EXAMPLE)), 'security', { noMeasure: true }), null, 'only experience');
+});
+
+test('S04 tells how to decline, and ppc standards shows that it was declined', () => {
+  const closed = { 'SL-002': {} };
+  assert.match(found(model({}, closed), 'S04')[0].message, /ppc ask experience --no-measure/);
+  const m = model({ measure_declined: 'The owner looks at it, nobody else uses it' });
+  assert.match(renderStandards(m.standards.data.standards, recommend(m.blueprint.data, {}), { bp: m.blueprint.data, facts: {}, only: 'experience' }), /Measures with:.*not measured, by decision.*The owner looks at it/);
+});

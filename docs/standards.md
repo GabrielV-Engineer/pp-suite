@@ -210,6 +210,7 @@ The quality targets of the design (a latency, a number of steps) are declared. D
 | Field | What it is |
 |---|---|
 | `measure_command` | One line: the command that measures the quality targets and prints the numbers. The project declares it as it declares `app.check`; **pp-suite ships no tool and runs nothing itself**. In `delegate` mode an agent may propose one (`ppc ask experience --measure "<command>"`); the person reads it and decides |
+| `measure_declined` | Why a person decided that no command measures the quality targets (`ppc ask experience --no-measure`, then `ppc decide-standard experience --measure-none --reason "<why>"`). `S04` stops saying so; a command decided later replaces it. The targets stay declared and are looked at by a person |
 | `allowed_tools` | The tools the agent may run to look at or measure what was built, authorized once. Run **temporarily and outside the repository** (`npx`, `uvx`, a scratch directory), never added to its dependencies. A tool outside the list is asked about: **use it once** (nothing recorded), **add it to the list** (`ppc decide-standard experience --add-tool "<name>"`) or **no** |
 
 Both are set with `ppc decide-standard experience --measure … | --tools "a,b" | --add-tool …`, which changes the adopted answer

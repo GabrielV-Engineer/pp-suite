@@ -524,7 +524,7 @@ export function validateModel(model, { now = new Date() } = {}) {
           // measuring (docs/standards.md, "Experience"): the targets are declared; a command that measures them is the person's to decide
           const measurable = new Set(bp.quality_attributes.filter((q) => ['performance', 'usability'].includes(q.attribute)).map((q) => q.id));
           const closed = slices.filter(({ data: sl }) => sl.status === 'done' && (sl.quality_attributes ?? []).some((q) => measurable.has(q)));
-          if (!s.measure_command && closed.length) warn('S04', standardsFile, `${closed.map(({ data: sl }) => sl.id).join(', ')} closed against quality targets that can be measured (performance, usability), and no command measures them: the targets are declared, not measured. Give one with \`ppc ask experience --measure "<command>"\` (an agent in delegate mode may propose it; you decide)`);
+          if (!s.measure_command && !s.measure_declined && closed.length) warn('S04', standardsFile, `${closed.map(({ data: sl }) => sl.id).join(', ')} closed against quality targets that can be measured (performance, usability), and no command measures them: the targets are declared, not measured. Give one with \`ppc ask experience --measure "<command>"\` (an agent in delegate mode may propose it; you decide), or decide that none does: \`ppc ask experience --no-measure\``);
           if (s.measure_command) {
             for (const { file, data: sl } of closed) {
               if (!sl.closed_on || String(sl.closed_on) < String(s.measure_on ?? s.decided_on)) continue;

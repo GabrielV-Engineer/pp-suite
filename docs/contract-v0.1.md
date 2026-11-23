@@ -214,9 +214,9 @@ Errors fail validation; warnings fail only with `--strict`. `ppc rules` prints t
 | `R01` | error | A review is of a capability the design does not have. |
 | `R02` | error | A finding a review lists is not in the debt register, or that entry does not name this review as its origin. |
 | `S01` | warning | A standard (security, observability, git, CI, experience) is undecided, or there is no standards file. Always a warning: `later` is a valid answer. |
-| `S02` | warning | A standard decided `later` has a trigger that has now happened (a remote, a CI configuration, a component of a kind), so it should be decided again. |
+| `S02` | warning | A standard decided `later` has a trigger that has now happened (a remote, a CI configuration, a component of a kind), so it should be decided again. The question offers to wait for the next thing instead (`ci`: a CI configuration; `observability`, `security`: a component of another kind), so it is not asked at every run. |
 | `S03` | warning | Security, observability or experience is adopted and the design has no quality attribute of that kind (`security`, `operability`, `usability`); a change request puts it in the design. |
-| `S04` | warning | The experience standard is adopted, a slice closed against a performance or usability target, and no command that measures is declared: the targets are declared, not measured. |
+| `S04` | warning | The experience standard is adopted, a slice closed against a performance or usability target, and no command that measures is declared: the targets are declared, not measured. A person can decide that none does (`measure_declined`), and `S04` stops. |
 | `K01` | error | A role in the tools file is not one pp-suite knows, or is listed twice. |
 | `K02` | warning | A role decided `later` has a trigger that has now happened (the design gets a component of that kind), so it should be decided again. |
 | `K03` | warning | The tools file exists, a role applies to a slice that is not closed (by the kinds of its components, its screens and the standards adopted), and the role has no decision. One warning per role, naming the slices. |
