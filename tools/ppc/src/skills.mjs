@@ -1,5 +1,6 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { parse as parseYaml } from 'yaml';
 
 // The commands a person sees in the `/` menu. Spec Kit installs each extension command as a skill named after its id
@@ -89,4 +90,43 @@ export function shortSkills(suite) {
     const parts = sources.map((p) => `# Part \`${p.word}\`: ${p.meta.description}\n\n${p.body.replace(/^\n+/, '').trimEnd()}\n`);
     return { name: spec.name, content: `${head.join('\n')}${which.join('\n')}\n${parts.join('\n')}` };
   });
+}
+
+// ── what is installed in a project, against what this pp-suite writes ───────────────────────────────────────────────
+// `ppc` runs from the checkout and the skills are a copy made at the last `ppc init --apply --update`, so a skill added since is named by
+// `ppc next` and absent from the project (found in the first real project: "Next: /pp-experience" with no such skill, twice).
+
+const SUITE = fileURLToPath(new URL('../../..', import.meta.url));
+export const PP_SKILL_SOURCE = 'sdd-pp/skills/pp/SKILL.md';
+
+/** Which of `/pp` and the short commands are missing from the project or differ from what this pp-suite writes; `installed` is false when `/pp` is not there. */
+export function skillDrift(root, suite = SUITE) {
+  const target = (name) => join(root, '.claude/skills', name, 'SKILL.md');
+  if (!existsSync(target('pp'))) return { installed: false, missing: [], differs: [] };
+  const wanted = [{ name: 'pp', content: readFileSync(join(suite, PP_SKILL_SOURCE), 'utf8') }, ...shortSkills(suite)];
+  const missing = wanted.filter((k) => !existsSync(target(k.name))).map((k) => k.name);
+  const differs = wanted.filter((k) => existsSync(target(k.name)) && readFileSync(target(k.name), 'utf8') !== k.content).map((k) => k.name);
+  return { installed: true, missing, differs };
+}
+
+/** The commands a next step names: what the agent runs, what waits for a person, and the design changes. */
+export const skillCommands = (next) => [...(next.actions ?? []), ...(next.waiting ?? []), ...(next.changes ?? [])].map((a) => a.command).filter(Boolean);
+
+/**
+ * One line when the project cannot run what `ppc` names: a `/pp-…` command in `commands` that is not installed, and, with `all` (the start
+ * of a session), any command that is missing or differs. Empty where pp-suite is not installed (`ppc init` says that) or all is current.
+ */
+export function skillsWarning(root, commands = [], { all = false, suite = SUITE } = {}) {
+  const drift = skillDrift(root, suite);
+  if (!drift.installed) return '';
+  const named = new Set(commands.map((c) => /^\/(pp(?:-[a-z]+)?)(\s|$)/.exec(c)?.[1]).filter(Boolean));
+  const used = drift.missing.filter((name) => named.has(name));
+  const list = (names) => names.map((n) => `/${n}`).join(', ');
+  const parts = [];
+  if (used.length) parts.push(`${list(used)} ${used.length === 1 ? 'is' : 'are'} named by the next step but ${used.length === 1 ? 'is' : 'are'} not installed in this project (.claude/skills/${used[0]}/SKILL.md is missing), so that step cannot run here. Run \`ppc init --apply --update\` and commit what it writes as its own chore commit (\`ppc finish\` refuses uncommitted files).`);
+  if (all && (drift.missing.length || drift.differs.length)) {
+    const what = [drift.missing.length && `missing: ${list(drift.missing)}`, drift.differs.length && `different: ${list(drift.differs)}`].filter(Boolean).join('; ');
+    parts.push(`the installed commands do not match this pp-suite (${what}): an update was not applied here, or they were edited by hand. \`ppc init\` shows it and \`ppc init --apply --update\` refreshes them.`);
+  }
+  return parts.length ? `pp-suite WARNING: ${parts.join(' Also: ')}` : '';
 }

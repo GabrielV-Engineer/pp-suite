@@ -17,6 +17,8 @@ If the person named an id (`$ARGUMENTS`, for example `SL-022`, `CR-0006` or `DEB
 **When the person decides**, even when `ppc next` names another: they chose which. Then:
 
 1. Read where the project stands: the block above the first time, `ppc next --json` every time after.
+   If `warnings` is there, tell the person what it says before anything else, once: it means the next step names a command this
+   project does not have installed, and it cannot run until `ppc init --apply --update` is run and its files are committed.
    If `answered` lists panel answers that nothing carried out (the session ended, for example), say what the person chose and
    when. If it is `fresh`, run its `command` now: the guard accepts it. If not, it expired: ask that decision again, saying what
    they chose before.

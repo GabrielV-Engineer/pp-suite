@@ -500,3 +500,15 @@ test('CLI: a refused transition prints why and exits 1', (t) => {
   assert.match(r.stderr, /no slice is in progress/);
   assert.equal(existsSync(join(dir, '.sddpp/active.json')), false);
 });
+
+test('finish: when only the files of installing or updating pp-suite are uncommitted, it says so and what to do (found in the first real project, SL-011 and SL-035)', (t) => {
+  const { dir, commit, write } = repo(t);
+  start(dir, 'SL-001');
+  const red = commit('red', RED);
+  approveRed(dir, 'reviewer');
+  write({ '.claude/skills/pp-experience/SKILL.md': 'a skill\n', '.specify/extensions/sddpp-cycle/extension.yml': 'id: x\n', '.claude/settings.json': '{}\n' });
+  const input = { commits: [{ sha: red, kind: 'red' }], tests_added: 1 };
+  fails(() => finish(dir, 'SL-001', input), /uncommitted changes[\s\S]*\.claude\/skills\/pp-experience\/SKILL\.md[\s\S]*come from installing or updating pp-suite[\s\S]*chore\(pp-suite\)/);
+  write({ 'src/other.js': 'export const x = 1;\n' });
+  assert.throws(() => finish(dir, 'SL-001', input), (e) => e instanceof LifecycleError && /uncommitted/.test(e.message) && !/come from installing/.test(e.message), 'a code file among them: no claim about where the rest came from');
+});

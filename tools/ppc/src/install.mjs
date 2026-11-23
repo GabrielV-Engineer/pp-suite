@@ -1,7 +1,7 @@
 import { chmodSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parse as parseYaml } from 'yaml';
-import { longSkillNames, shortSkills, isOwnSkill } from './skills.mjs';
+import { longSkillNames, shortSkills, isOwnSkill, PP_SKILL_SOURCE } from './skills.mjs';
 import { readInventory, bareName } from './inventory.mjs';
 
 // Sets a project up for pp-suite. It reports first and changes nothing; `apply` runs only the project-level steps
@@ -36,7 +36,6 @@ const SESSION_HOOK_NAME = 'speckit.sddpp-cycle.session-start';
 const ANSWER_SCRIPTS = ['.specify/extensions/sddpp-guard/scripts/python/record_answer.py', '.specify/extensions/sddpp-guard/scripts/python/ledger.py'];
 const ANSWER_HOOK_NAME = 'speckit.sddpp-guard.record-answer';
 // `/pp`: the one command a person types. It is not a Spec Kit command, so it is written into the project directly.
-const PP_SKILL_SOURCE = 'sdd-pp/skills/pp/SKILL.md';
 const PP_SKILL_TARGET = '.claude/skills/pp/SKILL.md';
 
 const manifestVersion = (suite, file, key) => String(parseYaml(readFileSync(join(suite, file), 'utf8'))[key].version);
