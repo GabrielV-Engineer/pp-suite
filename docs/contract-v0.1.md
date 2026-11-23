@@ -205,6 +205,7 @@ Errors fail validation; warnings fail only with `--strict`. `ppc rules` prints t
 | `W09` | warning | An open debt entry was to be paid by a slice that closed without paying it, and no slice is to pay it now. |
 | `W10` | warning | The project declares a command that measures its quality targets (the experience standard), and a slice closed after that did not record, in its audit, what it measured against a performance or usability target it names. |
 | `W11` | warning | A slice closed after a tool was adopted for a role it called for, and its audit (`tools`, written by `ppc finish` from the record the hook keeps) says the tool was not used with no `reason`, or has no account of it. It reads the audit and never the local record of uses, because the record is not in git and CI has none; `used: null` (nothing recorded for the slice) is not judged. |
+| `W12` | warning | A `fix` slice still to be built has no `## Reproduction` section, or it lacks `Severity:`, `Seen by:` or `How to reproduce:` (`not reproduced yet` is an honest value). Closed and dropped slices were built before the rule, or not at all, and are not checked. |
 | `X01` | warning / error | An addition is still undecided (a warning while the design is drafted, an error once slices exist). |
 | `X02` | error | A cut addition was applied but something that only it justified is still in the design. |
 | `X03` | error | A cut addition was applied but the non-goal it becomes is not among the non-goals. |

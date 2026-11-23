@@ -18,8 +18,12 @@ $ARGUMENTS
 - **A `fix` slice starts from the bug.** Before any production code, write the test that reproduces it from the slice's
   `## Reproduction` section and watch it fail for the reason the bug gives; a test that passes proves nothing. Fix it, then
   watch that same test pass. In the audit's `deviations`, say in one line how you saw it fail (the command, or the old code you
-  put back). If the section says `not reproduced yet` and you cannot reproduce it either, stop and tell the person: do not
-  fix what you cannot see. (In the strict cycle the red phase already does this.)
+  put back). If the section says `not reproduced yet`, or its steps no longer reproduce it, and you cannot reproduce it
+  either, stop and tell the person: do not fix what you cannot see. For a failure that comes and goes, say how many runs and
+  under what load you tried (the real project: 40 runs, 0 failures). If the person chooses to fix it from the code, the evidence
+  is that the new test is not vacuous: put the fix back out (or remove the line it relies on) and show the test fails, and say in
+  `deviations` that the failure itself was never seen. A debt entry paid this way is paid on that account, not on a failure seen.
+  A criterion that guards what already works passes before the fix; say so. (In the strict cycle the red phase already does this.)
 - **Tests follow the test policy** (`test_policy` in `.architect/blueprint.yaml`, or in the slice):
   `required` means the slice cannot close without test files; `optional` means they are expected, and if there are none
   `ppc finish` proposes a debt entry for a person to decide; `none` means they are not asked for.

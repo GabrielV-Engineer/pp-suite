@@ -65,7 +65,8 @@ first; do not run those, and do not write `spec.md`, `plan.md` or `tasks.md`.
   issue if there is one) and `## Out of scope`, it has a `## Reproduction` section with three lines: `Severity:` (`critical`,
   `high`, `medium` or `low`, with the reason in a few words: who is hit, how often, whether data is at risk), `Seen by:` (who
   or what found it) and `How to reproduce:` (the steps, or the test that already fails). If the bug has not been reproduced,
-  write `not reproduced yet` there; do not invent steps. The first criterion is the one the reproducing test checks.
+  write `not reproduced yet` there; do not invent steps. `ppc validate` warns (`W12`) on a fix still to be built without the section or
+  one of its lines. The first criterion is the one the reproducing test checks.
 - New slices are `status: planned`. Never write `approved_by`, `phase`, `red_approved_by`, `mode` or any decision field.
   Do not write debt.
 

@@ -437,3 +437,43 @@ test('W04: a slice with many acceptance criteria probably needs splitting', () =
   slice(m, 'SL-002').data.acceptance = Array.from({ length: 6 }, (_, i) => ({ id: `AC-${i + 1}`, scenario: 'Given a state, when an action happens, then something is true.' }));
   assert.ok(has(run(m), 'W04', 'warning'));
 });
+
+// ── W12: a fix slice carries its bug (found in the first real project: four planned fix slices had no section and nothing said so) ───
+const asFix = (m, id, body) => {
+  const s = slice(m, id);
+  s.data.type = 'fix';
+  s.body = body;
+  return s;
+};
+const withReproduction = '\n## Behavior\n\nIt breaks.\n\n## Out of scope\n\nNothing else.\n\n## Reproduction\n\nSeverity: medium, one person, no data at risk\nSeen by: the owner\nHow to reproduce: add a task with 201 characters\n';
+
+test('W12: a fix slice still to be built has no "## Reproduction" section', () => {
+  const m = base();
+  asFix(m, 'SL-002', '\n## Behavior\n\nIt breaks.\n\n## Out of scope\n\nNothing else.\n');
+  const found = run(m).filter((f) => f.rule === 'W12');
+  assert.equal(found.length, 1);
+  assert.equal(found[0].severity, 'warning');
+  assert.match(found[0].message, /SL-002.*## Reproduction.*not reproduced yet/);
+});
+
+test('W12: it asks for the three lines too, and "not reproduced yet" is an honest value for the last one', () => {
+  const m = base();
+  asFix(m, 'SL-002', withReproduction.replace('Seen by: the owner\n', ''));
+  assert.match(run(m).find((f) => f.rule === 'W12').message, /Seen by:/);
+  const ok = base();
+  asFix(ok, 'SL-002', withReproduction.replace('add a task with 201 characters', 'not reproduced yet'));
+  assert.ok(!has(run(ok), 'W12'));
+  const full = base();
+  asFix(full, 'SL-002', withReproduction);
+  assert.ok(!has(run(full), 'W12'));
+});
+
+test('W12: not for a closed fix slice (built before the rule), a dropped one, or any other type', () => {
+  const closed = base();
+  asFix(closed, 'SL-002', '\n## Out of scope\n\nx\n').data.status = 'done';
+  assert.ok(!has(run(closed), 'W12'));
+  const dropped = base();
+  asFix(dropped, 'SL-002', '\n## Out of scope\n\nx\n').data.status = 'dropped';
+  assert.ok(!has(run(dropped), 'W12'));
+  assert.ok(!has(run(base()), 'W12'), 'features and the skeleton carry no bug');
+});

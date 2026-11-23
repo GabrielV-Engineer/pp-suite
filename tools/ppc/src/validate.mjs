@@ -84,6 +84,7 @@ export const RULES = {
   S03: 'Security, observability or experience is adopted and the design has no quality attribute of that kind (security, operability, usability).',
   K01: 'A role in the tools file is not one pp-suite knows, or is listed twice.',
   K02: 'A role decided "later" has a trigger that has now happened, so it should be decided again.',
+  W12: 'A fix slice still to be built has no "## Reproduction" section with Severity, Seen by and How to reproduce.',
   W11: 'A slice closed after a tool was adopted for a role it called for, and its audit says the tool was not used with no reason, or has no account of it.',
   K03: 'The tools file exists, a role applies to a slice that is not closed (by what it touches), and the role has no decision.',
   X05: 'An addition points at something that does not exist (a design id, or another addition it overlaps), or its id is duplicated.',
@@ -281,6 +282,15 @@ export function validateModel(model, { now = new Date() } = {}) {
     }
     if (s.phase && s.status !== 'in_progress') error('L01', file, `${s.id} has phase "${s.phase}" but status is ${s.status}`);
     if (WORK_TYPES.includes(s.type) && !hasHeading(body, 'Out of scope')) warn('W01', file, `${s.id} should state what it leaves out under "## Out of scope"`);
+    // W12: a fix carries its bug (/pp-plan writes it, /pp-build starts from it); closed ones were built before the rule, so only what is still to do
+    if (s.type === 'fix' && !['done', 'dropped'].includes(s.status)) {
+      const section = new RegExp('^##\\s+Reproduction\\s*$([\\s\\S]*?)(?=^##\\s|(?![\\s\\S]))', 'mi').exec(body)?.[1];
+      if (section === undefined) warn('W12', file, `${s.id} is a fix and has no "## Reproduction" section: write Severity, Seen by and How to reproduce (or "not reproduced yet"; do not invent steps)`);
+      else {
+        const lacking = ['Severity', 'Seen by', 'How to reproduce'].filter((label) => !new RegExp(`^\\s*${label}:\\s*\\S`, 'mi').test(section));
+        if (lacking.length) warn('W12', file, `${s.id}: its "## Reproduction" lacks ${lacking.map((l) => `${l}:`).join(', ')}`);
+      }
+    }
     if ((s.acceptance?.length ?? 0) > 5) warn('W04', file, `${s.id} has ${s.acceptance.length} acceptance criteria; consider splitting it`);
   }
 
