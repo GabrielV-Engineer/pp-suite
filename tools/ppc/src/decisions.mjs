@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { payProblem, screenApproved } from './policy.mjs';
+import { payProblem, screenApproved, redrawFirst } from './policy.mjs';
 import { glanceStandard, lookAt } from './glance.mjs';
 import { openReviews, modesFor, pendingReviews } from './review.mjs';
 import { pendingOutside, renderGuide } from './guide.mjs';
@@ -45,6 +45,8 @@ function sliceCard(model, entry, { redFiles, auditInput } = {}) {
   if (not) out.push(row('Does not', ''), ...bullets(not).map((b) => `      - ${b}`));
   if (s.acceptance?.length) out.push(row('Checked by', ''), ...s.acceptance.map((a) => `      - ${a.id}: ${a.scenario}`));
   if (s.depends_on?.length) out.push(row('Waits for', s.depends_on.join(', ')));
+  const redraw = redrawFirst(model, s);
+  if (redraw.length) out.push(row('Redraw first', redraw.map((r) => `${r.id} "${r.name}": ${r.lacks}`).join('; ')), '      Do not approve it yet: /pp-design ui redraws the mockup, and the new one is asked for again.');
   // the standards the person adopted that apply to what this slice touches (docs/standards.md)
   const kindOf = new Map((model.blueprint?.data.components ?? []).map((c) => [c.id, c.kind]));
   const applying = standardsFor(model.standards?.data?.standards ?? [], new Set((s.components ?? []).map((c) => kindOf.get(c))));

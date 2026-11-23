@@ -148,7 +148,7 @@ not used carries the agent's own `reason` (`tools_unused` in the audit input), a
 Optional, and expected when the design has a `frontend` component (`U01`). Its frontmatter (`ui.schema.json`) lists the screens:
 each has an id (`SCR-NN`), the capabilities it shows, the states it draws (`ready`, `loading`, `empty`, `error`), an HTML
 mockup under `.architect/ui/` and, optionally, a PNG of it. A person approves a screen with `ppc approve SCR-NN`, which records
-`approved_by` and the hash of the mockup (and image); if the file changes afterwards, the approval is stale (`U05`). The body
+`approved_by` and the hash of the mockup (and image); if the file changes afterwards, the approval is stale (`U05`). A screen may carry `redraw_before`, a sentence on what its approved mockup does not draw yet; while it is there, `ppc next` asks for the redraw before approving a slice on that screen (`U08`). The body
 has six sections: Navigation, Flows, States, Visual system, Accessibility (every text and background pair), Sizes. `app.check`
 names a command that opens the real app and writes screenshots, for the audit.
 
@@ -227,6 +227,7 @@ Errors fail validation; warnings fail only with `--strict`. `ppc rules` prints t
 | `U05` | warning | A screen's mockup is not approved, or it (or its image) changed after a person approved it (`ppc approve SCR-NN` records the hash). |
 | `U06` | warning, error for an unknown screen | An unfinished work slice on a frontend component names no screen (`screens`), or names a screen that does not exist. |
 | `U07` | warning | Slices build to screens and the interface document names no command that opens the real app (`app.check`). |
+| `U08` | warning | A slice still to be built names a screen whose approved mockup must be redrawn first (`redraw_before` in `ui.md`, a sentence saying what the mockup does not draw). `ppc next` then asks the agent to redraw instead of offering the approval, and the slice's card says so. Quiet once the mockup changed (`U05` asks again). |
 
 Cross-reference rules run only when `blueprint.yaml` itself is valid, since everything else points at it.
 

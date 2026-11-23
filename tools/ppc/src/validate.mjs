@@ -2,7 +2,7 @@ import Ajv2020 from 'ajv/dist/2020.js';
 import addFormats from 'ajv-formats';
 import { readFileSync } from 'node:fs';
 import { basename } from 'node:path';
-import { modeOf, testPolicy, PAYERS, touchesDebt, testsOpen } from './policy.mjs';
+import { modeOf, testPolicy, PAYERS, touchesDebt, testsOpen, redrawFirst } from './policy.mjs';
 import { STANDARDS, TRIGGERS, triggerFired } from './standards.mjs';
 import { ROLES, TRIGGERS as TOOL_TRIGGERS, undecidedRoles, rolesFor, roleFacts, triggerFired as toolTriggerFired } from './tools.mjs';
 
@@ -84,6 +84,7 @@ export const RULES = {
   S03: 'Security, observability or experience is adopted and the design has no quality attribute of that kind (security, operability, usability).',
   K01: 'A role in the tools file is not one pp-suite knows, or is listed twice.',
   K02: 'A role decided "later" has a trigger that has now happened, so it should be decided again.',
+  U08: 'A slice still to be built names a screen whose approved mockup must be redrawn first (redraw_before in ui.md).',
   W12: 'A fix slice still to be built has no "## Reproduction" section with Severity, Seen by and How to reproduce.',
   W11: 'A slice closed after a tool was adopted for a role it called for, and its audit says the tool was not used with no reason, or has no account of it.',
   K03: 'The tools file exists, a role applies to a slice that is not closed (by what it touches), and the role has no decision.',
@@ -255,6 +256,14 @@ export function validateModel(model, { now = new Date() } = {}) {
   // U07: once slices build to screens, the check of the real app is one command of the project, not a script per audit
   if (model.ui && !model.ui.data?.app?.check && slices.some(({ data: s }) => (s.screens ?? []).length)) {
     warn('U07', model.ui.file, 'slices build to screens but there is no app.check: write, in the project, a command that opens the real app and saves a screenshot of each screen, and name it in app.check');
+  }
+
+  // U08: ui.md says a mockup must be redrawn before the slices that build it are approved; `ppc next` and the card read the same field
+  if (model.ui) {
+    for (const { file, data: s } of slices) {
+      if (['done', 'dropped'].includes(s.status)) continue;
+      for (const r of redrawFirst(model, s)) warn('U08', file, `${s.id} builds to ${r.id} "${r.name}", whose mockup must be redrawn and approved again first: ${r.lacks}. Run /pp-design ui, then ask for the mockup again (ppc ask ${r.id})`);
+    }
   }
 
   // U06: a work slice on the interface names the screens it builds to

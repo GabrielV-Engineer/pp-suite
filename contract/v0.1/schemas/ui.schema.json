@@ -29,6 +29,7 @@
         "states": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "enum": ["ready", "loading", "empty", "error"] }, "description": "The states this screen shows; each one is drawn in the mockup." },
         "mockup": { "type": "string", "pattern": "^\\.architect/ui/.+\\.html$", "description": "The HTML mockup: the reference a person approves." },
         "image": { "type": "string", "pattern": "^\\.architect/ui/.+\\.png$", "description": "Optional screenshot of the mockup, when a capture tool is installed." },
+        "redraw_before": { "type": "string", "minLength": 10, "description": "What the approved mockup does not draw yet and must, redrawn and approved again, before the first slice that builds it is approved. Written by /pp-design ui; it removes the field when it redraws the mockup." },
         "approved_by": { "type": "string", "minLength": 1 },
         "mockup_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$", "description": "The mockup's hash when it was approved; a later change makes the approval stale." },
         "image_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
