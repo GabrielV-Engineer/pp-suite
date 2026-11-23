@@ -35,6 +35,18 @@ const COST = { high: 0, medium: 1, low: 2 };
 const costOf = (e) => COST[e.cost_of_delay?.level] ?? 3;
 const openHere = (model, s) => (['planned', 'ready'].includes(s.status) ? debtEntries(model).filter((e) => e.status === 'open' && !payProblem(s, e)).sort((a, b) => costOf(a) - costOf(b)) : []);
 
+// The size a slice was estimated at, against the budget before it is built and against what was measured after (B02).
+const budgetOf = (model) => model.blueprint?.data.budgets?.max_slice_production_lines;
+const overBudget = (model, s) => s.estimate && budgetOf(model) !== undefined && s.estimate.production_lines > budgetOf(model);
+function sizeLine(model, s) {
+  if (!s.estimate) return null;
+  const { production_lines: n, basis } = s.estimate;
+  if (s.audit) return `estimated ${n}, measured ${s.audit.production_lines} production lines`;
+  const budget = budgetOf(model);
+  const over = overBudget(model, s) ? '. Over the budget: split it before approving it, or its close will need an exception' : '';
+  return `estimated ${n} of ${budget} production lines (${basis})${over}`;
+}
+
 function sliceCard(model, entry, { redFiles, auditInput } = {}) {
   const s = entry.data;
   const red = s.status === 'in_progress' && s.phase === 'red';
@@ -44,6 +56,8 @@ function sliceCard(model, entry, { redFiles, auditInput } = {}) {
   const not = section(entry.body, 'Out of scope');
   if (not) out.push(row('Does not', ''), ...bullets(not).map((b) => `      - ${b}`));
   if (s.acceptance?.length) out.push(row('Checked by', ''), ...s.acceptance.map((a) => `      - ${a.id}: ${a.scenario}`));
+  const size = sizeLine(model, s);
+  if (size) out.push(row('Size', size));
   if (s.depends_on?.length) out.push(row('Waits for', s.depends_on.join(', ')));
   const redraw = redrawFirst(model, s);
   if (redraw.length) out.push(row('Redraw first', redraw.map((r) => `${r.id} "${r.name}": ${r.lacks}`).join('; ')), '      Do not approve it yet: /pp-design ui redraws the mockup, and the new one is asked for again.');
@@ -443,7 +457,7 @@ function whyOf(model, id, header, { budgetReason, mutationReason, payIn, addComp
   if (budgetReason !== undefined || mutationReason !== undefined) return 'Without it the slice does not close; with it, the slice closes whole and the reason stays in its audit for whoever reads it later.';
   if (addComponent !== undefined) return `A slice may change only the files of the components it lists, and this work needs ${addComponent}.`;
   const slice = model.slices.find((s) => s.data.id === id)?.data;
-  if (header === 'Slice') return `Approving it lets the build start, and it is built to what its card says it does and does not do (ppc show ${id}).`;
+  if (header === 'Slice') return `Approving it lets the build start, and it is built to what its card says it does and does not do (ppc show ${id}).${overBudget(model, slice) ? ` It is estimated at ${slice.estimate.production_lines} production lines, over the budget of ${budgetOf(model)}: split it first, or its close will need an exception.` : ''}`;
   if (header === 'Glance') {
     const n = lookAt(model, slice).length;
     return `You are the first person to meet what was built, the way a user will; ppc show ${id} lists ${n} thing${n === 1 ? '' : 's'} to look at.`;

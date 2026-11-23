@@ -50,8 +50,13 @@ first; do not run those, and do not write `spec.md`, `plan.md` or `tasks.md`.
 - **A dependency is code or data.** B depends on A only when B cannot be built or tested without what A builds. Wanting A
   first is an order, not a dependency: say it in the order, not in `depends_on`, because `ppc` will not start a slice
   whose dependencies are unfinished. `ppc validate` warns on a dependency between slices that share no component (`W08`).
-- **Size.** A slice's hand-written production code must fit `budgets.max_slice_production_lines` in the blueprint. If you
-  expect more, split by behavior. At most 5 acceptance criteria per slice.
+- **Size.** A slice's hand-written production code must fit `budgets.max_slice_production_lines` in the blueprint. Estimate
+  it per acceptance criterion (the files each one needs: store, API, screen, styles in both themes, keyboard use) and write
+  the total in the frontmatter as `estimate: { production_lines: <n>, basis: "<per criterion>" }`, for example
+  `basis: "AC-1 store ~80, AC-2 three API methods ~60, AC-3 the toolbar ~150"`. Tests do not count. If the total passes the
+  budget, split by behavior before showing the list: `ppc validate` warns on it (`B02`), and the slice card and its
+  approval say so to the person. If it cannot be split without leaving a half nobody can see working, say so in the list:
+  the person decides, before approving it, knowing its close will need an exception. At most 5 acceptance criteria per slice.
 - **Every capability gets a slice, and every quality attribute is referenced by one** that delivers or checks it. Plan every
   capability, also the ones a later phase will build: a slice stays `planned` until a person approves it, so it costs nothing
   to wait, and `T06` asks only that a live slice exists. Approve and start only the ones to build now.

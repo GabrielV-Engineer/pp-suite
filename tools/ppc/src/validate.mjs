@@ -43,6 +43,7 @@ export const RULES = {
   L04: 'More than one slice is in progress.',
   L05: 'A debt entry is marked paid but its paying slice is not done.',
   B01: 'A slice exceeded the production-code budget without a recorded reason.',
+  B02: 'A slice still to be built is estimated over the production-code budget.',
   M01: 'A slice mutation score is below the blueprint gate without a recorded reason.',
   C01: 'An audit commit does not exist in the git history.',
   C02: 'A green, refactor or structural commit touches a test file.',
@@ -291,6 +292,11 @@ export function validateModel(model, { now = new Date() } = {}) {
     }
     if (s.phase && s.status !== 'in_progress') error('L01', file, `${s.id} has phase "${s.phase}" but status is ${s.status}`);
     if (WORK_TYPES.includes(s.type) && !hasHeading(body, 'Out of scope')) warn('W01', file, `${s.id} should state what it leaves out under "## Out of scope"`);
+    // B02: the size is found when it is planned, not at the close (first real project: six slices over budget, each by an exception at finish)
+    const budget = bp.budgets.max_slice_production_lines;
+    if (['planned', 'ready'].includes(s.status) && s.estimate && s.estimate.production_lines > budget) {
+      warn('B02', file, `${s.id} is estimated at ${s.estimate.production_lines} production lines, budget is ${budget}: split it by behavior before it is approved, or the person approves it knowing its close will need an exception`);
+    }
     // W12: a fix carries its bug (/pp-plan writes it, /pp-build starts from it); closed ones were built before the rule, so only what is still to do
     if (s.type === 'fix' && !['done', 'dropped'].includes(s.status)) {
       const section = new RegExp('^##\\s+Reproduction\\s*$([\\s\\S]*?)(?=^##\\s|(?![\\s\\S]))', 'mi').exec(body)?.[1];

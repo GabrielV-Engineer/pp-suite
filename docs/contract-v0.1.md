@@ -90,6 +90,7 @@ Status flow: `planned` → `ready` → `in_progress` → `done` (or `dropped`).
   debt created, deviations). A spike instead records its `outcome`. A slice that pays debt (`pays`) adds `debt_paid` and
   `debt_unpaid` (each with its reason); a feature slice must account for every entry, and an unpaid one is open again.
 - A slice's audit may carry `measurements`: what the project's measuring command printed for each performance or usability target the slice names (`qa`, `command`, `value`, and `met`, the auditor's reading; `ppc finish` checks the shape, not `met`).
+- A slice may carry `estimate`: the production lines it is expected to change (`production_lines`) and how that was reckoned, per acceptance criterion (`basis`). `/pp-plan` writes it; `B02` warns while a slice still to be built is estimated over the budget, and its card says so before it is approved; a closed slice's card shows it beside what was measured. Optional: slices planned before the field have none.
 - `finish` writes `closed_on`, the day the slice closed (a slice closed before this field existed has none).
 - A closed slice may carry `glanced_by` and `glanced_on`: a person looked at what it built, as a user would meet it (the
   experience standard, `ppc glance`); `glance_skipped: true` says they decided not to. Never required, never a gate.
@@ -182,6 +183,7 @@ Errors fail validation; warnings fail only with `--strict`. `ppc rules` prints t
 | `L04` | error | More than one slice is in progress. |
 | `L05` | error | A debt entry is marked paid but its paying slice is not done. |
 | `B01` | error | A slice exceeded the production-code budget without a recorded reason. |
+| `B02` | warning | A slice still to be built is estimated over the production-code budget. |
 | `M01` | error | A slice mutation score is below the blueprint gate without a recorded reason. |
 | `C01` | error | An audit commit does not exist in the git history. (`ppc check-git`) |
 | `C02` | error | A green, refactor or structural commit touches a test file. (`ppc check-git`) |
