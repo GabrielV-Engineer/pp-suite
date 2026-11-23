@@ -27,9 +27,12 @@ an entry of technical debt. You do not decide anything: the person decides on th
     say what it is, where it comes from and what it would show. Then wait for what they report, and write their words under
     "Answers", saying they are theirs.
   - `explain`: say in a few lines what you will check and how, then do it.
-  - `delegate`: do it yourself and report. You may run the tools on the list the person authorized (`ppc standards experience`,
-    "Tools allowed"), see **Tools** below; for anything else, ask first. A tool you lack and may not use is a suggestion to the
-    person, with the same labels as in `guide`.
+  - `delegate`: hand the review to a fresh subagent (the Agent tool in Claude Code), because a session that did not build it reads it
+    as a stranger would. Give it the review file, `ppc rubric` for its surfaces and the closed slices, and tell it to read and run
+    only what the person authorized (`ppc standards experience`, "Tools allowed", see **Tools** below), to install nothing and to
+    write no file. It answers the rubric and proposes the findings; you check the main ones in the code before any becomes debt, and
+    say which you checked. If no subagent is available, say so and answer the rubric in this session, marking what you could not judge as a stranger.
+    A tool it lacks and may not use is a suggestion to the person, with the same labels as in `guide`.
 - **Read it as a stranger would.** Do not rely on having built it in this session. Open the real app, run the real command, read the
   real response. A criterion you could not check is written `not checked: <why>`, never `ok`.
 - **Say what you saw, not a verdict on taste.** For "feels current and quick" (and any criterion that is partly taste), write what is
@@ -44,6 +47,8 @@ an entry of technical debt. You do not decide anything: the person decides on th
   popular: pick it because it answers one criterion, and say which.
 - **Measuring.** If the standard shows no `Measures with:` command and a quality target of the design can be measured, you may
   propose one (`ppc ask experience --measure "<command>"`); the person decides, because every audit runs it.
+- **Closing is yours; deciding is not.** Writing the answers, proposing the debt and setting `status: closed` (steps 4 to 6) are your
+  step, in every mode. The person decides on each debt entry you propose (step 8), and only they record that an outside test happened.
 - **Never write a decision field.** `mode`, `mode_chosen_by`, `measure_command` and `allowed_tools` are the person's; the guard
   refuses them from you.
 - **A finding is a real concern, not an observation.** One entry of debt each, in the same words the person will read in the panel.

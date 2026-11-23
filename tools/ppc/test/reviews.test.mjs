@@ -275,3 +275,27 @@ test('openReview: names the skill that carries it out, and says when this projec
   assert.match(text, /WARNING: \/pp-experience is named by the next step but is not installed/);
   assert.match(text, /ppc init --apply --update/);
 });
+
+// ── who carries out a review, and how a new session is made in delegate mode (found in the first real project, RV-001 and RV-002) ───
+const doc = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
+
+test('openReview: says whose step carrying it out and closing it is, and whose the debt is', (t) => {
+  const r = closedRepo(t);
+  const { text } = openReview(r.dir, { scope: 'project', mode: 'delegate', by: 'owner', today: '2026-11-26' });
+  assert.match(text, /Next: \/pp-experience RV-001\n.*the agent's step.*closing the file is part of it.*you decide on each finding/i);
+});
+
+test('delegate mode is the same thing in the command and in the docs: a fresh subagent, whose main findings the agent checks, and nothing installed', () => {
+  const command = doc('../../../sdd-pp/extension/sddpp-cycle/commands/experience.md');
+  const standards = doc('../../../docs/standards.md');
+  const bullet = /^ {2}- `delegate`:[^\n]*(\n {4}[^\n]*)*/m.exec(command)?.[0] ?? '';
+  const row = /^\| `\/pp-experience` \|[^\n]*/m.exec(standards)?.[0] ?? '';
+  assert.ok(bullet && row, 'both places exist');
+  for (const [name, text] of [['the command', bullet], ['docs/standards.md', row]]) {
+    assert.match(text, /subagent/, `${name} says who answers in delegate mode`);
+    assert.match(text, /install(s|ing)? nothing|nothing is installed/, `${name} says nothing is installed`);
+    assert.doesNotMatch(text, /do it yourself/i, `${name} no longer says the agent does it alone`);
+  }
+  assert.match(command, /check[^\n]*in the code/i, 'the command has the agent check the main findings before they become debt');
+  assert.match(command, /Closing is yours/, 'the command says closing the review is the agent\'s step');
+});
