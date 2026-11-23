@@ -92,6 +92,7 @@ const USAGE = `ppc — pp-suite contract tool
                                          HUMAN ONLY: say someone other than the builder tried it (--skip: it will not happen); never holds anything up
     ppc reread (--all | SL-001 ...) [dir]
                                          HUMAN ONLY: say you read what changed in the design since the slices were planned (clears W03)
+    ppc ask experience --no-measure   the question that decides no command measures the quality targets
     ppc ask <id> [--budget-reason <why>] [--mutation-reason <why>] [--pay-in <slice>] [--details <text>] [dir]
                                          the question for the panel that decides it: the option that approves ends with the exact
                                          command; with a reason, the exception that lets a slice in progress close; with
@@ -111,6 +112,8 @@ const USAGE = `ppc — pp-suite contract tool
     ppc decide-standard <standard> (--adopt <choice> [--details <text>] | --later --trigger <what> | --not-needed --reason <why>) [--by <name>] [dir]
                                          HUMAN ONLY: decide one (security, observability, git or ci); deciding it again keeps the
                                          earlier answer in its history. --adopt custom --details "<text>" records your own rule or tool
+    ppc decide-standard experience --measure-none --reason <why> [--by <name>] [dir]
+                                         HUMAN ONLY: decide that no command measures the quality targets, so S04 stops saying so (a command given later replaces it)
     ppc decide-standard --accept-recommended [--by <name>] [dir]
                                          HUMAN ONLY: take the recommendation for every standard still undecided
     ppc tools [--have] [dir]             with --have, everything you have (skills, plugins, MCP servers) by name, for proposing a tool; otherwise each role (ui-design, ui-capture, security-review, db-inspect): the tool chosen for it, the slices not yet closed that call for it, and whether a chosen tool is on this machine
@@ -153,10 +156,10 @@ const VALUE_OPTIONS = new Set(['--standard', '--roles', '--use', '--measure', '-
 // into an approval (`ppc approve --help` once approved the one slice that could be approved).
 const OPTIONS = {
   rules: [], validate: ['--strict', '--design'], 'check-git': [], start: [], stop: [], 'approve-slice': ['--by'], approve: ['--by', '--accept', '--drop', '--reason', '--pay-in', '--mockup'],
-  show: [], ask: ['--budget-reason', '--mutation-reason', '--pay-in', '--add-component', '--details', '--measure', '--tools', '--add-tool', '--tool', '--kind', '--source', '--pinned', '--access', '--access-reason', '--use'], touches: [], widen: ['--component'], reread: ['--all'], guide: [], outside: ['--by', '--skip', '--note'], glance: ['--by', '--skip'], review: ['--project', '--mode', '--surface', '--by'], 'approve-debt': ['--by', '--accept', '--drop', '--reason'], 'schedule-debt': ['--slice'],
+  show: [], ask: ['--no-measure', '--budget-reason', '--mutation-reason', '--pay-in', '--add-component', '--details', '--measure', '--tools', '--add-tool', '--tool', '--kind', '--source', '--pinned', '--access', '--access-reason', '--use'], touches: [], widen: ['--component'], reread: ['--all'], guide: [], outside: ['--by', '--skip', '--note'], glance: ['--by', '--skip'], review: ['--project', '--mode', '--surface', '--by'], 'approve-debt': ['--by', '--accept', '--drop', '--reason'], 'schedule-debt': ['--slice'],
   'decide-addition': ['--keep', '--cut', '--alone', '--by', '--reason', '--accept-recommended', '--but-cut', '--but-keep'], additions: [],
   'decide-tool': ['--roles', '--use', '--adopt', '--kind', '--source', '--pinned', '--access', '--access-reason', '--later', '--trigger', '--not-needed', '--reason', '--by'],
-  rubric: [], standards: [], tools: ['--have'], 'decide-standard': ['--measure', '--tools', '--add-tool', '--adopt', '--details', '--later', '--trigger', '--not-needed', '--reason', '--accept-recommended', '--by'],
+  rubric: [], standards: [], tools: ['--have'], 'decide-standard': ['--measure', '--measure-none', '--tools', '--add-tool', '--adopt', '--details', '--later', '--trigger', '--not-needed', '--reason', '--accept-recommended', '--by'],
   'change-request': ['--slice', '--standard', '--design', '--title', '--problem', '--proposal', '--component', '--adr', '--qa', '--budgets'],
   'decide-change': ['--accept', '--reject', '--by', '--reason'], 'apply-change': [], 'approve-red': ['--by'], refactor: [],
   finish: ['--audit', '--budget-reason', '--mutation-reason'], mutation: ['--files', '--slice'], next: ['--json'], overview: [], map: ['--stdout', '--html', '--open', '--on', '--off', '--describe', '--descriptions'],
@@ -312,7 +315,7 @@ switch (command) {
     const inventory = options.get('use') !== undefined ? readInventory({ home: homedir(), root }) : undefined;
     let question;
     try {
-      question = id ? askFor(loadProject(root), id, { redFiles: redCommitFiles(root, id), budgetReason: options.get('budget-reason'), mutationReason: options.get('mutation-reason'), payIn: options.get('pay-in'), addComponent: options.get('add-component'), details: options.get('details'), measure: options.get('measure'), tools: options.get('tools'), addTool: options.get('add-tool'), tool: named, kind: options.get('kind'), source: options.get('source'), pinned: options.get('pinned'), access: options.get('access'), accessReason: options.get('access-reason'), installed, use: options.get('use'), inventory }) : null;
+      question = id ? askFor(loadProject(root), id, { noMeasure: flags.has('--no-measure'), redFiles: redCommitFiles(root, id), budgetReason: options.get('budget-reason'), mutationReason: options.get('mutation-reason'), payIn: options.get('pay-in'), addComponent: options.get('add-component'), details: options.get('details'), measure: options.get('measure'), tools: options.get('tools'), addTool: options.get('add-tool'), tool: named, kind: options.get('kind'), source: options.get('source'), pinned: options.get('pinned'), access: options.get('access'), accessReason: options.get('access-reason'), installed, use: options.get('use'), inventory }) : null;
     } catch (error) {
       if (!(error instanceof DecisionError)) throw error;
       console.error(error.message);
@@ -417,7 +420,7 @@ switch (command) {
       const other = positionals.find((p) => p !== id);
       if (other && !existsSync(resolve(other))) throw new LifecycleError(`unknown standard ${other}; the standards are ${[...STANDARD_IDS.keys()].join(', ')}`);
       const root = resolve(other ?? '.');
-      return decideStandard(root, id, { acceptRecommended: flags.has('--accept-recommended'), by: options.get('by') ?? gitUserName(root), adopt: options.get('adopt'), details: options.get('details'), measure: options.get('measure'), tools: options.get('tools')?.split(',').map((t) => t.trim()).filter(Boolean), addTool: options.get('add-tool'), later: flags.has('--later'), trigger: options.get('trigger'), notNeeded: flags.has('--not-needed'), reason: options.get('reason') });
+      return decideStandard(root, id, { acceptRecommended: flags.has('--accept-recommended'), by: options.get('by') ?? gitUserName(root), adopt: options.get('adopt'), details: options.get('details'), measure: options.get('measure'), tools: options.get('tools')?.split(',').map((t) => t.trim()).filter(Boolean), addTool: options.get('add-tool'), measureNone: flags.has('--measure-none'), later: flags.has('--later'), trigger: options.get('trigger'), notNeeded: flags.has('--not-needed'), reason: options.get('reason') });
     });
     break;
   case 'tools': {

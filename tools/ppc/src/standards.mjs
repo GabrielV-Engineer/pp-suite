@@ -155,7 +155,7 @@ export function renderStandards(list = [], recommended = {}, { bp, facts, only }
       out.push(row('Decided', `${describeAnswer(own)} (${own.decided_by}, ${own.decided_on})`));
       if (own.decision === 'adopt' && own.choice !== CUSTOM) out.push(row('Means', s.choices[own.choice]));
       if (s.id === 'experience' && own.decision === 'adopt') {
-        out.push(row('Measures with', own.measure_command ?? 'not declared: the quality targets are declared, not measured. To give a command:  ppc ask experience --measure "<command>"'));
+        out.push(row('Measures with', own.measure_command ?? (own.measure_declined ? `nothing: the quality targets are not measured, by decision (${own.measure_declined})` : 'not declared: the quality targets are declared, not measured. To give a command:  ppc ask experience --measure "<command>"  (or decide that none does:  ppc ask experience --no-measure)')));
         out.push(row('Tools allowed', own.allowed_tools?.length ? own.allowed_tools.join(', ') : 'none authorized. To authorize some:  ppc ask experience --tools "<a,b>"'));
       }
       if (own.decision === 'later' && bp && triggerFired(own.trigger, bp, facts)) out.push(row('Ask again', `${TRIGGERS[own.trigger]} has happened`));

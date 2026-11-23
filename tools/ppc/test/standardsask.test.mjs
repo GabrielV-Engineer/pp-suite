@@ -82,3 +82,37 @@ test('CLI: ppc standards prints them; decide-standard refuses unknown options an
   assert.match(askFor(loadProject(dir), 'git').questions[0].question, /Now: branch-per-slice/);
   assert.equal(ppc(dir, 'ask', 'standards').status, 0);
 });
+
+// ── postponing a deferred standard whose trigger has happened (found in the first real project: S02 on every /pp after "Not yet") ───
+const due = (t) => {
+  const r = repo(t);
+  const m = loadProject(r.dir);
+  m.facts = { gitRemote: 'git@github.com:someone/app.git', ciConfig: [] };
+  m.standards.data.standards = m.standards.data.standards.map((s) => (s.id === 'ci' ? { id: 'ci', decision: 'later', trigger: 'git_remote', decided_by: 'o', decided_on: '2026-11-19' } : s));
+  return m;
+};
+
+test('ppc ask ci: a standard that waited for a remote, which has appeared, can wait for the next trigger instead of being asked on every run', (t) => {
+  const q = askFor(due(t), 'ci').questions[0];
+  const commands = q.options.map(commandOf);
+  assert.ok(commands.includes('ppc decide-standard ci --later --trigger ci_config'), commands.join(' | '));
+  assert.ok(commands.includes('ppc decide-standard ci --adopt github'));
+  assert.ok(q.options.length <= 4);
+  const later = q.options.find((o) => commandOf(o).includes('--trigger ci_config'));
+  assert.match(later.label, /Later, when a CI configuration appears/);
+});
+
+test('ppc ask ci: with the next trigger already true there is nothing to postpone to', (t) => {
+  const m = due(t);
+  m.facts.ciConfig = ['.github/workflows/ci.yml'];
+  assert.ok(!askFor(m, 'ci').questions[0].options.some((o) => commandOf(o).includes('--later')));
+});
+
+test('postponing is recorded as a decision: the earlier "later" goes to history, and S02 stops while the new trigger has not happened', (t) => {
+  const r = repo(t);
+  const out = ppc(r.dir, 'decide-standard', 'ci', '--later', '--trigger', 'ci_config', '--by', 'owner');
+  assert.equal(out.status, 0, out.stderr);
+  const ci = parseYaml(readFileSync(join(r.dir, '.sddpp/standards.yaml'), 'utf8')).standards.find((s) => s.id === 'ci');
+  assert.deepEqual([ci.decision, ci.trigger], ['later', 'ci_config']);
+  assert.ok(ci.history?.length >= 1);
+});

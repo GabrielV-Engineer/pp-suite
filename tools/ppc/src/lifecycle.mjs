@@ -878,8 +878,12 @@ const checkedTool = (text) => {
   return name;
 };
 /** The command and the tools an adopted experience answer ends up with: what is asked, else what the one before it had. */
-function experienceExtras(before, { measure, tools, addTool }, today) {
-  const measure_command = measure !== undefined ? checkedMeasure(measure) : before?.measure_command;
+function experienceExtras(before, { measure, tools, addTool, measureNone, reason }, today) {
+  if (measureNone && measure !== undefined) fail('--measure-none says nothing measures the targets and --measure gives the command that does: not both');
+  if (measureNone && !(reason?.trim().length >= 5)) fail('--measure-none needs a --reason of at least 5 characters: why no command measures the quality targets here');
+  // deciding that nothing measures replaces a command, and a command decided later replaces that decision
+  const measure_command = measureNone ? undefined : measure !== undefined ? checkedMeasure(measure) : before?.measure_command;
+  const measure_declined = measureNone ? reason.trim() : measure !== undefined ? undefined : before?.measure_declined;
   let allowed = tools !== undefined ? tools.map(checkedTool) : before?.allowed_tools;
   if (new Set(allowed ?? []).size !== (allowed ?? []).length) fail('a tool is listed twice');
   if (addTool !== undefined) {
@@ -889,7 +893,7 @@ function experienceExtras(before, { measure, tools, addTool }, today) {
   }
   // the command has its own day: a new one is today, one kept keeps the day it was decided
   const measure_on = measure !== undefined ? today : before?.measure_on ?? before?.decided_on;
-  return { ...(measure_command ? { measure_command, measure_on } : {}), ...(allowed?.length ? { allowed_tools: allowed } : {}) };
+  return { ...(measure_command ? { measure_command, measure_on } : {}), ...(measure_declined ? { measure_declined } : {}), ...(allowed?.length ? { allowed_tools: allowed } : {}) };
 }
 
 /**
@@ -897,10 +901,10 @@ function experienceExtras(before, { measure, tools, addTool }, today) {
  * the design and the repository. A standard decided again keeps its earlier decision in `history`. Writes `.sddpp/standards.yaml`
  * and nothing else.
  */
-export function decideStandard(root, id, { acceptRecommended = false, by, today = new Date().toISOString().slice(0, 10), measure, tools, addTool, ...answer } = {}) {
+export function decideStandard(root, id, { acceptRecommended = false, by, today = new Date().toISOString().slice(0, 10), measure, tools, addTool, measureNone, ...answer } = {}) {
   if (!by || !by.trim()) fail('--by <name> is required (or set git config user.name): a person decides the standards');
-  const extras = { measure, tools, addTool };
-  const asksExtras = [measure, tools, addTool].some((x) => x !== undefined);
+  const extras = { measure, tools, addTool, measureNone, reason: answer.reason };
+  const asksExtras = [measure, tools, addTool].some((x) => x !== undefined) || Boolean(measureNone);
   const asksAnswer = answer.adopt !== undefined || Boolean(answer.later) || Boolean(answer.notNeeded);
   if (asksExtras && id !== 'experience') fail(`only the experience standard has a measuring command and tools; ${id ?? 'every standard'} has neither`);
   return transact(root, () => {

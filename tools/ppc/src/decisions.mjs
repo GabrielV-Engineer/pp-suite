@@ -6,7 +6,7 @@ import { pendingOutside, renderGuide } from './guide.mjs';
 import { SURFACES, surfacesFor } from './rubric.mjs';
 import { ROLES, TRIGGERS as TOOL_TRIGGERS, toolFromFlags, toolsFor, undecidedRoles, parseUse } from './tools.mjs';
 import { hasTool } from './inventory.mjs';
-import { STANDARDS, BY_ID, CUSTOM, TRIGGERS, recommend, renderStandards, describeAnswer, projectFacts, standardsFor } from './standards.mjs';
+import { STANDARDS, BY_ID, CUSTOM, TRIGGERS, recommend, renderStandards, describeAnswer, projectFacts, standardsFor, triggerFired } from './standards.mjs';
 
 // The card of one thing a person decides, in plain words: what it is and what approving it means. `ppc show <id>` prints it and
 // the `/pp` skill shows it in the chat before asking. Pure over the loaded model, except the red tests, whose files come from
@@ -236,6 +236,10 @@ export const ACCEPT_REASON = 'accepted in the panel';
 export const REJECT_REASON = 'rejected in the panel';
 export const DROP_REASON = 'dropped in the panel';
 export const NOT_NEEDED_REASON = 'not needed, decided in the panel';
+export const NOT_MEASURED_REASON = 'no command measures the quality targets, decided in the panel';
+
+// Where a deferred standard can wait for next once its trigger has happened (S02 asks again on every run until it is decided again).
+const POSTPONE = { ci: ['ci_config'], observability: ['backend_component', 'infra_component'], security: ['backend_component', 'database_component'] };
 const SAY_NO = [
   { label: 'I want to change something', description: 'Nothing is decided yet; say what to change and it is redone' },
   { label: 'Not yet', description: 'Nothing is decided; it waits for you' },
@@ -270,10 +274,15 @@ function carriedValue(flag, value, { min, max }) {
 }
 
 /** The panel questions about what the experience standard carries: the command that measures, the tools the agent may use. */
-function askExperienceExtras(model, { measure, tools, addTool }) {
+function askExperienceExtras(model, { measure, tools, addTool, noMeasure }) {
   const own = standardsOf(model).find((x) => x.id === 'experience' && x.decision === 'adopt');
   if (!own) return null;
   const No = { label: 'No', description: 'Nothing is decided; it waits for you' };
+  if (noMeasure) {
+    if (own.measure_declined) return null;
+    return { questions: [{ question: 'No command measures the quality targets of this project, and S04 keeps saying so. Decide that none does, so it stops?', header: 'Experience', multiSelect: false, options: [
+      choose('Yes, none measures them', `ppc decide-standard experience --measure-none --reason "${NOT_MEASURED_REASON}"`, 'S04 stops warning; the targets stay declared and are looked at by a person. A command decided later replaces this'), No] }] };
+  }
   if (measure !== undefined) {
     const command = carriedValue('--measure', measure, { min: 3, max: 300 });
     return { questions: [{ question: `Record \`${command}\` as how this project measures its quality targets? The audit of a slice will run it, so read it first.`, header: 'Experience', multiSelect: false, options: [
@@ -295,6 +304,7 @@ function askExperienceExtras(model, { measure, tools, addTool }) {
 /** The panel question for every undecided standard at once, or for one; the recommendation always first. */
 function askStandards(model, id, details, extras = {}) {
   if (id === 'experience' && Object.values(extras).some((x) => x !== undefined)) return askExperienceExtras(model, extras);
+  if (extras.noMeasure) return null;
   if (!model.blueprint) return null;
   const recommended = recommendedOf(model);
   if (id === 'standards') {
@@ -321,6 +331,13 @@ function askStandards(model, id, details, extras = {}) {
     ...(spec.product ? [{ decision: 'not_needed', reason: rec.decision === 'not_needed' ? rec.reason : NOT_NEEDED_REASON }] : []),
     ...(rec.decision === 'later' ? [rec] : []),
   ];
+  // a standard that waited for something that has happened can wait for the next thing, instead of being asked again at every run
+  const waiting = standardsOf(model).find((x) => x.id === id && x.decision === 'later');
+  const facts = factsOf(model);
+  if (waiting && triggerFired(waiting.trigger, model.blueprint.data, facts)) {
+    const next = (POSTPONE[id] ?? []).find((t) => t !== waiting.trigger && !triggerFired(t, model.blueprint.data, facts));
+    if (next) answers.push({ decision: 'later', trigger: next });
+  }
   const same = (a) => a.decision === rec.decision && a.choice === rec.choice && a.trigger === rec.trigger;
   const ordered = [...answers.filter(same), ...answers.filter((a) => !same(a))];
   const words = (a) => (a.decision === 'adopt' ? a.choice : a.decision === 'later' ? `Later, when ${TRIGGERS[a.trigger]}` : 'Not needed');
@@ -402,10 +419,10 @@ function askTools(model, { use, inventory }) {
     No] }] };
 }
 
-export function askFor(model, id, { redFiles, budgetReason, mutationReason, payIn, addComponent, details, measure, tools, addTool, tool, kind, source, pinned, access, accessReason, installed, use, inventory } = {}) {
+export function askFor(model, id, { noMeasure, redFiles, budgetReason, mutationReason, payIn, addComponent, details, measure, tools, addTool, tool, kind, source, pinned, access, accessReason, installed, use, inventory } = {}) {
   if (id === 'tools') return askTools(model, { use, inventory });
   if (ROLES.some((r) => r.id === id)) return askTool(model, id, { tool, kind, source, pinned, access, accessReason, installed });
-  if (id === 'standards' || BY_ID.has(id)) return askStandards(model, id, details, { measure, tools, addTool });
+  if (id === 'standards' || BY_ID.has(id)) return askStandards(model, id, details, { measure, tools, addTool, noMeasure: noMeasure || undefined });
   if (id === 'review' || /^CAP-\d{3}$/.test(id)) return askReview(model, id);
   if (/^RV-\d{3,}$/.test(id)) {
     if (!pendingOutside(model).some((r) => r.id === id)) return null;
