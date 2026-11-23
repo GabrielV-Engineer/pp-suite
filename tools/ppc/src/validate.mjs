@@ -221,8 +221,12 @@ export function validateModel(model, { now = new Date() } = {}) {
   // ── D03: a complexity budget ──────────────────────────────────
   const limits = LEVEL_LIMITS[bp.project.level];
   if (limits) {
-    const sizes = { components: bp.components.length, capabilities: bp.capabilities.length, quality_attributes: bp.quality_attributes.length };
-    const over = Object.entries(sizes).filter(([key, n]) => n > limits[key]).map(([key, n]) => `${n} ${key.replace('_', ' ')} (limit ${limits[key]})`);
+    // A quality attribute an adopted standard calls for (S03) is the person's decision, not scope the design chose: following S03's
+    // advice must not be what trips the limit (found in the first real project, QA-009 at level standard). One per standard.
+    const adopted = (Array.isArray(model.standards?.data?.standards) ? model.standards.data.standards : []).filter((s) => s.decision === 'adopt');
+    const asked = STANDARDS.filter((s) => s.product && adopted.some((x) => x.id === s.id) && bp.quality_attributes.some((q) => q.attribute === s.attribute)).length;
+    const sizes = { components: bp.components.length, capabilities: bp.capabilities.length, quality_attributes: bp.quality_attributes.length - asked };
+    const over = Object.entries(sizes).filter(([key, n]) => n > limits[key]).map(([key, n]) => `${n} ${key.replace('_', ' ')} (limit ${limits[key]})${key === 'quality_attributes' && asked ? `, not counting the ${asked} that adopted standards ask for` : ''}`);
     if (over.length) warn('D03', model.blueprint.file, `a ${bp.project.level} project has ${over.join(', ')}; cut scope or declare a larger level`);
   }
 
