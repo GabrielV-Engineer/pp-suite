@@ -33,6 +33,14 @@ person can run it again at any time.
   component> --title ... --problem ... --proposal ...` (`--design` in place of `--slice` when no slice is on that screen) that states the screens and sections to change, and put it to the
   person (see **When the person decides**). If they accept it, `/pp-change` revises the design, which includes this step's
   files, and the mockups it changes are approved again.
+- **When a screen's approved mockup does not yet draw what `ui.md` now describes** (a change request added to the screen, and the
+  mockup waits for its redraw), write it in the screen's `redraw_before` in the frontmatter: one sentence saying what is missing.
+  `ppc next` then asks for the redraw before it offers any slice on that screen for approval. When you redraw the mockup, remove
+  the field in the same step and ask for the new mockup (`ppc ask SCR-NN`). Do not leave it only in the prose ("Known gaps"): the
+  flow cannot read that.
+- **Redrawing to carry out a change request already applied needs no new one.** The change request that put the new elements in
+  `ui.md` is the decision; the redraw only draws what it decided. Name that CR in the commit. A redraw that adds or changes
+  anything the applied CR did not say is a new change, and goes through a change request as above.
 - Follow pp-suite's design guide: run `ppc contract` and read the file it names as `design guide`. If design skills are
   installed (`ppc init` lists them under "Design skills"), use them as well and list them in `design_skills`.
 - Do not invent capabilities: a screen shows capabilities the design already has. Something the person wants that no

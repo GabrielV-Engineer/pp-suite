@@ -145,7 +145,7 @@ test('show and ask SCR-NN: the card links the mockup, and the panel approves it 
 });
 
 // ── ppc next offers the interface step, and the screens to approve ──
-import { nextSteps } from '../src/next.mjs';
+import { nextSteps, renderNext } from '../src/next.mjs';
 
 test('next: before planning, a design with a frontend and no ui.md is designed first, then its mockups are approved', () => {
   const m = base();
@@ -241,4 +241,60 @@ test('U07: slices build to screens and the interface document names no command t
   delete noScreens.ui.data.app;
   for (const s of noScreens.slices) delete s.data.screens;
   assert.deepEqual(found(noScreens, 'U07'), [], 'before any slice builds to a screen, it is not needed yet');
+});
+
+// ── U08: a note the design wrote in prose, which the flow could not read (found in the first real project, SL-040) ───
+// ui.md said "the mockup is redrawn and approved again before the first slice that builds these is approved", `ppc next` offered the
+// approval anyway, and the mockup, unchanged since its approval, raised no U05. `redraw_before` says it in a field the flow reads.
+
+const DRAW = 'It does not draw the mode switch, the toolbar or the legend that CR-0021 added';
+const flagged = () => {
+  const m = base();
+  screen(m).redraw_before = DRAW;
+  return m;
+};
+const planned = (m) => m.slices.filter((s) => (s.data.screens ?? []).includes('SCR-01') && !['done', 'dropped'].includes(s.data.status)).map((s) => s.data.id);
+
+test('U08: a slice still to be built on a screen whose mockup must be redrawn first is warned about, naming the screen and the slice', () => {
+  const m = flagged();
+  const u08 = found(m, 'U08');
+  assert.equal(u08.length, planned(m).length);
+  assert.ok(u08.length > 0);
+  assert.equal(u08[0].severity, 'warning');
+  assert.match(u08[0].message, /SL-\d+ builds to SCR-01.*redrawn.*mode switch/);
+  assert.match(u08[0].message, /\/pp-design ui/);
+  assert.equal(found(base(), 'U08').length, 0, 'nothing is flagged without the field');
+});
+
+test('U08: once the mockup changed after its approval, U05 asks again and U08 stays quiet; a closed slice is not warned about', () => {
+  const redrawn = flagged();
+  redrawn.uiFiles[MOCKUP] = '0'.repeat(64);
+  assert.equal(found(redrawn, 'U08').length, 0);
+  assert.equal(found(redrawn, 'U05').length, 1);
+  const closed = flagged();
+  for (const s of closed.slices) if ((s.data.screens ?? []).includes('SCR-01')) s.data.status = 'done';
+  assert.equal(found(closed, 'U08').length, 0);
+});
+
+test('SCHEMA: redraw_before is a sentence, not an empty string', () => {
+  const m = base();
+  screen(m).redraw_before = '';
+  assert.ok(validateModel(m).some((f) => f.rule === 'SCHEMA' && f.severity === 'error'));
+});
+
+test('next: a slice whose screen must be redrawn first is not offered for approval; the agent redraws, then the mockup is asked again', () => {
+  const m = flagged();
+  for (const s of m.slices) if (s.data.status === 'ready') s.data.status = 'planned';
+  const r = nextSteps(m, []);
+  assert.equal(r.actions[0].who, 'agent');
+  assert.equal(r.actions[0].command, '/pp-design ui');
+  assert.match(r.actions[0].what, /Redraw SCR-01.*mode switch.*before SL-\d+ is approved/);
+  assert.doesNotMatch(renderNext(r), /ppc approve SL-/);
+});
+
+test('show: the card of such a slice says to redraw the screen first', () => {
+  const m = flagged();
+  const id = planned(m)[0];
+  m.slices.find((s) => s.data.id === id).data.status = 'planned';
+  assert.match(renderDecision(m, id), /Redraw first:.*SCR-01.*mode switch/);
 });

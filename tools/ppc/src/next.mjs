@@ -6,7 +6,7 @@
 
 import { existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { modeOf, testPolicy, screenApproved } from './policy.mjs';
+import { modeOf, testPolicy, screenApproved, redrawFirst } from './policy.mjs';
 import { askFor } from './decisions.mjs';
 import { STANDARDS, TRIGGERS, triggerFired } from './standards.mjs';
 import { TRIGGERS as TOOL_TRIGGERS, undecidedRoles, dueRoles } from './tools.mjs';
@@ -239,6 +239,13 @@ function stepsOf(model, subjects, errors, facts) {
   }
 
   const approvable = live.find((s) => s.status === 'planned' && !unfinished(s, byId).length);
+  const redraw = approvable ? redrawFirst(model, approvable) : [];
+  if (redraw.length) {
+    // the design says in a field what prose used to say: approving this slice would build it to a mockup that does not draw it (SL-040)
+    return result(`Nothing is approved to start. ${approvable.id} "${approvable.title}" is next, but the design asks that a mockup be redrawn first.`, [
+      { who: 'agent', what: `Redraw ${redraw.map((r) => `${r.id} "${r.name}" (${r.lacks})`).join('; ')} with the person before ${approvable.id} is approved, then the person approves the new mockup`, command: '/pp-design ui' },
+    ]);
+  }
   if (approvable) {
     return result(`Nothing is approved to start. ${approvable.id} "${approvable.title}" is the next planned slice.`, [
       { who: 'human', what: 'Read the slice (behavior, acceptance, out of scope) and approve it to start', command: `ppc approve ${approvable.id}`, decision: { type: 'slice', id: approvable.id } },

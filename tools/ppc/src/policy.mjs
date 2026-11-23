@@ -35,6 +35,14 @@ export function payProblem(slice, debt) {
 }
 
 /** Whether a screen's mockup (and image) is approved as it is now: approved_by is set and the hashes recorded then still match. */
+/**
+ * The screens of `slice` whose approved mockup must be redrawn first (`redraw_before` in ui.md), each with what it lacks. Only while the
+ * mockup is as it was approved: once it changed, U05 asks again, and the person is shown the new one.
+ */
+export const redrawFirst = (model, slice) => (model.ui?.data?.screens ?? [])
+  .filter((sc) => sc.redraw_before && (slice.screens ?? []).includes(sc.id) && screenApproved(model, sc))
+  .map((sc) => ({ id: sc.id, name: sc.name, lacks: sc.redraw_before }));
+
 export const screenApproved = (model, s) => Boolean(s.approved_by) && model.uiFiles?.[s.mockup] === s.mockup_sha256 && (!s.image || !s.image_sha256 || model.uiFiles?.[s.image] === s.image_sha256);
 
 /**
