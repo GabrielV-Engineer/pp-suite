@@ -143,3 +143,8 @@ test('the /pp skill says the inbox once per run and asks it in one panel, never 
   assert.match(text, /several questions in one (AskUserQuestion|panel) call/i);
   assert.doesNotMatch(text, /An item whose decision `type` is `glance`/, 'the one-by-one wording is gone');
 });
+
+// F-T19: the map was never put beside a decision. The card ends with it when the map is on; every skill gives it as a link.
+test('"When the person decides" gives the map beside the decision when the card ends with it', () => {
+  assert.match(DECIDES.replace(/\s+/g, ' '), /ends with a `Map:` line, give that link and say in a line which components the decision touches/);
+});

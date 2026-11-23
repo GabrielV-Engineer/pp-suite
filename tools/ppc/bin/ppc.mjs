@@ -7,7 +7,7 @@ import { checkGit, touches } from '../src/gitcheck.mjs';
 import { skillsWarning, skillCommands } from '../src/skills.mjs';
 import { mapModel, renderMermaid, writeMap } from '../src/map.mjs';
 import { describeFloorplan, DESCRIPTIONS_GUIDE, shareDescriptions, SHARED_DESCRIPTIONS } from '../src/floorplan.mjs';
-import { DESCRIPTION_PLACES, drawMap, mapLine, mapStatus, openPage, readMapSettings, recommendedDescriptions, redrawAfterClose, writeMapSettings } from '../src/mapflow.mjs';
+import { DESCRIPTION_PLACES, drawMap, mapCardLine, mapLine, mapStatus, openPage, readMapSettings, recommendedDescriptions, redrawAfterClose, writeMapSettings } from '../src/mapflow.mjs';
 import { designState, inboxOf, nextSteps, nextJson, noDesignNext, overview, renderNext } from '../src/next.mjs';
 import { execFileSync } from 'node:child_process';
 import { checkConstitution, writeConstitution, ConstitutionError } from '../src/constitution.mjs';
@@ -138,11 +138,11 @@ const USAGE = `ppc — pp-suite contract tool
     ppc inbox [dir]                      what waits for your look and holds nothing up (glances, reviews, outside tests, tool roles), oldest first
     ppc ask inbox [dir]                  up to four of those in one question panel, oldest first, each with the options of its own question
     ppc overview [dir]                   where the project stands: slices, capabilities, debt, contract
-    ppc map [dir] [--stdout | --html [--open]]
+    ppc map [dir] [--stdout | --html | --open]
                                          the project as a picture: components, capabilities and screens, read from the design and the slices.
                                          Writes .sddpp/map/map.md (mermaid diagrams, shown by GitHub); --stdout prints it and writes nothing;
                                          --html also draws the interactive map with Floorplan (adopted, see THIRD_PARTY.md), reading the code,
-                                         into floorplan/index.html (a folder git ignores); --open shows it in the browser
+                                         into floorplan/index.html (a folder git ignores); --open draws it too and shows it in the browser
     ppc map --describe [dir]             draw the map, then list the files with no description and the worksheets to write them from
     ppc map --on --descriptions <shared|clone> [--open] | --off [dir]
                                          put the map in the flow (off by default): each slice that closes redraws it, the session start
@@ -300,7 +300,9 @@ switch (command) {
     const id = positionals.find((p) => (/^([A-Z]+-|reread$|standards$|review$)/.test(p) || STANDARD_IDS.has(p)) && !p.includes('/'));
     const root = resolve(positionals.find((p) => p !== id) ?? '.');
     const model = loadProject(root);
-    const card = id ? renderDecision(model, id, { redFiles: redCommitFiles(root, id), auditInput: existsSync(join(root, AUDIT_INPUT)) }) : null;
+    const decided = id ? renderDecision(model, id, { redFiles: redCommitFiles(root, id), auditInput: existsSync(join(root, AUDIT_INPUT)) }) : null;
+    const onMap = decided && model.blueprint ? mapCardLine(root, model) : '';
+    const card = decided && onMap ? `${decided}\n${onMap}\n` : decided;
     if (!card) {
       console.error(id ? `${id}: there is nothing with that id (a slice SL-…, a debt entry DEBT-… or a change request CR-…)` : 'usage: ppc show <id> [dir]');
       process.exit(1);
@@ -596,7 +598,8 @@ switch (command) {
       }
       break;
     }
-    if (flags.has('--html')) {
+    // --open alone draws the page it opens (F-T22: it used to write map.md and open nothing)
+    if (flags.has('--html') || flags.has('--open')) {
       try {
         const { page, descriptions, conflicts } = drawMap(root, model);
         warnConflicts(conflicts);

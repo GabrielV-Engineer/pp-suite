@@ -167,3 +167,28 @@ test('the session start really draws the map in the background, and the map is c
   assert.ok(existsSync(page), 'drawn by the background run');
   assert.equal(JSON.parse(run(r.dir, 'next', '--json').stdout).map.stale, false);
 });
+
+// ── the map where a person decides (found in the first real project, F-T19 and F-T22) ───────────────────────────────────
+// The owner: "at no point have you shown me the floorplan, to help me take decisions". `ppc next` printed its path at every step,
+// and nothing put it beside a decision; `ppc map --open` wrote map.md and opened nothing.
+
+test('ppc show: with the map on, the card of a decision ends with the map as a link; off, no word about it', (t) => {
+  const r = repo(t);
+  assert.doesNotMatch(run(r.dir, 'show', 'SL-002').stdout, /Map/);
+  run(r.dir, 'map', '--on', '--descriptions', 'clone');
+  assert.match(run(r.dir, 'show', 'SL-002').stdout, /Map: not drawn yet; draw it to see what this touches: ppc map --html/);
+  assert.equal(run(r.dir, 'map', '--html').status, 0);
+  for (const id of ['SL-002', 'CR-0001', 'DEBT-BE-001']) {
+    const card = run(r.dir, 'show', id).stdout;
+    assert.ok(card.includes(`Map: [${PAGE}](${PAGE})`), `${id}: ${card}`);
+    assert.match(card, /components (it|this) touches/);
+  }
+});
+
+test('ppc map --open draws the interactive map and opens it, not only map.md', (t) => {
+  const r = repo(t);
+  const out = run(r.dir, 'map', '--open');
+  assert.equal(out.status, 0, out.stderr);
+  assert.match(out.stdout, /Interactive map written: floorplan\/index\.html/);
+  assert.ok(existsSync(join(r.dir, PAGE)));
+});

@@ -68,6 +68,19 @@ export function mapLine(root, model, { redrawing = false } = {}) {
   return `Map: ${status.page}${describeHint(status.descriptions)}\n`;
 }
 
+/**
+ * The last line of a decision's card (`ppc show`), or '' while the map is off: the map as a link the chat opens, so the person sees
+ * which components a decision touches before deciding. Found in the first real project (F-T19): the path was printed at every step
+ * and never put beside a decision.
+ */
+export function mapCardLine(root, model) {
+  const status = mapStatus(root, model);
+  if (!status) return '';
+  if (!status.drawn) return 'Map: not drawn yet; draw it to see what this touches: ppc map --html';
+  const behind = status.stale ? ' It is behind the code; redraw it first: ppc map --html' : '';
+  return `Map: [${FLOORPLAN_PAGE}](${FLOORPLAN_PAGE}): the components this touches, and what is built around them.${behind}`;
+}
+
 const CLI = fileURLToPath(new URL('../bin/ppc.mjs', import.meta.url));
 const MARK_LIFETIME_MS = 10 * 60 * 1000;
 
