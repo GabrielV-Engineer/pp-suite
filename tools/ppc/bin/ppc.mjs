@@ -26,6 +26,7 @@ import { buildPrompts, resolveTarget, writePrompts } from '../src/prompts.mjs';
 import { openReview, recordOutside } from '../src/reviewfile.mjs';
 import { renderGuide } from '../src/guide.mjs';
 import { renderInbox, askInbox } from '../src/inbox.mjs';
+import { askedReport, renderAsked } from '../src/asked.mjs';
 import { start, stop, widen, approve, reread, glance, approveSlice, approveRed, approveDebt, scheduleDebt, decideAddition, decideStandard, decideTool, decideTools, toRefactor, finish, mutate, status, LifecycleError } from '../src/lifecycle.mjs';
 
 const USAGE = `ppc — pp-suite contract tool
@@ -137,6 +138,7 @@ const USAGE = `ppc — pp-suite contract tool
     ppc status [dir]                     what is in progress
     ppc next [dir] [--json]              whose turn it is and the exact command to run (--json: the same, for the /pp skill)
     ppc inbox [dir]                      what waits for your look and holds nothing up (glances, reviews, outside tests, tool roles), oldest first
+    ppc asked [dir] [--json]             how the person's side went, in numbers: panel answers (carried out, not yet, own words), glances, budget; reads only
     ppc ask inbox [dir]                  up to four of those in one question panel, oldest first, each with the options of its own question
     ppc overview [dir]                   where the project stands: slices, capabilities, debt, contract
     ppc map [dir] [--stdout | --html | --open]
@@ -160,7 +162,7 @@ const VALUE_OPTIONS = new Set(['--check-command', '--standard', '--roles', '--us
 // into an approval (`ppc approve --help` once approved the one slice that could be approved).
 const OPTIONS = {
   rules: [], validate: ['--strict', '--design'], 'check-git': [], start: [], stop: [], 'approve-slice': ['--by'], approve: ['--by', '--accept', '--drop', '--reason', '--pay-in', '--mockup'],
-  show: [], inbox: [], ask: ['--no-measure', '--budget-reason', '--mutation-reason', '--pay-in', '--add-component', '--details', '--measure', '--tools', '--add-tool', '--tool', '--kind', '--source', '--pinned', '--access', '--access-reason', '--use', '--check-command'], touches: [], widen: ['--component'], reread: ['--all'], guide: [], outside: ['--by', '--skip', '--note'], glance: ['--by', '--skip'], review: ['--project', '--mode', '--surface', '--by'], 'approve-debt': ['--by', '--accept', '--drop', '--reason'], 'schedule-debt': ['--slice'],
+  show: [], inbox: [], asked: ['--json'], ask: ['--no-measure', '--budget-reason', '--mutation-reason', '--pay-in', '--add-component', '--details', '--measure', '--tools', '--add-tool', '--tool', '--kind', '--source', '--pinned', '--access', '--access-reason', '--use', '--check-command'], touches: [], widen: ['--component'], reread: ['--all'], guide: [], outside: ['--by', '--skip', '--note'], glance: ['--by', '--skip'], review: ['--project', '--mode', '--surface', '--by'], 'approve-debt': ['--by', '--accept', '--drop', '--reason'], 'schedule-debt': ['--slice'],
   'decide-addition': ['--keep', '--cut', '--alone', '--by', '--reason', '--accept-recommended', '--but-cut', '--but-keep'], additions: [],
   'decide-tool': ['--roles', '--use', '--adopt', '--kind', '--source', '--pinned', '--access', '--access-reason', '--later', '--trigger', '--not-needed', '--reason', '--by', '--check-command'],
   rubric: [], standards: [], tools: ['--have', '--run-checks'], 'decide-standard': ['--measure', '--measure-none', '--tools', '--add-tool', '--adopt', '--details', '--later', '--trigger', '--not-needed', '--reason', '--accept-recommended', '--by'],
@@ -332,6 +334,29 @@ switch (command) {
       process.exit(1);
     }
     process.stdout.write(`${JSON.stringify(question, null, 2)}\n`);
+    break;
+  }
+  case 'asked': {
+    const root = dirAt(0);
+    const model = loadProject(root);
+    if (!model.blueprint) {
+      console.error('there is no design yet (.architect/blueprint.yaml); there is nothing to report');
+      process.exit(1);
+    }
+    let lines = [];
+    try {
+      lines = readFileSync(join(root, '.sddpp/answers.jsonl'), 'utf8').split('\n').map((l) => {
+        try {
+          return JSON.parse(l);
+        } catch {
+          return null;
+        }
+      });
+    } catch {
+      // no answers yet: the slices are still reported
+    }
+    const report = askedReport(model, lines);
+    process.stdout.write(flags.has('--json') ? `${JSON.stringify(report, null, 2)}\n` : renderAsked(report));
     break;
   }
   case 'inbox': {

@@ -21,14 +21,34 @@ def record(payload, root: Path):
     answers = response.get("answers") if isinstance(response, dict) else None
     if not isinstance(answers, dict):
         return
+    offered = _offered(payload.get("tool_input"))
     for index, (question, chosen) in enumerate(answers.items()):
         for label in chosen if isinstance(chosen, list) else [chosen]:
             command = ledger.command_of(label)
+            base = {"id": f"{payload.get('tool_use_id') or 'unknown'}#{index}", "at": time.time(), "session_id": payload.get("session_id"),
+                    "tool_use_id": payload.get("tool_use_id"), "question": question}
             if command:
-                ledger.append(root, {
-                    "id": f"{payload.get('tool_use_id') or 'unknown'}#{index}", "at": time.time(), "session_id": payload.get("session_id"),
-                    "tool_use_id": payload.get("tool_use_id"), "question": question, "label": label, "command": command,
-                })
+                ledger.append(root, {**base, "label": label, "command": command})
+                continue
+            # An answer that carries out nothing ("not yet", or the person's own words) is noted with no command, so the guard never
+            # matches it and `ppc asked` can count it. Their own words are never kept: only that they were their own.
+            options = offered.get(question)
+            if options is None:
+                ledger.append(root, {**base, "kind": "unknown"})
+            elif label in options:
+                ledger.append(root, {**base, "kind": "option", "label": label})
+            else:
+                ledger.append(root, {**base, "kind": "own-words"})
+
+
+def _offered(tool_input):
+    """The option labels each question offered, by question text; a question whose options are not in the payload is left out."""
+    out = {}
+    questions = tool_input.get("questions") if isinstance(tool_input, dict) else None
+    for q in questions if isinstance(questions, list) else []:
+        if isinstance(q, dict) and isinstance(q.get("question"), str) and isinstance(q.get("options"), list):
+            out[q["question"]] = {o.get("label") for o in q["options"] if isinstance(o, dict)}
+    return out
 
 
 def record_use(payload, root: Path):

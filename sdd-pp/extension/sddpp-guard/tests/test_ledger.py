@@ -106,16 +106,38 @@ class LedgerTest(unittest.TestCase):
         self.assertEqual((entry["session_id"], entry["tool_use_id"], entry["label"], entry["question"]), ("S1", "toolu_A", SLICE_YES, "Approve SL-001?"))
         self.assertGreaterEqual(entry["at"], before)
 
-    def test_answers_that_name_no_command_are_not_recorded(self):
+    def test_an_answer_that_names_no_command_is_noted_without_a_command_and_lets_nothing_through(self):
+        # `ppc asked` counts them (how often the person said "not yet", or answered in their own words); the guard never matches them
+        root = self.project()
+        payload = answered({"Approve SL-001?": "Todavía no"})
+        payload["tool_input"]["questions"] = [{"question": "Approve SL-001?", "options": [{"label": SLICE_YES}, {"label": "Todavía no"}]}]
+        record_answer.record(payload, root)
+        (entry,) = self.lines(root)
+        self.assertNotIn("command", entry)
+        self.assertEqual((entry["kind"], entry["label"], entry["question"]), ("option", "Todavía no", "Approve SL-001?"))
+        self.assertFalse(ledger.consume(root, ["ppc approve SL-001"], session_id="S1"))
+
+    def test_own_words_are_noted_as_such_and_their_text_is_never_kept(self):
+        root = self.project()
+        payload = answered({"Approve SL-001?": "justify why, and what it would be for"})
+        payload["tool_input"]["questions"] = [{"question": "Approve SL-001?", "options": [{"label": SLICE_YES}, {"label": "Todavía no"}]}]
+        record_answer.record(payload, root)
+        (entry,) = self.lines(root)
+        self.assertEqual(entry["kind"], "own-words")
+        self.assertNotIn("label", entry)
+        self.assertNotIn("justify", json.dumps(entry))
+
+    def test_without_the_options_it_cannot_tell_and_keeps_no_text(self):
         root = self.project()
         self.record(root, {"Approve probe-1?": "Yes, approve probe-1"})
-        self.record(root, {"Approve SL-001?": "Todavía no"})
-        self.assertEqual(self.lines(root), [])
+        (entry,) = self.lines(root)
+        self.assertEqual(entry["kind"], "unknown")
+        self.assertNotIn("label", entry)
 
     def test_several_questions_and_a_multiple_choice_answer_are_each_recorded(self):
         root = self.project()
         self.record(root, {"A?": SLICE_YES, "B?": [DEBT_DROP, "otra cosa"]})
-        self.assertEqual(sorted(e["command"] for e in self.lines(root)), ["ppc approve DEBT-BE-001 --drop", "ppc approve SL-001"])
+        self.assertEqual(sorted(e["command"] for e in self.lines(root) if "command" in e), ["ppc approve DEBT-BE-001 --drop", "ppc approve SL-001"])
 
     def test_the_recorder_ignores_other_tools_and_payloads_it_cannot_read(self):
         root = self.project()
