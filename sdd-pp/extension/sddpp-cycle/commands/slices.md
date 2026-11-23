@@ -10,6 +10,11 @@ $ARGUMENTS
 
 Optional: capability ids to plan (for example `CAP-002,CAP-003`). Empty means every capability that has no slice yet.
 
+Or debt ids (`DEBT-UI-026,DEBT-MCP-002`), which `ppc next` asks for when open debt has no slice still to be built that touches its
+component (a review's findings, for example): plan one `fix` slice for the entries that belong together (a `refactor` slice may not
+change tests or behavior), on the component that owns them, with the entries' own words as its `## Behavior` and `## Reproduction`.
+Show the person the list as for any slice; once the slices are written, put each entry to them with `ppc ask DEBT-… --pay-in <slice>`.
+
 ## What this step is
 
 The design in `.architect/` already says what the system is: capabilities, components, quality targets, decisions and

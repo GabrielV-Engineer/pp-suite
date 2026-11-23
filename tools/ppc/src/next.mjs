@@ -6,7 +6,7 @@
 
 import { existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { modeOf, testPolicy, screenApproved, redrawFirst } from './policy.mjs';
+import { modeOf, testPolicy, screenApproved, redrawFirst, touchesDebt, PAYERS } from './policy.mjs';
 import { askFor } from './decisions.mjs';
 import { STANDARDS, TRIGGERS, triggerFired } from './standards.mjs';
 import { TRIGGERS as TOOL_TRIGGERS, undecidedRoles, dueRoles } from './tools.mjs';
@@ -134,6 +134,15 @@ function stepsOf(model, subjects, errors, facts) {
   for (const [id, by] of leftUnpaid) {
     const e = entries.get(id);
     if (e?.status === 'open' && !e.paid_by) waiting.push({ who: 'human', what: `${by} closed without paying ${id}: ${e.title}. Choose the next slice that touches ${e.component} to pay it`, command: `ppc ask ${id} --pay-in <slice>` });
+  }
+  // Debt that costs something to wait for, open and tied to no slice, with no slice still to be built that could pay it: `--pay-in` has
+  // nothing to name, so it would be forgotten (found in the first real project: the findings of a review). One item for all of them.
+  // What a closed slice left unpaid has its own item above.
+  const payers = live.filter((s) => PAYERS.includes(s.type) && ['planned', 'ready'].includes(s.status));
+  const stranded = [...entries.values()].filter((e) => e.status === 'open' && !e.paid_by && !leftUnpaid.has(e.id) && ['medium', 'high'].includes(e.cost_of_delay?.level) && !payers.some((s) => touchesDebt(s, e)));
+  if (slices.length && stranded.length) {
+    const where = [...new Set(stranded.map((e) => e.component))].join(', ');
+    waiting.push({ who: 'agent', what: `${stranded.length === 1 ? `${stranded[0].id} (${stranded[0].title}) is open` : `${stranded.length} debt entries are open (${stranded.map((e) => e.id).join(', ')})`} in ${where}, and no slice still to be built touches ${stranded.length === 1 ? 'that component' : 'those components'}, so nothing could pay ${stranded.length === 1 ? 'it' : 'them'}: plan a slice for ${stranded.length === 1 ? 'it' : 'them'}; it holds nothing up`, command: `/pp-plan ${stranded.map((e) => e.id).join(',')}` });
   }
   // The interface (F-U1): with a frontend, the screens are designed and their mockups approved before slices are built to them
   const hasFrontend = model.blueprint?.data.components?.some((c) => c.kind === 'frontend');

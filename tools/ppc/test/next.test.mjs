@@ -234,3 +234,36 @@ test('next: any other error next to a missing slice is still "fix the errors"', 
   const errors = [...errorsOf(m), { rule: 'T01', severity: 'error', file: 'x', message: 'something else' }];
   assert.match(first(nextSteps(m, [], errors)).command, /ppc validate/);
 });
+
+// ── debt nobody can pay (found in the first real project: DEBT-UI-026 to 028 after a review, with no slice that touched their component) ───
+const stranded = (over = {}) => {
+  const m = base();
+  const e = m.debt.flatMap((d) => d.data.entries).find((x) => x.id === 'DEBT-FE-001');
+  Object.assign(e, { status: 'open', ...over });
+  delete e.paid_by;
+  for (const s of m.slices) if (['planned', 'ready'].includes(s.data.status)) Object.assign(s.data, { status: 'done' });
+  return m;
+};
+const planFor = (r) => r.waiting.find((w) => /^\/pp-plan DEBT-/.test(w.command));
+
+test('next: open debt that costs something and that no slice still to be built could pay is put to the agent to plan, once, never as the next step', () => {
+  const m = stranded();
+  const r = nextSteps(m, []);
+  const item = planFor(r);
+  assert.equal(item.who, 'agent');
+  assert.equal(item.command, '/pp-plan DEBT-FE-001');
+  assert.match(item.what, /DEBT-FE-001.*frontend.*no slice/);
+  assert.ok(r.actions.every((a) => !/pp-plan DEBT/.test(a.command)), 'it holds nothing up');
+});
+
+test('next: nothing to plan when a slice still to be built touches the component, when the debt is cheap, or when a closed slice already left it for the person to place', () => {
+  const touched = stranded();
+  Object.assign(touched.slices.find((s) => s.data.id === 'SL-007').data, { status: 'planned' });
+  assert.equal(planFor(nextSteps(touched, [])), undefined, 'SL-007 touches the frontend');
+  const cheap = stranded({ cost_of_delay: { level: 'low', rationale: 'It costs nothing today, as far as anyone can tell.' } });
+  assert.equal(planFor(nextSteps(cheap, [])), undefined);
+  const left = stranded();
+  Object.assign(left.slices.find((s) => s.data.id === 'SL-002').data, { audit: { debt_unpaid: [{ id: 'DEBT-FE-001', reason: 'It did not fit the slice' }] } });
+  assert.equal(planFor(nextSteps(left, [])), undefined, 'the item that asks for the next slice already says it');
+  assert.equal(planFor(nextSteps(base(), [])), undefined, 'a scheduled entry has its slice');
+});
